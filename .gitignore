@@ -23,6 +23,11 @@ Thumbs.db
 *.zip
 dist/
 
+# Internal project files
+CLAUDE.md
+CHANGELOG.md
+README.md
+
 # Logs
 *.log
 
