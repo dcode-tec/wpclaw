@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<ruleset name="WP-Claw">
+    <description>WordPress coding standards for WP-Claw</description>
+
+    <rule ref="WordPress-Extra"/>
+
+    <config name="testVersion" value="7.4-"/>
+    <config name="text_domain" value="wp-claw"/>
+    <config name="minimum_wp_version" value="6.4"/>
+
+    <arg name="extensions" value="php"/>
+    <arg value="s"/>
+
+    <file>wp-claw.php</file>
+    <file>uninstall.php</file>
+    <file>includes/</file>
+    <file>admin/</file>
+    <file>public/</file>
+
+    <exclude-pattern>vendor/*</exclude-pattern>
+    <exclude-pattern>node_modules/*</exclude-pattern>
+    <exclude-pattern>tests/*</exclude-pattern>
+</ruleset>

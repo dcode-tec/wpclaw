@@ -1,0 +1,937 @@
+<?php
+/**
+ * Admin UI — menus, settings, asset loading, admin bar badge.
+ *
+ * Registers the WP-Claw top-level menu and five submenus, enqueues
+ * admin assets only on WP-Claw pages, registers all plugin settings,
+ * adds an admin bar status badge, and handles the post-activation redirect.
+ *
+ * @package    WPClaw
+ * @subpackage WPClaw/includes
+ * @author     dcode technologies <dev@d-code.lu>
+ * @copyright  2026 dcode technologies S.a r.l.
+ * @license    GPL-2.0-or-later
+ * @since      1.0.0
+ */
+
+namespace WPClaw;
+
+defined( 'ABSPATH' ) || exit;
+
+/**
+ * Manages all WordPress admin UI integration for WP-Claw.
+ *
+ * Responsibilities:
+ *  - Register the top-level admin menu and five submenus with granular capabilities.
+ *  - Enqueue admin CSS and JS only on WP-Claw pages (no leaking to other screens).
+ *  - Register and sanitize all plugin settings via the WordPress Settings API.
+ *  - Add a real-time status badge to the admin bar (green/yellow/red dot).
+ *  - Handle the post-activation redirect to the settings page.
+ *
+ * @since 1.0.0
+ */
+class Admin {
+
+	/**
+	 * API client used to determine connection status for the admin bar badge.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @var API_Client
+	 */
+	private API_Client $api_client;
+
+	/**
+	 * Page hook suffixes returned by add_menu_page() / add_submenu_page().
+	 *
+	 * Used by enqueue_assets() to restrict asset loading to WP-Claw screens.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @var string[]
+	 */
+	private array $page_hooks = [];
+
+	/**
+	 * Constructor.
+	 *
+	 * Wires all admin hooks. Hooks are registered here; logic executes later.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param API_Client $api_client The Klawty API client instance.
+	 */
+	public function __construct( API_Client $api_client ) {
+		$this->api_client = $api_client;
+
+		add_action( 'admin_menu', [ $this, 'register_menus' ] );
+		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
+		add_action( 'admin_init', [ $this, 'register_settings' ] );
+		add_action( 'admin_init', [ $this, 'maybe_redirect_after_activation' ] );
+		add_action( 'admin_bar_menu', [ $this, 'add_admin_bar_node' ], 100 );
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin menus
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Register the top-level WP-Claw menu and all submenus.
+	 *
+	 * Uses granular capabilities so site administrators can grant access to
+	 * individual sections without giving full plugin management rights.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function register_menus(): void {
+		// Top-level menu entry. Renders the Dashboard view.
+		$this->page_hooks[] = add_menu_page(
+			__( 'WP-Claw', 'wp-claw' ),
+			__( 'WP-Claw', 'wp-claw' ),
+			'wp_claw_view_dashboard',
+			'wp-claw',
+			[ $this, 'render_dashboard' ],
+			'dashicons-superhero',
+			80
+		);
+
+		// Dashboard (first submenu mirrors the top-level item).
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Dashboard — WP-Claw', 'wp-claw' ),
+			__( 'Dashboard', 'wp-claw' ),
+			'wp_claw_view_dashboard',
+			'wp-claw',
+			[ $this, 'render_dashboard' ]
+		);
+
+		// Agents overview.
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Agents — WP-Claw', 'wp-claw' ),
+			__( 'Agents', 'wp-claw' ),
+			'wp_claw_manage_agents',
+			'wp-claw-agents',
+			[ $this, 'render_agents' ]
+		);
+
+		// Proposals queue.
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Proposals — WP-Claw', 'wp-claw' ),
+			__( 'Proposals', 'wp-claw' ),
+			'wp_claw_approve_proposals',
+			'wp-claw-proposals',
+			[ $this, 'render_proposals' ]
+		);
+
+		// Settings page.
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Settings — WP-Claw', 'wp-claw' ),
+			__( 'Settings', 'wp-claw' ),
+			'wp_claw_manage_settings',
+			'wp-claw-settings',
+			[ $this, 'render_settings' ]
+		);
+
+		// Modules management.
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Modules — WP-Claw', 'wp-claw' ),
+			__( 'Modules', 'wp-claw' ),
+			'wp_claw_manage_modules',
+			'wp-claw-modules',
+			[ $this, 'render_modules' ]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Asset loading
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Enqueue admin CSS and JS on WP-Claw admin pages only.
+	 *
+	 * Assets are never loaded on other admin screens to avoid CSS/JS conflicts
+	 * and unnecessary HTTP requests.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $hook_suffix The current admin page hook suffix.
+	 *
+	 * @return void
+	 */
+	public function enqueue_assets( string $hook_suffix ): void {
+		if ( ! $this->is_wp_claw_page( $hook_suffix ) ) {
+			return;
+		}
+
+		wp_enqueue_style(
+			'wp-claw-admin',
+			WP_CLAW_PLUGIN_URL . 'admin/css/wp-claw-admin.css',
+			[],
+			WP_CLAW_VERSION
+		);
+
+		wp_enqueue_script(
+			'wp-claw-admin',
+			WP_CLAW_PLUGIN_URL . 'admin/js/wp-claw-admin.js',
+			[],
+			WP_CLAW_VERSION,
+			true
+		);
+
+		wp_localize_script(
+			'wp-claw-admin',
+			'wpClaw',
+			[
+				'restUrl'    => rest_url( 'wp-claw/v1/' ),
+				'nonce'      => wp_create_nonce( 'wp_rest' ),
+				'adminNonce' => wp_create_nonce( 'wp_claw_admin' ),
+				'i18n'       => [
+					'approve'        => __( 'Approve', 'wp-claw' ),
+					'reject'         => __( 'Reject', 'wp-claw' ),
+					'confirmReject'  => __( 'Are you sure you want to reject this proposal?', 'wp-claw' ),
+					'saving'         => __( 'Saving…', 'wp-claw' ),
+					'saved'          => __( 'Saved.', 'wp-claw' ),
+					'error'          => __( 'An error occurred. Please try again.', 'wp-claw' ),
+					'connected'      => __( 'Connected', 'wp-claw' ),
+					'disconnected'   => __( 'Disconnected', 'wp-claw' ),
+					'testConnection' => __( 'Test connection', 'wp-claw' ),
+				],
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Settings API
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Register all WP-Claw settings, sections, and fields.
+	 *
+	 * All sanitize callbacks run before the value reaches the database.
+	 * The API key is encrypted on save so it is never stored in plaintext.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function register_settings(): void {
+		// ----- Connection settings -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_api_key',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => [ $this, 'sanitize_api_key' ],
+				'default'           => '',
+			]
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_connection_mode',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => [ $this, 'sanitize_connection_mode' ],
+				'default'           => 'managed',
+			]
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_instance_url',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+			]
+		);
+
+		// ----- Module toggles -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_enabled_modules',
+			[
+				'type'              => 'array',
+				'sanitize_callback' => [ $this, 'sanitize_enabled_modules' ],
+				'default'           => [],
+			]
+		);
+
+		// ----- Chat widget settings -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_enabled',
+			[
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => false,
+			]
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_position',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => [ $this, 'sanitize_chat_position' ],
+				'default'           => 'bottom-right',
+			]
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_welcome',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => __( 'Hi! How can I help you today?', 'wp-claw' ),
+			]
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_agent_name',
+			[
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_text_field',
+				'default'           => __( 'Assistant', 'wp-claw' ),
+			]
+		);
+
+		// ----- Analytics settings -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_analytics_enabled',
+			[
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => false,
+			]
+		);
+
+		// ----- Settings sections -----
+		add_settings_section(
+			'wp_claw_connection',
+			__( 'Klawty Connection', 'wp-claw' ),
+			[ $this, 'render_connection_section_description' ],
+			'wp-claw-settings'
+		);
+
+		add_settings_section(
+			'wp_claw_chat',
+			__( 'Chat Widget', 'wp-claw' ),
+			[ $this, 'render_chat_section_description' ],
+			'wp-claw-settings'
+		);
+
+		add_settings_section(
+			'wp_claw_analytics_section',
+			__( 'Analytics', 'wp-claw' ),
+			'__return_false',
+			'wp-claw-settings'
+		);
+
+		// ----- Settings fields — Connection -----
+		add_settings_field(
+			'wp_claw_api_key',
+			__( 'API Key', 'wp-claw' ),
+			[ $this, 'render_field_api_key' ],
+			'wp-claw-settings',
+			'wp_claw_connection'
+		);
+
+		add_settings_field(
+			'wp_claw_connection_mode',
+			__( 'Connection Mode', 'wp-claw' ),
+			[ $this, 'render_field_connection_mode' ],
+			'wp-claw-settings',
+			'wp_claw_connection'
+		);
+
+		add_settings_field(
+			'wp_claw_instance_url',
+			__( 'Self-hosted Instance URL', 'wp-claw' ),
+			[ $this, 'render_field_instance_url' ],
+			'wp-claw-settings',
+			'wp_claw_connection'
+		);
+
+		// ----- Settings fields — Chat -----
+		add_settings_field(
+			'wp_claw_chat_enabled',
+			__( 'Enable Chat Widget', 'wp-claw' ),
+			[ $this, 'render_field_chat_enabled' ],
+			'wp-claw-settings',
+			'wp_claw_chat'
+		);
+
+		add_settings_field(
+			'wp_claw_chat_position',
+			__( 'Widget Position', 'wp-claw' ),
+			[ $this, 'render_field_chat_position' ],
+			'wp-claw-settings',
+			'wp_claw_chat'
+		);
+
+		add_settings_field(
+			'wp_claw_chat_welcome',
+			__( 'Welcome Message', 'wp-claw' ),
+			[ $this, 'render_field_chat_welcome' ],
+			'wp-claw-settings',
+			'wp_claw_chat'
+		);
+
+		add_settings_field(
+			'wp_claw_chat_agent_name',
+			__( 'Agent Display Name', 'wp-claw' ),
+			[ $this, 'render_field_chat_agent_name' ],
+			'wp-claw-settings',
+			'wp_claw_chat'
+		);
+
+		// ----- Settings fields — Analytics -----
+		add_settings_field(
+			'wp_claw_analytics_enabled',
+			__( 'Enable Analytics Tracking', 'wp-claw' ),
+			[ $this, 'render_field_analytics_enabled' ],
+			'wp-claw-settings',
+			'wp_claw_analytics_section'
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin bar
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Add a connection-status badge to the WordPress admin bar.
+	 *
+	 * The badge uses a colored dot (green = connected, yellow = degraded,
+	 * red = disconnected) so site administrators can see agent status at a glance
+	 * from any admin screen.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param \WP_Admin_Bar $admin_bar The admin bar object.
+	 *
+	 * @return void
+	 */
+	public function add_admin_bar_node( \WP_Admin_Bar $admin_bar ): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			return;
+		}
+
+		$connected = $this->api_client->is_connected();
+
+		// Transient holds detailed health data set by health_check().
+		$health = get_transient( 'wp_claw_health_data' );
+
+		if ( $connected && ! empty( $health['status'] ) && 'degraded' === $health['status'] ) {
+			$dot_color = '#f59e0b'; // amber — degraded.
+			$label     = __( 'WP-Claw: Degraded', 'wp-claw' );
+		} elseif ( $connected ) {
+			$dot_color = '#10b981'; // green — healthy.
+			$label     = __( 'WP-Claw: Connected', 'wp-claw' );
+		} else {
+			$dot_color = '#ef4444'; // red — disconnected.
+			$label     = __( 'WP-Claw: Disconnected', 'wp-claw' );
+		}
+
+		$dot = sprintf(
+			'<span style="display:inline-block;width:8px;height:8px;border-radius:50%%'
+			. ';background:%s;margin-right:6px;vertical-align:middle;" aria-hidden="true"></span>',
+			esc_attr( $dot_color )
+		);
+
+		$admin_bar->add_node(
+			[
+				'id'    => 'wp-claw-status',
+				'title' => $dot . esc_html( $label ),
+				'href'  => admin_url( 'admin.php?page=wp-claw' ),
+				'meta'  => [
+					'title' => esc_attr( $label ),
+				],
+			]
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Activation redirect
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Redirect to the settings page immediately after plugin activation.
+	 *
+	 * Only redirects once (transient is deleted on read). Does not redirect
+	 * during bulk activation (WP sets 'activate-multi' query arg in that case).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function maybe_redirect_after_activation(): void {
+		if ( ! get_transient( 'wp_claw_activation_redirect' ) ) {
+			return;
+		}
+
+		delete_transient( 'wp_claw_activation_redirect' );
+
+		// Never redirect during a bulk activation.
+		if ( isset( $_GET['activate-multi'] ) ) { // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+			return;
+		}
+
+		wp_safe_redirect( admin_url( 'admin.php?page=wp-claw-settings' ) );
+		exit;
+	}
+
+	// -------------------------------------------------------------------------
+	// View renderers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render the Dashboard admin page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_dashboard(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/dashboard.php';
+	}
+
+	/**
+	 * Render the Agents admin page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_agents(): void {
+		if ( ! current_user_can( 'wp_claw_manage_agents' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/agents.php';
+	}
+
+	/**
+	 * Render the Proposals admin page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_proposals(): void {
+		if ( ! current_user_can( 'wp_claw_approve_proposals' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/proposals.php';
+	}
+
+	/**
+	 * Render the Settings admin page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_settings(): void {
+		if ( ! current_user_can( 'wp_claw_manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/settings.php';
+	}
+
+	/**
+	 * Render the Modules admin page.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_modules(): void {
+		if ( ! current_user_can( 'wp_claw_manage_modules' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/modules.php';
+	}
+
+	// -------------------------------------------------------------------------
+	// Settings section descriptions
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render the description for the Connection settings section.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_connection_section_description(): void {
+		echo '<p>' . esc_html__(
+			'Connect WP-Claw to your Klawty AI instance. Choose managed (recommended) to use a dcode-hosted instance, or self-hosted to connect to a local Klawty installation.',
+			'wp-claw'
+		) . '</p>';
+	}
+
+	/**
+	 * Render the description for the Chat Widget settings section.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_chat_section_description(): void {
+		echo '<p>' . esc_html__(
+			'Configure the Concierge agent chat widget that appears on your site\'s frontend. Requires the Chat module to be enabled.',
+			'wp-claw'
+		) . '</p>';
+	}
+
+	// -------------------------------------------------------------------------
+	// Settings field renderers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Render the API key settings field.
+	 *
+	 * The stored value is always encrypted; the field shows a placeholder
+	 * so the actual ciphertext is never displayed to the user.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_api_key(): void {
+		$has_key = ! empty( get_option( 'wp_claw_api_key', '' ) );
+		?>
+		<input
+			type="password"
+			id="wp_claw_api_key"
+			name="wp_claw_api_key"
+			value=""
+			class="regular-text"
+			autocomplete="new-password"
+			placeholder="<?php echo esc_attr( $has_key ? __( '(stored — enter new value to change)', 'wp-claw' ) : __( 'Enter your Klawty API key', 'wp-claw' ) ); ?>"
+		>
+		<p class="description">
+			<?php esc_html_e( 'Your Klawty API key. Stored encrypted. Never sent to any third party.', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the connection mode settings field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_connection_mode(): void {
+		$mode = sanitize_text_field( (string) get_option( 'wp_claw_connection_mode', 'managed' ) );
+		?>
+		<select id="wp_claw_connection_mode" name="wp_claw_connection_mode">
+			<option value="managed" <?php selected( $mode, 'managed' ); ?>>
+				<?php esc_html_e( 'Managed (dcode-hosted)', 'wp-claw' ); ?>
+			</option>
+			<option value="self-hosted" <?php selected( $mode, 'self-hosted' ); ?>>
+				<?php esc_html_e( 'Self-hosted (local Klawty)', 'wp-claw' ); ?>
+			</option>
+		</select>
+		<p class="description">
+			<?php esc_html_e( 'Managed connects to your dcode-hosted Klawty instance. Self-hosted connects to a local Klawty instance (e.g. localhost:2508).', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the self-hosted instance URL settings field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_instance_url(): void {
+		$url = esc_url( (string) get_option( 'wp_claw_instance_url', '' ) );
+		?>
+		<input
+			type="url"
+			id="wp_claw_instance_url"
+			name="wp_claw_instance_url"
+			value="<?php echo esc_attr( $url ); ?>"
+			class="regular-text"
+			placeholder="http://localhost:2508"
+		>
+		<p class="description">
+			<?php esc_html_e( 'Only used in Self-hosted mode. The base URL of your local Klawty instance.', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the chat enabled toggle field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_chat_enabled(): void {
+		$enabled = (bool) get_option( 'wp_claw_chat_enabled', false );
+		?>
+		<label for="wp_claw_chat_enabled">
+			<input
+				type="checkbox"
+				id="wp_claw_chat_enabled"
+				name="wp_claw_chat_enabled"
+				value="1"
+				<?php checked( $enabled ); ?>
+			>
+			<?php esc_html_e( 'Show the AI chat widget on the frontend', 'wp-claw' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'Requires the Chat module to be enabled and a connected Klawty instance.', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the chat widget position field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_chat_position(): void {
+		$position = sanitize_text_field( (string) get_option( 'wp_claw_chat_position', 'bottom-right' ) );
+		?>
+		<select id="wp_claw_chat_position" name="wp_claw_chat_position">
+			<option value="bottom-right" <?php selected( $position, 'bottom-right' ); ?>>
+				<?php esc_html_e( 'Bottom right', 'wp-claw' ); ?>
+			</option>
+			<option value="bottom-left" <?php selected( $position, 'bottom-left' ); ?>>
+				<?php esc_html_e( 'Bottom left', 'wp-claw' ); ?>
+			</option>
+		</select>
+		<?php
+	}
+
+	/**
+	 * Render the chat welcome message field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_chat_welcome(): void {
+		$welcome = sanitize_text_field( (string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'wp-claw' ) ) );
+		?>
+		<input
+			type="text"
+			id="wp_claw_chat_welcome"
+			name="wp_claw_chat_welcome"
+			value="<?php echo esc_attr( $welcome ); ?>"
+			class="regular-text"
+		>
+		<p class="description">
+			<?php esc_html_e( 'The opening message shown to visitors when the chat widget loads.', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the chat agent display name field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_chat_agent_name(): void {
+		$name = sanitize_text_field( (string) get_option( 'wp_claw_chat_agent_name', __( 'Assistant', 'wp-claw' ) ) );
+		?>
+		<input
+			type="text"
+			id="wp_claw_chat_agent_name"
+			name="wp_claw_chat_agent_name"
+			value="<?php echo esc_attr( $name ); ?>"
+			class="regular-text"
+			maxlength="60"
+		>
+		<p class="description">
+			<?php esc_html_e( 'The name displayed in the chat widget header (e.g. "Emma", "Support Bot").', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	/**
+	 * Render the analytics enabled toggle field.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_field_analytics_enabled(): void {
+		$enabled = (bool) get_option( 'wp_claw_analytics_enabled', false );
+		?>
+		<label for="wp_claw_analytics_enabled">
+			<input
+				type="checkbox"
+				id="wp_claw_analytics_enabled"
+				name="wp_claw_analytics_enabled"
+				value="1"
+				<?php checked( $enabled ); ?>
+			>
+			<?php esc_html_e( 'Enable privacy-first pageview and event tracking', 'wp-claw' ); ?>
+		</label>
+		<p class="description">
+			<?php esc_html_e( 'Data is stored locally in your WordPress database. No data is sent to external analytics services.', 'wp-claw' ); ?>
+		</p>
+		<?php
+	}
+
+	// -------------------------------------------------------------------------
+	// Sanitize callbacks
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Sanitize the API key before saving to the database.
+	 *
+	 * If the submitted value is empty (user left the field blank to keep
+	 * the current key), the existing encrypted value is returned unchanged.
+	 * Otherwise the new value is encrypted via wp_claw_encrypt().
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $raw_value The raw value submitted via the settings form.
+	 *
+	 * @return string Encrypted ciphertext, or empty string if encryption fails.
+	 */
+	public function sanitize_api_key( string $raw_value ): string {
+		$raw_value = trim( $raw_value );
+
+		if ( '' === $raw_value ) {
+			// User left field blank — preserve the existing encrypted key.
+			return (string) get_option( 'wp_claw_api_key', '' );
+		}
+
+		$encrypted = wp_claw_encrypt( $raw_value );
+
+		if ( '' === $encrypted ) {
+			add_settings_error(
+				'wp_claw_api_key',
+				'encrypt_failed',
+				__( 'API key could not be encrypted. Please check that libsodium or OpenSSL is available.', 'wp-claw' )
+			);
+			return (string) get_option( 'wp_claw_api_key', '' );
+		}
+
+		return $encrypted;
+	}
+
+	/**
+	 * Sanitize the connection mode setting.
+	 *
+	 * Only 'managed' and 'self-hosted' are accepted; any other value
+	 * falls back to 'managed'.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $value The raw submitted value.
+	 *
+	 * @return string Sanitized connection mode.
+	 */
+	public function sanitize_connection_mode( string $value ): string {
+		$allowed = [ 'managed', 'self-hosted' ];
+		return in_array( $value, $allowed, true ) ? $value : 'managed';
+	}
+
+	/**
+	 * Sanitize the chat widget position setting.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $value The raw submitted value.
+	 *
+	 * @return string Sanitized position.
+	 */
+	public function sanitize_chat_position( string $value ): string {
+		$allowed = [ 'bottom-right', 'bottom-left' ];
+		return in_array( $value, $allowed, true ) ? $value : 'bottom-right';
+	}
+
+	/**
+	 * Sanitize the enabled modules array.
+	 *
+	 * Each module slug is validated against the known module list.
+	 * Unknown or malformed slugs are silently dropped.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param mixed $value The raw submitted value (should be an array).
+	 *
+	 * @return string[] Sanitized array of valid module slugs.
+	 */
+	public function sanitize_enabled_modules( $value ): array {
+		if ( ! is_array( $value ) ) {
+			return [];
+		}
+
+		$known_modules = [
+			'seo',
+			'security',
+			'content',
+			'crm',
+			'commerce',
+			'performance',
+			'forms',
+			'analytics',
+			'backup',
+			'social',
+			'chat',
+		];
+
+		$sanitized = [];
+		foreach ( $value as $slug ) {
+			$slug = sanitize_key( (string) $slug );
+			if ( in_array( $slug, $known_modules, true ) ) {
+				$sanitized[] = $slug;
+			}
+		}
+
+		return array_unique( $sanitized );
+	}
+
+	// -------------------------------------------------------------------------
+	// Internal helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Determine whether the given hook suffix belongs to a WP-Claw admin page.
+	 *
+	 * Compares against the stored page hook suffixes registered by add_menu_page()
+	 * and add_submenu_page(). Falls back to a string prefix check to handle
+	 * edge cases where hook suffixes haven't been populated yet.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param string $hook_suffix The hook suffix from admin_enqueue_scripts.
+	 *
+	 * @return bool True if this is a WP-Claw page.
+	 */
+	private function is_wp_claw_page( string $hook_suffix ): bool {
+		if ( in_array( $hook_suffix, $this->page_hooks, true ) ) {
+			return true;
+		}
+
+		// Fallback: hook suffixes for submenus contain the parent slug.
+		return false !== strpos( $hook_suffix, 'wp-claw' );
+	}
+}
