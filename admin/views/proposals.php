@@ -22,10 +22,8 @@ $proposals_table = $wpdb->prefix . 'wp_claw_proposals';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $proposals = $wpdb->get_results(
 	$wpdb->prepare(
-		"SELECT proposal_id, agent, action, details, status, created_at
-		 FROM {$proposals_table}
-		 WHERE status = %s
-		 ORDER BY created_at DESC",
+		'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC',
+		$proposals_table,
 		'pending'
 	)
 );
@@ -39,11 +37,11 @@ $show_all = isset( $_GET['show'] ) && 'all' === sanitize_key( $_GET['show'] );
 if ( $show_all ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$proposals = $wpdb->get_results(
-		// phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
-		"SELECT proposal_id, agent, action, details, status, created_at
-		 FROM {$proposals_table}
-		 ORDER BY created_at DESC
-		 LIMIT 50"
+		$wpdb->prepare(
+			'SELECT proposal_id, agent, action, details, status, created_at FROM %i ORDER BY created_at DESC LIMIT %d',
+			$proposals_table,
+			50
+		)
 	);
 }
 

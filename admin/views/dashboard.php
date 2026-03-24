@@ -23,10 +23,8 @@ $tasks_table = $wpdb->prefix . 'wp_claw_tasks';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $recent_tasks = $wpdb->get_results(
 	$wpdb->prepare(
-		"SELECT task_id, agent, module, action, status, created_at
-		 FROM {$tasks_table}
-		 ORDER BY created_at DESC
-		 LIMIT %d",
+		'SELECT task_id, agent, module, action, status, created_at FROM %i ORDER BY created_at DESC LIMIT %d',
+		$tasks_table,
 		10
 	)
 );
@@ -36,14 +34,17 @@ $proposals_table = $wpdb->prefix . 'wp_claw_proposals';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $pending_proposals = (int) $wpdb->get_var(
 	$wpdb->prepare(
-		"SELECT COUNT(*) FROM {$proposals_table} WHERE status = %s",
+		'SELECT COUNT(*) FROM %i WHERE status = %s',
+		$proposals_table,
 		'pending'
 	)
 );
 
 // Total tasks count.
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-$total_tasks = (int) $wpdb->get_var( "SELECT COUNT(*) FROM {$tasks_table}" ); // phpcs:ignore WordPress.DB.PreparedSQL.NotPrepared
+$total_tasks = (int) $wpdb->get_var(
+	$wpdb->prepare( 'SELECT COUNT(*) FROM %i', $tasks_table )
+);
 
 // Agent data — try the 5-minute transient first, then a live API call.
 $agents = get_transient( 'wp_claw_agents_cache' );

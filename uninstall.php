@@ -22,23 +22,35 @@ global $wpdb;
 
 // 1. Drop custom database tables.
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wp_claw_tasks" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wp_claw_proposals" );
-$wpdb->query( "DROP TABLE IF EXISTS {$wpdb->prefix}wp_claw_analytics" );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_tasks' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_proposals' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_analytics' ) );
 // phpcs:enable WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 // 2. Delete all plugin options.
 // phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $wpdb->query(
-	"DELETE FROM {$wpdb->options} WHERE option_name LIKE 'wp\_claw\_%'"
+	$wpdb->prepare(
+		'DELETE FROM %i WHERE option_name LIKE %s',
+		$wpdb->options,
+		$wpdb->esc_like( 'wp_claw_' ) . '%'
+	)
 );
 
 // 3. Delete all plugin transients.
 $wpdb->query(
-	"DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_wp\_claw\_%'"
+	$wpdb->prepare(
+		'DELETE FROM %i WHERE option_name LIKE %s',
+		$wpdb->options,
+		$wpdb->esc_like( '_transient_wp_claw_' ) . '%'
+	)
 );
 $wpdb->query(
-	"DELETE FROM {$wpdb->options} WHERE option_name LIKE '\_transient\_timeout\_wp\_claw\_%'"
+	$wpdb->prepare(
+		'DELETE FROM %i WHERE option_name LIKE %s',
+		$wpdb->options,
+		$wpdb->esc_like( '_transient_timeout_wp_claw_' ) . '%'
+	)
 );
 // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 

@@ -150,7 +150,8 @@ class Module_Forms extends Module_Base {
 		$table_name       = $wpdb->prefix . 'wp_claw_tasks';
 		$submission_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table_name}` WHERE module = %s",
+				'SELECT COUNT(*) FROM %i WHERE module = %s',
+				$table_name,
 				'forms'
 			)
 		);
@@ -254,7 +255,8 @@ class Module_Forms extends Module_Base {
 			$form_id = sanitize_key( $params['form_id'] );
 			$rows    = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM `{$table_name}` WHERE module = %s AND JSON_EXTRACT(details, '$.form_id') = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+					"SELECT * FROM %i WHERE module = %s AND JSON_EXTRACT(details, '$.form_id') = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+					$table_name,
 					'forms',
 					$form_id,
 					$limit,
@@ -265,7 +267,8 @@ class Module_Forms extends Module_Base {
 		} else {
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT * FROM `{$table_name}` WHERE module = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
+					'SELECT * FROM %i WHERE module = %s ORDER BY created_at DESC LIMIT %d OFFSET %d',
+					$table_name,
 					'forms',
 					$limit,
 					$offset

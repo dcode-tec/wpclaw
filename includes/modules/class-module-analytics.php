@@ -141,21 +141,24 @@ class Module_Analytics extends Module_Base {
 
 		$today = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(created_at) = %s",
+				'SELECT COUNT(*) FROM %i WHERE DATE(created_at) = %s',
+				$table,
 				gmdate( 'Y-m-d' )
 			)
 		);
 
 		$week = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE created_at >= %s",
+				'SELECT COUNT(*) FROM %i WHERE created_at >= %s',
+				$table,
 				gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) )
 			)
 		);
 
 		$month = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE created_at >= %s",
+				'SELECT COUNT(*) FROM %i WHERE created_at >= %s',
+				$table,
 				gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) )
 			)
 		);
@@ -269,7 +272,8 @@ class Module_Analytics extends Module_Base {
 
 		$count = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(created_at) BETWEEN %s AND %s",
+				'SELECT COUNT(*) FROM %i WHERE DATE(created_at) BETWEEN %s AND %s',
+				$table,
 				$date_from,
 				$date_to
 			)
@@ -299,15 +303,10 @@ class Module_Analytics extends Module_Base {
 		$date_from = $this->sanitize_date( $params['date_from'] ?? gmdate( 'Y-m-d', strtotime( '-30 days' ) ) );
 		$date_to   = $this->sanitize_date( $params['date_to'] ?? gmdate( 'Y-m-d' ) );
 
-		// phpcs:ignore WordPress.DB.PreparedSQLPlaceholders.ReplacementsWrongNumber
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT page_url, COUNT(*) as views
-				 FROM `{$table}`
-				 WHERE DATE(created_at) BETWEEN %s AND %s
-				 GROUP BY page_url
-				 ORDER BY views DESC
-				 LIMIT 10",
+				'SELECT page_url, COUNT(*) as views FROM %i WHERE DATE(created_at) BETWEEN %s AND %s GROUP BY page_url ORDER BY views DESC LIMIT 10',
+				$table,
 				$date_from,
 				$date_to
 			),
@@ -348,15 +347,11 @@ class Module_Analytics extends Module_Base {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT referrer, COUNT(*) as visits
-				 FROM `{$table}`
-				 WHERE DATE(created_at) BETWEEN %s AND %s
-				   AND referrer IS NOT NULL AND referrer <> ''
-				 GROUP BY referrer
-				 ORDER BY visits DESC
-				 LIMIT 10",
+				'SELECT referrer, COUNT(*) as visits FROM %i WHERE DATE(created_at) BETWEEN %s AND %s AND referrer IS NOT NULL AND referrer <> %s GROUP BY referrer ORDER BY visits DESC LIMIT 10',
+				$table,
 				$date_from,
-				$date_to
+				$date_to,
+				''
 			),
 			ARRAY_A
 		);
@@ -395,11 +390,8 @@ class Module_Analytics extends Module_Base {
 
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT device_type, COUNT(*) as views
-				 FROM `{$table}`
-				 WHERE DATE(created_at) BETWEEN %s AND %s
-				 GROUP BY device_type
-				 ORDER BY views DESC",
+				'SELECT device_type, COUNT(*) as views FROM %i WHERE DATE(created_at) BETWEEN %s AND %s GROUP BY device_type ORDER BY views DESC',
+				$table,
 				$date_from,
 				$date_to
 			),

@@ -625,7 +625,7 @@ class Module_Backup extends Module_Base {
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$create_row = $wpdb->get_row(
-				$wpdb->prepare( 'SHOW CREATE TABLE `%1s`', $table ),
+				$wpdb->prepare( 'SHOW CREATE TABLE %i', $table ),
 				ARRAY_N
 			);
 
@@ -636,7 +636,7 @@ class Module_Backup extends Module_Base {
 			// INSERT rows.
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$rows = $wpdb->get_results(
-				$wpdb->prepare( 'SELECT * FROM `%1s`', $table ),
+				$wpdb->prepare( 'SELECT * FROM %i', $table ),
 				ARRAY_A
 			);
 

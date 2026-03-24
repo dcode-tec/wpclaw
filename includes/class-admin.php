@@ -546,8 +546,8 @@ class Admin {
 		$proposals_table = $wpdb->prefix . 'wp_claw_proposals';
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional bulk delete of local log data.
-		$wpdb->query( "DELETE FROM `{$tasks_table}`" );
-		$wpdb->query( "DELETE FROM `{$proposals_table}`" );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $tasks_table ) );
+		$wpdb->query( $wpdb->prepare( 'DELETE FROM %i', $proposals_table ) );
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 		wp_claw_log( 'Local task log and proposal history cleared by admin.', 'info' );

@@ -470,9 +470,11 @@ class Module_Performance extends Module_Base {
 		// Autoloaded options size.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional aggregate SELECT; refreshed each state sync.
 		$autoloaded_bytes = (int) $wpdb->get_var(
-			"SELECT SUM(LENGTH(option_value))
-			 FROM {$wpdb->options}
-			 WHERE autoload = 'yes'"
+			$wpdb->prepare(
+				'SELECT SUM(LENGTH(option_value)) FROM %i WHERE autoload = %s',
+				$wpdb->options,
+				'yes'
+			)
 		);
 
 		// Post revision count.
