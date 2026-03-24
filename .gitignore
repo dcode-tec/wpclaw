@@ -28,6 +28,12 @@ CLAUDE.md
 CHANGELOG.md
 README.md
 
+# Claude Code internals (memory, skills, settings)
+.claude/
+
+# Internal docs (build plans, specs, architecture)
+docs/
+
 # Logs
 *.log
 

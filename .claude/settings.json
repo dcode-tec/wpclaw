@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(find /Users/inscape/.openclaw/workspace/repos -maxdepth 3 -name package.json -not -path */node_modules/*)",
-      "Bash(find /Users/inscape/.openclaw/workspace/repos -maxdepth 4 -type d -name wp-claw* -o -type d -name wpclaw*)"
-    ]
-  }
-}
