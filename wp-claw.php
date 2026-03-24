@@ -45,6 +45,7 @@ require_once WP_CLAW_PLUGIN_DIR . 'includes/class-rest-api.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-admin.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-cron.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-hooks.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/class-command-center.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-activator.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-deactivator.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-i18n.php';

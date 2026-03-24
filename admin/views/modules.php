@@ -172,7 +172,19 @@ $wp_claw_render_module_field = function ( array $field ) {
 	<nav class="nav-tab-wrapper wp-claw-admin-tabs" aria-label="<?php esc_attr_e( 'Modules', 'wp-claw' ); ?>">
 		<?php foreach ( $display_modules as $slug => $label ) : ?>
 		<a
-			href="<?php echo esc_url( add_query_arg( array( 'page' => 'wp-claw-modules', 'module' => $slug ), admin_url( 'admin.php' ) ) ); ?>"
+			href="
+			<?php
+			echo esc_url(
+				add_query_arg(
+					array(
+						'page'   => 'wp-claw-modules',
+						'module' => $slug,
+					),
+					admin_url( 'admin.php' )
+				)
+			);
+			?>
+					"
 			class="nav-tab <?php echo esc_attr( $active_tab === $slug ? 'nav-tab-active' : '' ); ?>"
 			<?php echo $active_tab === $slug ? 'aria-current="page"' : ''; ?>
 		>
@@ -286,14 +298,14 @@ $wp_claw_render_module_field = function ( array $field ) {
 
 			<!-- Allowed actions reference -->
 			<?php if ( $is_available && null !== $module ) : ?>
-			<?php $allowed_actions = $module->get_allowed_actions(); ?>
-			<?php if ( ! empty( $allowed_actions ) ) : ?>
+				<?php $allowed_actions = $module->get_allowed_actions(); ?>
+				<?php if ( ! empty( $allowed_actions ) ) : ?>
 			<h3><?php esc_html_e( 'Allowed Agent Actions', 'wp-claw' ); ?></h3>
 			<p class="description">
-				<?php esc_html_e( 'These are the WordPress actions the agent is permitted to execute on your site. Agents cannot perform any action outside this list.', 'wp-claw' ); ?>
+					<?php esc_html_e( 'These are the WordPress actions the agent is permitted to execute on your site. Agents cannot perform any action outside this list.', 'wp-claw' ); ?>
 			</p>
 			<ul class="wp-claw-admin-action-list">
-				<?php foreach ( $allowed_actions as $action_name ) : ?>
+					<?php foreach ( $allowed_actions as $action_name ) : ?>
 				<li><code><?php echo esc_html( sanitize_text_field( (string) $action_name ) ); ?></code></li>
 				<?php endforeach; ?>
 			</ul>

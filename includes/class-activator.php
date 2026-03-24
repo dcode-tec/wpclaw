@@ -48,7 +48,7 @@ class Activator {
 			wp_die(
 				esc_html__( 'WP-Claw requires PHP 7.4 or higher.', 'wp-claw' ),
 				esc_html__( 'Plugin Activation Error', 'wp-claw' ),
-				[ 'back_link' => true ]
+				array( 'back_link' => true )
 			);
 		}
 
@@ -58,7 +58,7 @@ class Activator {
 			wp_die(
 				esc_html__( 'WP-Claw requires WordPress 6.4 or higher.', 'wp-claw' ),
 				esc_html__( 'Plugin Activation Error', 'wp-claw' ),
-				[ 'back_link' => true ]
+				array( 'back_link' => true )
 			);
 		}
 
@@ -70,7 +70,7 @@ class Activator {
 		add_option( 'wp_claw_connection_mode', 'managed' );
 		add_option(
 			'wp_claw_enabled_modules',
-			[ 'seo', 'security', 'content', 'crm', 'commerce', 'performance', 'forms', 'analytics', 'backup', 'social', 'chat' ]
+			array( 'seo', 'security', 'content', 'crm', 'commerce', 'performance', 'forms', 'analytics', 'backup', 'social', 'chat' )
 		);
 		add_option( 'wp_claw_chat_enabled', true );
 		add_option( 'wp_claw_chat_position', 'bottom-right' );
@@ -82,7 +82,7 @@ class Activator {
 		wp_claw_add_capabilities();
 
 		// --- 6. Schedule WP-Cron events -------------------------------------
-		$cron_events = [
+		$cron_events = array(
 			'wp_claw_health_check'      => 'hourly',
 			'wp_claw_sync_state'        => 'hourly',
 			'wp_claw_update_check'      => 'twicedaily',
@@ -92,7 +92,7 @@ class Activator {
 			'wp_claw_analytics_report'  => 'weekly',
 			'wp_claw_performance_check' => 'weekly',
 			'wp_claw_analytics_cleanup' => 'weekly',
-		];
+		);
 
 		$now = time();
 		foreach ( $cron_events as $hook => $recurrence ) {
@@ -133,7 +133,7 @@ class Activator {
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.SchemaChange -- intentional schema creation on activation.
 
-		$sql = [];
+		$sql = array();
 
 		// Table: wp_claw_tasks — agent task log (local mirror of Klawty tasks).
 		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_tasks (
@@ -181,6 +181,22 @@ class Activator {
 			KEY idx_event_type (event_type),
 			KEY idx_created (created_at),
 			KEY idx_page_url (page_url(191))
+		) {$charset_collate};";
+
+		// Table: wp_claw_command_log — Command Center audit trail (encrypted prompts).
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_command_log (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			user_id bigint(20) UNSIGNED NOT NULL,
+			ip_address varchar(45) NOT NULL,
+			prompt text NOT NULL,
+			status varchar(20) NOT NULL DEFAULT 'sent',
+			reason text DEFAULT '',
+			task_id varchar(100) DEFAULT NULL,
+			created_at datetime NOT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_user_id (user_id),
+			KEY idx_status (status),
+			KEY idx_created_at (created_at)
 		) {$charset_collate};";
 
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.SchemaChange

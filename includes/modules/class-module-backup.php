@@ -174,9 +174,9 @@ class Module_Backup extends Module_Base {
 		}
 
 		return array(
-			'last_backup_at'    => $last_time,
-			'backup_count'      => $count,
-			'total_size_bytes'  => $total_size,
+			'last_backup_at'   => $last_time,
+			'backup_count'     => $count,
+			'total_size_bytes' => $total_size,
 		);
 	}
 
@@ -276,11 +276,11 @@ class Module_Backup extends Module_Base {
 
 		// Record backup metadata.
 		$meta = array(
-			'timestamp'       => $timestamp,
-			'created_at'      => gmdate( 'Y-m-d H:i:s' ),
-			'size_bytes'      => strlen( $gz_data ),
-			'table_count'     => $this->count_tables_in_dump( $sql ),
-			'wp_version'      => get_bloginfo( 'version' ),
+			'timestamp'   => $timestamp,
+			'created_at'  => gmdate( 'Y-m-d H:i:s' ),
+			'size_bytes'  => strlen( $gz_data ),
+			'table_count' => $this->count_tables_in_dump( $sql ),
+			'wp_version'  => get_bloginfo( 'version' ),
 		);
 
 		update_option( 'wp_claw_last_backup', $meta, false );
@@ -368,9 +368,12 @@ class Module_Backup extends Module_Base {
 		$kept    = array();
 
 		// Always keep the most recent backup.
-		usort( $backups, static function ( array $a, array $b ): int {
-			return strcmp( $b['timestamp'], $a['timestamp'] );
-		} );
+		usort(
+			$backups,
+			static function ( array $a, array $b ): int {
+				return strcmp( $b['timestamp'], $a['timestamp'] );
+			}
+		);
 
 		foreach ( $backups as $index => $backup ) {
 			$backup_time = strtotime( str_replace( '_', ' ', $backup['timestamp'] ) );
@@ -603,7 +606,7 @@ class Module_Backup extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_backup_too_many_tables',
 				/* translators: %d: table count */
-				sprintf( esc_html__( 'Database has %d tables — exceeds maximum of %d for backup.', 'wp-claw' ), count( $tables ), self::MAX_TABLES ),
+				sprintf( esc_html__( 'Database has %1$d tables — exceeds maximum of %2$d for backup.', 'wp-claw' ), count( $tables ), self::MAX_TABLES ),
 				array( 'status' => 500 )
 			);
 		}
@@ -618,7 +621,7 @@ class Module_Backup extends Module_Base {
 			$table = (string) $table;
 
 			// DROP + CREATE TABLE.
-			$sql .= "DROP TABLE IF EXISTS `" . esc_sql( $table ) . "`;\n";
+			$sql .= 'DROP TABLE IF EXISTS `' . esc_sql( $table ) . "`;\n";
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.DirectQuery
 			$create_row = $wpdb->get_row(
@@ -719,8 +722,8 @@ class Module_Backup extends Module_Base {
 				continue;
 			}
 
-			$gz_file  = trailingslashit( $backup_root ) . $entry_name . '/database.sql.gz';
-			$gz_size  = $wp_filesystem->exists( $gz_file ) ? $wp_filesystem->size( $gz_file ) : 0;
+			$gz_file = trailingslashit( $backup_root ) . $entry_name . '/database.sql.gz';
+			$gz_size = $wp_filesystem->exists( $gz_file ) ? $wp_filesystem->size( $gz_file ) : 0;
 
 			$backups[] = array(
 				'timestamp' => $entry_name,
@@ -730,9 +733,12 @@ class Module_Backup extends Module_Base {
 		}
 
 		// Sort newest first.
-		usort( $backups, static function ( array $a, array $b ): int {
-			return strcmp( $b['timestamp'], $a['timestamp'] );
-		} );
+		usort(
+			$backups,
+			static function ( array $a, array $b ): int {
+				return strcmp( $b['timestamp'], $a['timestamp'] );
+			}
+		);
 
 		return $backups;
 	}

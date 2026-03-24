@@ -318,7 +318,10 @@ class WP_Claw {
 				wp_claw_log(
 					'Module class not found — skipping.',
 					'warning',
-					array( 'slug' => $slug, 'class' => $class )
+					array(
+						'slug'  => $slug,
+						'class' => $class,
+					)
 				);
 				continue;
 			}
@@ -358,9 +361,9 @@ class WP_Claw {
 	 * @return void
 	 */
 	public function enqueue_public_assets(): void {
-		$suffix  = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-		$version = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
-		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( dirname( __FILE__ ) );
+		$suffix     = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
+		$version    = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
+		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( __DIR__ );
 
 		// --- Chat widget ---------------------------------------------------
 		if ( $this->is_module_enabled( 'chat' ) ) {
@@ -507,16 +510,16 @@ class WP_Claw {
 				return $transient;
 			}
 
-			$plugin_data                    = new \stdClass();
-			$plugin_data->slug              = 'wp-claw';
-			$plugin_data->plugin            = WP_CLAW_PLUGIN_BASENAME;
-			$plugin_data->new_version       = sanitize_text_field( $new_version );
-			$plugin_data->url               = esc_url_raw( isset( $update_data['url'] ) ? $update_data['url'] : 'https://wp-claw.ai' );
-			$plugin_data->package           = esc_url_raw( $package );
-			$plugin_data->tested            = sanitize_text_field( isset( $update_data['tested'] ) ? $update_data['tested'] : '' );
-			$plugin_data->requires_php      = sanitize_text_field( isset( $update_data['requires_php'] ) ? $update_data['requires_php'] : '7.4' );
-			$plugin_data->requires          = sanitize_text_field( isset( $update_data['requires'] ) ? $update_data['requires'] : '6.4' );
-			$plugin_data->icons             = array(
+			$plugin_data               = new \stdClass();
+			$plugin_data->slug         = 'wp-claw';
+			$plugin_data->plugin       = WP_CLAW_PLUGIN_BASENAME;
+			$plugin_data->new_version  = sanitize_text_field( $new_version );
+			$plugin_data->url          = esc_url_raw( isset( $update_data['url'] ) ? $update_data['url'] : 'https://wp-claw.ai' );
+			$plugin_data->package      = esc_url_raw( $package );
+			$plugin_data->tested       = sanitize_text_field( isset( $update_data['tested'] ) ? $update_data['tested'] : '' );
+			$plugin_data->requires_php = sanitize_text_field( isset( $update_data['requires_php'] ) ? $update_data['requires_php'] : '7.4' );
+			$plugin_data->requires     = sanitize_text_field( isset( $update_data['requires'] ) ? $update_data['requires'] : '6.4' );
+			$plugin_data->icons        = array(
 				'1x' => esc_url_raw( isset( $update_data['icon_1x'] ) ? $update_data['icon_1x'] : '' ),
 				'2x' => esc_url_raw( isset( $update_data['icon_2x'] ) ? $update_data['icon_2x'] : '' ),
 			);
@@ -666,9 +669,9 @@ class WP_Claw {
 			$renamed = $wp_filesystem->move( $destination, $correct_dest );
 
 			if ( $renamed ) {
-				$result['destination']         = $correct_dest;
-				$result['destination_name']    = $correct_dest_name;
-				$result['remote_destination']  = $correct_dest;
+				$result['destination']        = $correct_dest;
+				$result['destination_name']   = $correct_dest_name;
+				$result['remote_destination'] = $correct_dest;
 			} else {
 				wp_claw_log_error(
 					'post_update_install: failed to rename plugin directory.',
@@ -745,7 +748,10 @@ class WP_Claw {
 		if ( SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES !== strlen( $public_key ) ) {
 			wp_claw_log_error(
 				'WP_CLAW_UPDATE_PUBLIC_KEY has invalid length — skipping verification.',
-				array( 'expected' => SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES, 'got' => strlen( $public_key ) )
+				array(
+					'expected' => SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES,
+					'got'      => strlen( $public_key ),
+				)
 			);
 			return true; // Fail open (do not block update) but log loudly.
 		}

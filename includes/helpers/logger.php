@@ -33,7 +33,7 @@ defined( 'ABSPATH' ) || exit;
  *
  * @return void
  */
-function wp_claw_log( string $message, string $level = 'info', array $context = [] ): void {
+function wp_claw_log( string $message, string $level = 'info', array $context = array() ): void {
 	if ( ! defined( 'WP_DEBUG_LOG' ) || ! WP_DEBUG_LOG ) {
 		return;
 	}
@@ -73,7 +73,7 @@ function wp_claw_log( string $message, string $level = 'info', array $context = 
  *
  * @return void
  */
-function wp_claw_log_error( string $message, array $context = [] ): void {
+function wp_claw_log_error( string $message, array $context = array() ): void {
 	wp_claw_log( $message, 'error', $context );
 }
 
@@ -89,7 +89,7 @@ function wp_claw_log_error( string $message, array $context = [] ): void {
  *
  * @return void
  */
-function wp_claw_log_warning( string $message, array $context = [] ): void {
+function wp_claw_log_warning( string $message, array $context = array() ): void {
 	wp_claw_log( $message, 'warning', $context );
 }
 
@@ -106,7 +106,7 @@ function wp_claw_log_warning( string $message, array $context = [] ): void {
  *
  * @return void
  */
-function wp_claw_log_debug( string $message, array $context = [] ): void {
+function wp_claw_log_debug( string $message, array $context = array() ): void {
 	if ( ! defined( 'WP_CLAW_DEBUG' ) || ! WP_CLAW_DEBUG ) {
 		return;
 	}

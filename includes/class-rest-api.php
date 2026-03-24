@@ -175,6 +175,44 @@ class REST_API {
 			)
 		);
 
+		// --- Command Center routes (capability-gated) -------------------------
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/command/setup-pin',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_setup_pin' ),
+				'permission_callback' => function () {
+					return current_user_can( 'wp_claw_command_center' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/command',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_command' ),
+				'permission_callback' => function () {
+					return current_user_can( 'wp_claw_command_center' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/command/history',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'handle_command_history' ),
+				'permission_callback' => function () {
+					return current_user_can( 'wp_claw_command_center' );
+				},
+			)
+		);
+
 		// --- Admin proposal routes (capability-gated) ------------------------
 
 		register_rest_route(
@@ -271,9 +309,9 @@ class REST_API {
 			wp_claw_log_warning(
 				'REST signature verification failed: timestamp outside replay window.',
 				array(
-					'path'       => $request->get_route(),
+					'path'        => $request->get_route(),
 					'age_seconds' => $age,
-					'ttl'        => self::SIGNATURE_TTL,
+					'ttl'         => self::SIGNATURE_TTL,
 				)
 			);
 			return new \WP_Error(
@@ -358,7 +396,10 @@ class REST_API {
 		if ( null === $module_object ) {
 			wp_claw_log_warning(
 				'handle_execute: module not found.',
-				array( 'module' => $module, 'action' => $action )
+				array(
+					'module' => $module,
+					'action' => $action,
+				)
 			);
 			return new \WP_Error(
 				'wp_claw_module_not_found',
@@ -376,7 +417,10 @@ class REST_API {
 		if ( ! in_array( $action, $allowed_actions, true ) ) {
 			wp_claw_log_warning(
 				'handle_execute: action not in allowlist.',
-				array( 'module' => $module, 'action' => $action )
+				array(
+					'module' => $module,
+					'action' => $action,
+				)
 			);
 			return new \WP_Error(
 				'wp_claw_action_not_allowed',
@@ -430,10 +474,13 @@ class REST_API {
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery
 
-		if ( false === $wpdb->last_error || '' !== $wpdb->last_error ) {
+		if ( '' !== $wpdb->last_error ) {
 			wp_claw_log_warning(
 				'handle_execute: failed to insert task log record.',
-				array( 'db_error' => $wpdb->last_error, 'task_id' => $task_id )
+				array(
+					'db_error' => $wpdb->last_error,
+					'task_id'  => $task_id,
+				)
 			);
 		}
 
@@ -463,10 +510,10 @@ class REST_API {
 	 * @return \WP_REST_Response|\WP_Error REST response on success, WP_Error on failure.
 	 */
 	public function handle_state( \WP_REST_Request $request ) {
-		$theme         = wp_get_theme();
-		$active_theme  = $theme instanceof \WP_Theme ? $theme->get( 'Name' ) : '';
-		$post_counts   = wp_count_posts();
-		$woocommerce   = null;
+		$theme        = wp_get_theme();
+		$active_theme = $theme instanceof \WP_Theme ? $theme->get( 'Name' ) : '';
+		$post_counts  = wp_count_posts();
+		$woocommerce  = null;
 
 		if ( class_exists( 'WooCommerce' ) ) {
 			$woocommerce = array(
@@ -475,16 +522,16 @@ class REST_API {
 		}
 
 		$state = array(
-			'wordpress_version'  => get_bloginfo( 'version' ),
-			'php_version'        => PHP_VERSION,
-			'site_url'           => esc_url_raw( get_site_url() ),
-			'active_theme'       => sanitize_text_field( (string) $active_theme ),
-			'active_plugins'     => get_option( 'active_plugins', array() ),
-			'post_counts'        => $post_counts,
-			'woocommerce'        => $woocommerce,
-			'wp_claw_version'    => defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : 'unknown',
-			'enabled_modules'    => get_option( 'wp_claw_enabled_modules', array() ),
-			'pending_proposals'  => $this->count_pending_proposals(),
+			'wordpress_version' => get_bloginfo( 'version' ),
+			'php_version'       => PHP_VERSION,
+			'site_url'          => esc_url_raw( get_site_url() ),
+			'active_theme'      => sanitize_text_field( (string) $active_theme ),
+			'active_plugins'    => get_option( 'active_plugins', array() ),
+			'post_counts'       => $post_counts,
+			'woocommerce'       => $woocommerce,
+			'wp_claw_version'   => defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : 'unknown',
+			'enabled_modules'   => get_option( 'wp_claw_enabled_modules', array() ),
+			'pending_proposals' => $this->count_pending_proposals(),
 		);
 
 		return rest_ensure_response( $state );
@@ -514,7 +561,10 @@ class REST_API {
 		wp_claw_log(
 			'Webhook received.',
 			'info',
-			array( 'event' => $event_type, 'task_id' => $task_id )
+			array(
+				'event'   => $event_type,
+				'task_id' => $task_id,
+			)
 		);
 
 		// Update the local task record if a valid task_id and status are provided.
@@ -683,9 +733,9 @@ class REST_API {
 
 		// --- IP-based rate limit: 1 event per second -------------------------
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- hashed immediately, never stored raw.
-		$raw_ip   = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : 'unknown';
-		$ip_hash  = md5( $raw_ip );
-		$rl_key   = 'wp_claw_analytics_rl_' . $ip_hash;
+		$raw_ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : 'unknown';
+		$ip_hash = md5( $raw_ip );
+		$rl_key  = 'wp_claw_analytics_rl_' . $ip_hash;
 
 		if ( false !== get_transient( $rl_key ) ) {
 			return new \WP_Error(
@@ -699,12 +749,12 @@ class REST_API {
 		}
 
 		// --- Parse and validate body -----------------------------------------
-		$body        = $request->get_json_params();
-		$body        = is_array( $body ) ? $body : array();
-		$raw_url     = isset( $body['page_url'] ) ? (string) $body['page_url'] : '';
-		$raw_ref     = isset( $body['referrer'] ) ? (string) $body['referrer'] : '';
-		$raw_event   = isset( $body['event_type'] ) ? (string) $body['event_type'] : 'pageview';
-		$raw_device  = isset( $body['device_type'] ) ? (string) $body['device_type'] : '';
+		$body       = $request->get_json_params();
+		$body       = is_array( $body ) ? $body : array();
+		$raw_url    = isset( $body['page_url'] ) ? (string) $body['page_url'] : '';
+		$raw_ref    = isset( $body['referrer'] ) ? (string) $body['referrer'] : '';
+		$raw_event  = isset( $body['event_type'] ) ? (string) $body['event_type'] : 'pageview';
+		$raw_device = isset( $body['device_type'] ) ? (string) $body['device_type'] : '';
 
 		// page_url: required, valid URL, max 512 chars.
 		if ( empty( $raw_url ) || mb_strlen( $raw_url ) > 512 ) {
@@ -814,6 +864,104 @@ class REST_API {
 	}
 
 	// -------------------------------------------------------------------------
+	// Command Center route handlers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Handle the PIN setup request.
+	 *
+	 * Validates and stores a bcrypt-hashed PIN for the Command Center.
+	 * Requires the wp_claw_command_center capability.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response REST response (200 on success, 400 on validation failure).
+	 */
+	public function handle_setup_pin( \WP_REST_Request $request ): \WP_REST_Response {
+		$pin = sanitize_text_field( (string) $request->get_param( 'pin' ) );
+
+		$cc     = new Command_Center();
+		$result = $cc->setup_pin( $pin );
+
+		return new \WP_REST_Response( $result, $result['success'] ? 200 : 400 );
+	}
+
+	/**
+	 * Handle a Command Center command submission.
+	 *
+	 * Runs all 7 security layers via Command_Center::validate_command(),
+	 * then forwards the command to the Klawty instance. Logs the result
+	 * and increments the rate limit counter on success.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response REST response (200 on success, 403 on validation failure, 500 on send error).
+	 */
+	public function handle_command( \WP_REST_Request $request ): \WP_REST_Response {
+		$prompt = sanitize_textarea_field( (string) $request->get_param( 'prompt' ) );
+		$pin    = sanitize_text_field( (string) $request->get_param( 'pin' ) );
+
+		$cc = new Command_Center();
+
+		// Validate all security layers.
+		$validation = $cc->validate_command( $prompt, $pin );
+		if ( ! $validation['allowed'] ) {
+			return new \WP_REST_Response(
+				array(
+					'success' => false,
+					'error'   => implode( '. ', $validation['reasons'] ),
+				),
+				403
+			);
+		}
+
+		// Send to Klawty.
+		$result = $cc->send_command( $prompt );
+
+		// Log the outcome.
+		$cc->log_command(
+			get_current_user_id(),
+			$prompt,
+			$result['success'] ? 'sent' : 'error',
+			$result['success'] ? '' : ( isset( $result['error'] ) ? $result['error'] : __( 'Unknown error', 'wp-claw' ) ),
+			isset( $result['task_id'] ) ? $result['task_id'] : null
+		);
+
+		// Increment rate limit counter on success.
+		if ( $result['success'] ) {
+			$cc->increment_rate_limit( get_current_user_id() );
+		}
+
+		return new \WP_REST_Response( $result, $result['success'] ? 200 : 500 );
+	}
+
+	/**
+	 * Handle a Command Center history request.
+	 *
+	 * Returns the current user's command history (decrypted prompts).
+	 * Accepts an optional 'limit' parameter (capped at 100).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response REST response with the history array.
+	 */
+	public function handle_command_history( \WP_REST_Request $request ): \WP_REST_Response {
+		$limit = absint( $request->get_param( 'limit' ) );
+		$limit = $limit > 0 ? min( $limit, 100 ) : 20;
+
+		$cc      = new Command_Center();
+		$history = $cc->get_history( $limit );
+
+		return new \WP_REST_Response( array( 'history' => $history ), 200 );
+	}
+
+	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
 
@@ -881,14 +1029,21 @@ class REST_API {
 		if ( '' !== $wpdb->last_error ) {
 			wp_claw_log_warning(
 				'resolve_proposal: failed to update local proposals table.',
-				array( 'db_error' => $wpdb->last_error, 'proposal_id' => $id )
+				array(
+					'db_error'    => $wpdb->last_error,
+					'proposal_id' => $id,
+				)
 			);
 		}
 
 		wp_claw_log(
 			'Proposal resolved.',
 			'info',
-			array( 'proposal_id' => $id, 'resolution' => $resolution, 'user_id' => get_current_user_id() )
+			array(
+				'proposal_id' => $id,
+				'resolution'  => $resolution,
+				'user_id'     => get_current_user_id(),
+			)
 		);
 
 		return rest_ensure_response(

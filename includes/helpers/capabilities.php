@@ -43,7 +43,7 @@ defined( 'ABSPATH' ) || exit;
  * @return void
  */
 function wp_claw_add_capabilities(): void {
-	$administrator_caps = [
+	$administrator_caps = array(
 		'wp_claw_manage_agents',
 		'wp_claw_approve_proposals',
 		'wp_claw_view_dashboard',
@@ -51,12 +51,13 @@ function wp_claw_add_capabilities(): void {
 		'wp_claw_manage_modules',
 		'wp_claw_view_analytics',
 		'wp_claw_manage_chat',
-	];
+		'wp_claw_command_center',
+	);
 
-	$editor_caps = [
+	$editor_caps = array(
 		'wp_claw_view_dashboard',
 		'wp_claw_view_analytics',
-	];
+	);
 
 	$administrator_role = get_role( 'administrator' );
 	if ( $administrator_role instanceof WP_Role ) {
@@ -89,7 +90,7 @@ function wp_claw_add_capabilities(): void {
  * @return void
  */
 function wp_claw_remove_capabilities(): void {
-	$all_wp_claw_caps = [
+	$all_wp_claw_caps = array(
 		'wp_claw_manage_agents',
 		'wp_claw_approve_proposals',
 		'wp_claw_view_dashboard',
@@ -97,9 +98,10 @@ function wp_claw_remove_capabilities(): void {
 		'wp_claw_manage_modules',
 		'wp_claw_view_analytics',
 		'wp_claw_manage_chat',
-	];
+		'wp_claw_command_center',
+	);
 
-	$roles_to_clean = [ 'administrator', 'editor' ];
+	$roles_to_clean = array( 'administrator', 'editor' );
 
 	foreach ( $roles_to_clean as $role_name ) {
 		$role = get_role( $role_name );
@@ -134,11 +136,11 @@ function wp_claw_current_user_can( string $capability ): bool {
 
 	wp_claw_log_warning(
 		'Access denied.',
-		[
+		array(
 			'capability' => $capability,
 			'user_id'    => $user_id,
 			'user_login' => $user_id > 0 ? get_userdata( $user_id )->user_login ?? 'unknown' : 'not_logged_in',
-		]
+		)
 	);
 
 	return false;

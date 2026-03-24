@@ -207,6 +207,6 @@ abstract class Module_Base {
 	 * @return array Array of field definition arrays, or empty array if no settings.
 	 */
 	public function get_settings_fields(): array {
-		return [];
+		return array();
 	}
 }

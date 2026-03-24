@@ -32,11 +32,11 @@ defined( 'ABSPATH' ) || exit;
  */
 function wp_claw_sanitize_api_response( array $response ): array {
 	// Keys and their expected sanitization strategy.
-	$text_fields    = [ 'status', 'message', 'error', 'agent', 'task_id', 'proposal_id', 'version', 'timestamp' ];
-	$integer_fields = [ 'code', 'count', 'total' ];
-	$html_fields    = [ 'description', 'details_html' ];
+	$text_fields    = array( 'status', 'message', 'error', 'agent', 'task_id', 'proposal_id', 'version', 'timestamp' );
+	$integer_fields = array( 'code', 'count', 'total' );
+	$html_fields    = array( 'description', 'details_html' );
 
-	$clean = [];
+	$clean = array();
 
 	foreach ( $text_fields as $key ) {
 		if ( array_key_exists( $key, $response ) ) {
@@ -94,11 +94,11 @@ function wp_claw_sanitize_api_response( array $response ): array {
  * @return array Sanitized task data with only known fields.
  */
 function wp_claw_sanitize_task_data( array $task ): array {
-	$allowed_statuses = [ 'pending', 'in_progress', 'review', 'done', 'failed', 'cancelled' ];
+	$allowed_statuses = array( 'pending', 'in_progress', 'review', 'done', 'failed', 'cancelled' );
 
-	$clean = [];
+	$clean = array();
 
-	$text_fields = [ 'task_id', 'agent', 'module', 'action' ];
+	$text_fields = array( 'task_id', 'agent', 'module', 'action' );
 	foreach ( $text_fields as $key ) {
 		if ( array_key_exists( $key, $task ) ) {
 			$clean[ $key ] = sanitize_text_field( (string) $task[ $key ] );
@@ -146,12 +146,12 @@ function wp_claw_sanitize_task_data( array $task ): array {
  * @return array Sanitized proposal data with only known fields.
  */
 function wp_claw_sanitize_proposal_data( array $proposal ): array {
-	$allowed_statuses = [ 'pending', 'sentinel_approved', 'awaiting_human', 'executing', 'completed', 'rejected', 'rolled_back', 'expired', 'cancelled' ];
-	$allowed_tiers    = [ 'auto', 'auto+', 'propose', 'confirm', 'block' ];
+	$allowed_statuses = array( 'pending', 'sentinel_approved', 'awaiting_human', 'executing', 'completed', 'rejected', 'rolled_back', 'expired', 'cancelled' );
+	$allowed_tiers    = array( 'auto', 'auto+', 'propose', 'confirm', 'block' );
 
-	$clean = [];
+	$clean = array();
 
-	$text_fields = [ 'proposal_id', 'agent', 'action' ];
+	$text_fields = array( 'proposal_id', 'agent', 'action' );
 	foreach ( $text_fields as $key ) {
 		if ( array_key_exists( $key, $proposal ) ) {
 			$clean[ $key ] = sanitize_text_field( (string) $proposal[ $key ] );
@@ -234,7 +234,7 @@ function wp_claw_sanitize_chat_message( string $message ): string {
  */
 function wp_claw_sanitize_module_settings( string $module, array $settings ): array {
 	$module = sanitize_key( $module );
-	$clean  = [];
+	$clean  = array();
 
 	switch ( $module ) {
 		case 'seo':
@@ -243,13 +243,13 @@ function wp_claw_sanitize_module_settings( string $module, array $settings ): ar
 				$clean['focus_keywords'] = sanitize_text_field( (string) $settings['focus_keywords'] );
 			}
 			// Meta title/description length limits.
-			foreach ( [ 'title_length_min', 'title_length_max', 'description_length_min', 'description_length_max' ] as $key ) {
+			foreach ( array( 'title_length_min', 'title_length_max', 'description_length_min', 'description_length_max' ) as $key ) {
 				if ( isset( $settings[ $key ] ) ) {
 					$clean[ $key ] = absint( $settings[ $key ] );
 				}
 			}
 			// Boolean toggles.
-			foreach ( [ 'auto_meta', 'auto_schema', 'auto_sitemap', 'auto_internal_linking' ] as $key ) {
+			foreach ( array( 'auto_meta', 'auto_schema', 'auto_sitemap', 'auto_internal_linking' ) as $key ) {
 				if ( array_key_exists( $key, $settings ) ) {
 					$clean[ $key ] = (bool) $settings[ $key ];
 				}
@@ -262,7 +262,7 @@ function wp_claw_sanitize_module_settings( string $module, array $settings ): ar
 
 		case 'security':
 			// IP/CIDR whitelist and blacklist — validate each entry.
-			foreach ( [ 'ip_whitelist', 'ip_blacklist' ] as $list_key ) {
+			foreach ( array( 'ip_whitelist', 'ip_blacklist' ) as $list_key ) {
 				if ( isset( $settings[ $list_key ] ) && is_array( $settings[ $list_key ] ) ) {
 					$clean[ $list_key ] = array_values(
 						array_filter(
@@ -283,16 +283,16 @@ function wp_claw_sanitize_module_settings( string $module, array $settings ): ar
 			}
 			// Max login attempts before lockout.
 			if ( isset( $settings['max_login_attempts'] ) ) {
-				$val                              = absint( $settings['max_login_attempts'] );
-				$clean['max_login_attempts']      = max( 1, min( 100, $val ) );
+				$val                         = absint( $settings['max_login_attempts'] );
+				$clean['max_login_attempts'] = max( 1, min( 100, $val ) );
 			}
 			// Lockout duration in minutes.
 			if ( isset( $settings['lockout_duration_minutes'] ) ) {
-				$val                                   = absint( $settings['lockout_duration_minutes'] );
-				$clean['lockout_duration_minutes']     = max( 1, min( 10080, $val ) ); // Max 7 days.
+				$val                               = absint( $settings['lockout_duration_minutes'] );
+				$clean['lockout_duration_minutes'] = max( 1, min( 10080, $val ) ); // Max 7 days.
 			}
 			// Boolean toggles.
-			foreach ( [ 'enable_2fa', 'enable_file_integrity', 'enable_malware_scan', 'enable_security_headers' ] as $key ) {
+			foreach ( array( 'enable_2fa', 'enable_file_integrity', 'enable_malware_scan', 'enable_security_headers' ) as $key ) {
 				if ( array_key_exists( $key, $settings ) ) {
 					$clean[ $key ] = (bool) $settings[ $key ];
 				}
@@ -313,13 +313,13 @@ function wp_claw_sanitize_module_settings( string $module, array $settings ): ar
 			}
 			// Abandoned cart timeout in hours.
 			if ( isset( $settings['abandoned_cart_hours'] ) ) {
-				$val                                = absint( $settings['abandoned_cart_hours'] );
-				$clean['abandoned_cart_hours']      = max( 1, min( 168, $val ) ); // 1h–7 days.
+				$val                           = absint( $settings['abandoned_cart_hours'] );
+				$clean['abandoned_cart_hours'] = max( 1, min( 168, $val ) ); // 1h–7 days.
 			}
 			// Notification emails — comma-separated list.
 			if ( isset( $settings['notification_emails'] ) ) {
-				$raw_emails   = explode( ',', (string) $settings['notification_emails'] );
-				$valid_emails = array_filter(
+				$raw_emails                   = explode( ',', (string) $settings['notification_emails'] );
+				$valid_emails                 = array_filter(
 					array_map(
 						function ( $email ) {
 							$email = sanitize_email( trim( $email ) );
@@ -331,14 +331,14 @@ function wp_claw_sanitize_module_settings( string $module, array $settings ): ar
 				$clean['notification_emails'] = implode( ',', $valid_emails );
 			}
 			// Dynamic pricing bounds.
-			foreach ( [ 'price_floor_percent', 'price_ceiling_percent' ] as $key ) {
+			foreach ( array( 'price_floor_percent', 'price_ceiling_percent' ) as $key ) {
 				if ( isset( $settings[ $key ] ) ) {
-					$val          = (float) $settings[ $key ];
+					$val           = (float) $settings[ $key ];
 					$clean[ $key ] = max( 0.0, min( 500.0, $val ) );
 				}
 			}
 			// Boolean toggles.
-			foreach ( [ 'enable_abandoned_cart', 'enable_dynamic_pricing', 'enable_stock_alerts' ] as $key ) {
+			foreach ( array( 'enable_abandoned_cart', 'enable_dynamic_pricing', 'enable_stock_alerts' ) as $key ) {
 				if ( array_key_exists( $key, $settings ) ) {
 					$clean[ $key ] = (bool) $settings[ $key ];
 				}

@@ -72,13 +72,13 @@ class Module_CRM extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'capture_lead',
 			'update_lead_status',
 			'score_lead',
 			'create_followup_task',
 			'get_leads',
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -117,7 +117,7 @@ class Module_CRM extends Module_Base {
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
 					sprintf( __( 'Unknown CRM action: %s', 'wp-claw' ), esc_html( $action ) ),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -156,25 +156,25 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
 				__( 'A valid email address is required to capture a lead.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
 		$task_id = 'crm-lead-' . wp_generate_uuid4();
 		$details = wp_json_encode(
-			[
+			array(
 				'name'   => $name,
 				'email'  => $email,
 				'source' => $source,
 				'notes'  => $notes,
 				'score'  => 0,
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$inserted = $wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -183,23 +183,23 @@ class Module_CRM extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to store lead in the database.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Lead captured successfully.', 'wp-claw' ),
-		];
+		);
 	}
 
 	/**
@@ -228,48 +228,48 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'task_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
-		$allowed_statuses = [ 'pending', 'contacted', 'qualified', 'proposal', 'won', 'lost' ];
+		$allowed_statuses = array( 'pending', 'contacted', 'qualified', 'proposal', 'won', 'lost' );
 		if ( ! in_array( $status, $allowed_statuses, true ) ) {
 			return new \WP_Error(
 				'wp_claw_invalid_status',
 				/* translators: %s: comma-separated list of valid statuses */
 				sprintf( __( 'Invalid status. Allowed values: %s', 'wp-claw' ), implode( ', ', $allowed_statuses ) ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional UPDATE into WP-Claw custom table; no caching needed for write.
 		$updated = $wpdb->update(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'status'     => $status,
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[
+			),
+			array(
 				'task_id' => $task_id,
 				'module'  => $this->get_slug(),
-			],
-			[ '%s', '%s' ],
-			[ '%s', '%s' ]
+			),
+			array( '%s', '%s' ),
+			array( '%s', '%s' )
 		);
 
 		if ( false === $updated ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to update lead status.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'status'  => $status,
-		];
+		);
 	}
 
 	/**
@@ -300,7 +300,7 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'task_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -319,42 +319,42 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_not_found',
 				__( 'Lead not found.', 'wp-claw' ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
 		$details          = json_decode( $row['details'], true );
-		$details          = is_array( $details ) ? $details : [];
+		$details          = is_array( $details ) ? $details : array();
 		$details['score'] = $score;
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional UPDATE into WP-Claw custom table; no caching needed for write.
 		$updated = $wpdb->update(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'details'    => wp_json_encode( $details ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[
+			),
+			array(
 				'task_id' => $task_id,
 				'module'  => $this->get_slug(),
-			],
-			[ '%s', '%s' ],
-			[ '%s', '%s' ]
+			),
+			array( '%s', '%s' ),
+			array( '%s', '%s' )
 		);
 
 		if ( false === $updated ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to update lead score.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'score'   => $score,
-		];
+		);
 	}
 
 	/**
@@ -385,23 +385,23 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'lead_task_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
 		$task_id = 'crm-followup-' . wp_generate_uuid4();
 		$details = wp_json_encode(
-			[
+			array(
 				'lead_task_id' => $lead_task_id,
 				'due_date'     => $due_date,
 				'notes'        => $notes,
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$inserted = $wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -410,23 +410,23 @@ class Module_CRM extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to create follow-up task.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Follow-up task created.', 'wp-claw' ),
-		];
+		);
 	}
 
 	/**
@@ -483,18 +483,18 @@ class Module_CRM extends Module_Base {
 			);
 		}
 
-		$leads = [];
+		$leads = array();
 		foreach ( $rows as $row ) {
-			$details       = json_decode( $row['details'], true );
-			$row['details'] = is_array( $details ) ? $details : [];
+			$details        = json_decode( $row['details'], true );
+			$row['details'] = is_array( $details ) ? $details : array();
 			$leads[]        = $row;
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'leads'   => $leads,
 			'count'   => count( $leads ),
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -513,13 +513,13 @@ class Module_CRM extends Module_Base {
 	 */
 	public function register_hooks(): void {
 		// WPForms — fires after a form is processed successfully.
-		add_action( 'wpforms_process_complete', [ $this, 'handle_wpforms_submission' ], 10, 4 );
+		add_action( 'wpforms_process_complete', array( $this, 'handle_wpforms_submission' ), 10, 4 );
 
 		// Gravity Forms — fires after a successful submission.
-		add_action( 'gform_after_submission', [ $this, 'handle_gform_submission' ], 10, 2 );
+		add_action( 'gform_after_submission', array( $this, 'handle_gform_submission' ), 10, 2 );
 
 		// Contact Form 7 — fires after the mail is successfully sent.
-		add_action( 'wpcf7_mail_sent', [ $this, 'handle_cf7_submission' ], 10, 1 );
+		add_action( 'wpcf7_mail_sent', array( $this, 'handle_cf7_submission' ), 10, 1 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -552,7 +552,7 @@ class Module_CRM extends Module_Base {
 
 				if ( 'email' === $type ) {
 					$email = sanitize_email( $value );
-				} elseif ( in_array( $type, [ 'name', 'text' ], true ) && empty( $name ) ) {
+				} elseif ( in_array( $type, array( 'name', 'text' ), true ) && empty( $name ) ) {
 					$name = $value;
 				}
 			}
@@ -567,12 +567,12 @@ class Module_CRM extends Module_Base {
 			: 'WPForms';
 
 		$this->handle_capture_lead(
-			[
+			array(
 				'name'   => $name,
 				'email'  => $email,
 				'source' => 'wpforms:' . $form_title,
 				'notes'  => 'Submitted via WPForms entry #' . absint( $entry_id ),
-			]
+			)
 		);
 	}
 
@@ -603,7 +603,7 @@ class Module_CRM extends Module_Base {
 
 				if ( 'email' === $field_type ) {
 					$email = sanitize_email( $value );
-				} elseif ( in_array( $field_type, [ 'name', 'text' ], true ) && empty( $name ) ) {
+				} elseif ( in_array( $field_type, array( 'name', 'text' ), true ) && empty( $name ) ) {
 					$name = $value;
 				}
 			}
@@ -618,12 +618,12 @@ class Module_CRM extends Module_Base {
 			: 'Gravity Forms';
 
 		$this->handle_capture_lead(
-			[
+			array(
 				'name'   => $name,
 				'email'  => $email,
 				'source' => 'gravityforms:' . $form_title,
 				'notes'  => 'Submitted via Gravity Forms entry #' . absint( $entry['id'] ?? 0 ),
-			]
+			)
 		);
 	}
 
@@ -659,12 +659,12 @@ class Module_CRM extends Module_Base {
 			: 'Contact Form 7';
 
 		$this->handle_capture_lead(
-			[
+			array(
 				'name'   => $name,
 				'email'  => $email,
 				'source' => 'cf7:' . $form_title,
 				'notes'  => 'Submitted via Contact Form 7',
-			]
+			)
 		);
 	}
 
@@ -699,16 +699,16 @@ class Module_CRM extends Module_Base {
 			ARRAY_A
 		);
 
-		$counts = [];
+		$counts = array();
 		foreach ( $rows as $row ) {
 			$counts[ sanitize_key( $row['status'] ) ] = absint( $row['count'] );
 		}
 
-		return [
+		return array(
 			'module'       => $this->get_slug(),
 			'lead_counts'  => $counts,
 			'total_leads'  => array_sum( $counts ),
 			'generated_at' => current_time( 'c' ),
-		];
+		);
 	}
 }

@@ -99,7 +99,7 @@ class Module_SEO extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'update_post_meta_title',
 			'update_post_meta_description',
 			'update_schema_markup',
@@ -107,7 +107,7 @@ class Module_SEO extends Module_Base {
 			'analyze_content',
 			'suggest_internal_links',
 			'update_robots_txt',
-		];
+		);
 	}
 
 	/**
@@ -155,7 +155,7 @@ class Module_SEO extends Module_Base {
 						__( 'Unknown SEO action: %s', 'wp-claw' ),
 						esc_html( $action )
 					),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -194,15 +194,15 @@ class Module_SEO extends Module_Base {
 			)
 		);
 
-		return [
-			'total_published_posts'      => $total_posts,
-			'posts_with_meta_title'      => $posts_with_title,
-			'posts_without_meta_title'   => max( 0, $total_posts - $posts_with_title ),
-			'posts_with_meta_desc'       => $posts_with_desc,
-			'posts_without_meta_desc'    => max( 0, $total_posts - $posts_with_desc ),
-			'last_sitemap_flush'         => get_option( 'wp_claw_seo_last_sitemap_flush', '' ),
-			'robots_txt_custom_rules'    => (bool) get_option( 'wp_claw_seo_robots_txt_rules', '' ),
-		];
+		return array(
+			'total_published_posts'    => $total_posts,
+			'posts_with_meta_title'    => $posts_with_title,
+			'posts_without_meta_title' => max( 0, $total_posts - $posts_with_title ),
+			'posts_with_meta_desc'     => $posts_with_desc,
+			'posts_without_meta_desc'  => max( 0, $total_posts - $posts_with_desc ),
+			'last_sitemap_flush'       => get_option( 'wp_claw_seo_last_sitemap_flush', '' ),
+			'robots_txt_custom_rules'  => (bool) get_option( 'wp_claw_seo_robots_txt_rules', '' ),
+		);
 	}
 
 	/**
@@ -216,8 +216,8 @@ class Module_SEO extends Module_Base {
 	 * @return void
 	 */
 	public function register_hooks(): void {
-		add_action( 'save_post', [ $this, 'on_save_post' ], 20, 1 );
-		add_action( 'publish_post', [ $this, 'on_publish_post' ], 20, 1 );
+		add_action( 'save_post', array( $this, 'on_save_post' ), 20, 1 );
+		add_action( 'publish_post', array( $this, 'on_publish_post' ), 20, 1 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -252,19 +252,22 @@ class Module_SEO extends Module_Base {
 		}
 
 		$this->api_client->create_task(
-			'scribe',
-			'seo_audit',
-			[
-				'post_id'   => $post_id,
-				'post_type' => $post_type,
-				'trigger'   => 'save_post',
-			]
+			array(
+				'agent'   => 'scribe',
+				'module'  => 'seo',
+				'action'  => 'seo_audit',
+				'details' => array(
+					'post_id'   => $post_id,
+					'post_type' => $post_type,
+					'trigger'   => 'save_post',
+				),
+			)
 		);
 
 		wp_claw_log(
 			'SEO audit task queued.',
 			'debug',
-			[ 'post_id' => $post_id ]
+			array( 'post_id' => $post_id )
 		);
 	}
 
@@ -279,18 +282,21 @@ class Module_SEO extends Module_Base {
 	 */
 	public function on_publish_post( int $post_id ): void {
 		$this->api_client->create_task(
-			'scribe',
-			'sitemap_update',
-			[
-				'post_id' => $post_id,
-				'trigger' => 'publish_post',
-			]
+			array(
+				'agent'   => 'scribe',
+				'module'  => 'seo',
+				'action'  => 'sitemap_update',
+				'details' => array(
+					'post_id' => $post_id,
+					'trigger' => 'publish_post',
+				),
+			)
 		);
 
 		wp_claw_log(
 			'Sitemap update task queued.',
 			'debug',
-			[ 'post_id' => $post_id ]
+			array( 'post_id' => $post_id )
 		);
 	}
 
@@ -313,7 +319,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -322,21 +328,21 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_missing_title',
 				__( 'title parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		update_post_meta( $post_id, self::META_TITLE, $title );
 
-		wp_claw_log( 'SEO meta title updated.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'SEO meta title updated.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id' => $post_id,
 				'title'   => $title,
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -354,7 +360,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -363,21 +369,21 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_missing_description',
 				__( 'description parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		update_post_meta( $post_id, self::META_DESC, $description );
 
-		wp_claw_log( 'SEO meta description updated.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'SEO meta description updated.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id'     => $post_id,
 				'description' => $description,
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -399,7 +405,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -407,7 +413,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_missing_schema',
 				__( 'schema parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -422,20 +428,20 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_schema',
 				__( 'schema must be valid JSON.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		update_post_meta( $post_id, self::META_SCHEMA, $schema_json );
 
-		wp_claw_log( 'Schema markup updated.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'Schema markup updated.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id' => $post_id,
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -456,13 +462,13 @@ class Module_SEO extends Module_Base {
 
 		wp_claw_log( 'Sitemap rewrite flush triggered.', 'info' );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'flushed_at' => $timestamp,
+			'data'    => array(
+				'flushed_at'  => $timestamp,
 				'sitemap_url' => esc_url( home_url( '/?sitemap=1' ) ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -483,7 +489,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -492,7 +498,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_post_not_found',
 				__( 'Post not found.', 'wp-claw' ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
@@ -509,19 +515,19 @@ class Module_SEO extends Module_Base {
 		$has_meta_desc  = (bool) get_post_meta( $post_id, self::META_DESC, true );
 		$has_schema     = (bool) get_post_meta( $post_id, self::META_SCHEMA, true );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'post_id'         => $post_id,
-				'word_count'      => $word_count,
-				'heading_count'   => $heading_count,
-				'has_meta_title'  => $has_meta_title,
-				'has_meta_desc'   => $has_meta_desc,
-				'has_schema'      => $has_schema,
-				'post_status'     => esc_html( $post->post_status ),
-				'post_type'       => esc_html( $post->post_type ),
-			],
-		];
+			'data'    => array(
+				'post_id'        => $post_id,
+				'word_count'     => $word_count,
+				'heading_count'  => $heading_count,
+				'has_meta_title' => $has_meta_title,
+				'has_meta_desc'  => $has_meta_desc,
+				'has_schema'     => $has_schema,
+				'post_status'    => esc_html( $post->post_status ),
+				'post_type'      => esc_html( $post->post_type ),
+			),
+		);
 	}
 
 	/**
@@ -542,13 +548,13 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		$raw_keywords = isset( $params['keywords'] ) && is_array( $params['keywords'] )
 			? $params['keywords']
-			: [];
+			: array();
 
 		$keywords = array_map( 'sanitize_text_field', $raw_keywords );
 		$keywords = array_filter( $keywords );
@@ -557,32 +563,34 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_missing_keywords',
 				__( 'At least one keyword is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
-		$suggestions = [];
+		$suggestions = array();
 
 		foreach ( $keywords as $keyword ) {
-			$query = new \WP_Query( [
-				'post_type'      => 'post',
-				'post_status'    => 'publish',
-				'posts_per_page' => 5,
-				's'              => $keyword,
-				'post__not_in'   => [ $post_id ],
-				'fields'         => 'ids',
-			] );
+			$query = new \WP_Query(
+				array(
+					'post_type'      => 'post',
+					'post_status'    => 'publish',
+					'posts_per_page' => 5,
+					's'              => $keyword,
+					'post__not_in'   => array( $post_id ),
+					'fields'         => 'ids',
+				)
+			);
 
 			if ( $query->have_posts() ) {
 				foreach ( $query->posts as $found_id ) {
 					$found_id = absint( $found_id );
 					if ( ! isset( $suggestions[ $found_id ] ) ) {
-						$suggestions[ $found_id ] = [
+						$suggestions[ $found_id ] = array(
 							'post_id' => $found_id,
 							'title'   => esc_html( get_the_title( $found_id ) ),
 							'url'     => esc_url( get_permalink( $found_id ) ),
 							'keyword' => esc_html( $keyword ),
-						];
+						);
 					}
 				}
 			}
@@ -590,13 +598,13 @@ class Module_SEO extends Module_Base {
 			wp_reset_postdata();
 		}
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id'     => $post_id,
 				'suggestions' => array_values( $suggestions ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -617,7 +625,7 @@ class Module_SEO extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_seo_missing_rules',
 				__( 'rules parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -628,11 +636,11 @@ class Module_SEO extends Module_Base {
 
 		wp_claw_log( 'robots.txt custom rules updated.', 'info' );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'rules_length' => strlen( $rules ),
-			],
-		];
+			),
+		);
 	}
 }

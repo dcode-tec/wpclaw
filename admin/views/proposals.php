@@ -55,13 +55,13 @@ if ( $show_all ) {
  */
 $wp_claw_proposal_status_class = function ( $status ) {
 	$map = array(
-		'pending'          => 'pending',
-		'approved'         => 'ok',
-		'rejected'         => 'failed',
-		'executing'        => 'running',
-		'executed'         => 'done',
-		'rolled_back'      => 'degraded',
-		'expired'          => 'unknown',
+		'pending'     => 'pending',
+		'approved'    => 'ok',
+		'rejected'    => 'failed',
+		'executing'   => 'running',
+		'executed'    => 'done',
+		'rolled_back' => 'degraded',
+		'expired'     => 'unknown',
 	);
 	$key = strtolower( sanitize_key( (string) $status ) );
 	return isset( $map[ $key ] ) ? $map[ $key ] : 'unknown';
@@ -140,19 +140,19 @@ $wp_claw_proposal_status_class = function ( $status ) {
 		</thead>
 		<tbody>
 		<?php foreach ( $proposals as $proposal ) : ?>
-		<?php
-		$proposal_id     = sanitize_text_field( (string) $proposal->proposal_id );
-		$proposal_agent  = sanitize_text_field( (string) $proposal->agent );
-		$proposal_action = sanitize_text_field( (string) $proposal->action );
-		$proposal_status = sanitize_key( (string) $proposal->status );
-		$proposal_raw    = sanitize_text_field( (string) $proposal->details );
-		$proposal_age    = ! empty( $proposal->created_at ) ? strtotime( $proposal->created_at ) : 0;
-		$status_class    = $wp_claw_proposal_status_class( $proposal_status );
-		$is_pending      = 'pending' === $proposal_status;
+			<?php
+			$proposal_id     = sanitize_text_field( (string) $proposal->proposal_id );
+			$proposal_agent  = sanitize_text_field( (string) $proposal->agent );
+			$proposal_action = sanitize_text_field( (string) $proposal->action );
+			$proposal_status = sanitize_key( (string) $proposal->status );
+			$proposal_raw    = sanitize_text_field( (string) $proposal->details );
+			$proposal_age    = ! empty( $proposal->created_at ) ? strtotime( $proposal->created_at ) : 0;
+			$status_class    = $wp_claw_proposal_status_class( $proposal_status );
+			$is_pending      = 'pending' === $proposal_status;
 
-		// Trim details to a readable excerpt — wp_trim_words works on plain text.
-		$proposal_excerpt = wp_trim_words( $proposal_raw, 20, '&hellip;' );
-		?>
+			// Trim details to a readable excerpt — wp_trim_words works on plain text.
+			$proposal_excerpt = wp_trim_words( $proposal_raw, 20, '&hellip;' );
+			?>
 		<tr
 			class="wp-claw-admin-proposal-row <?php echo esc_attr( $is_pending ? 'wp-claw-admin-proposal-row--pending' : '' ); ?>"
 			data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"

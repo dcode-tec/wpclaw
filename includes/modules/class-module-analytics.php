@@ -34,7 +34,7 @@ class Module_Analytics extends Module_Base {
 	 * @since 1.0.0
 	 * @var   string
 	 */
-	const TABLE = 'claw_analytics';
+	const TABLE = 'wp_claw_analytics';
 
 	// -------------------------------------------------------------------------
 	// Module contract implementation
@@ -141,21 +141,21 @@ class Module_Analytics extends Module_Base {
 
 		$today = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(event_time) = %s",
+				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(created_at) = %s",
 				gmdate( 'Y-m-d' )
 			)
 		);
 
 		$week = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE event_time >= %s",
+				"SELECT COUNT(*) FROM `{$table}` WHERE created_at >= %s",
 				gmdate( 'Y-m-d H:i:s', strtotime( '-7 days' ) )
 			)
 		);
 
 		$month = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE event_time >= %s",
+				"SELECT COUNT(*) FROM `{$table}` WHERE created_at >= %s",
 				gmdate( 'Y-m-d H:i:s', strtotime( '-30 days' ) )
 			)
 		);
@@ -269,7 +269,7 @@ class Module_Analytics extends Module_Base {
 
 		$count = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(event_time) BETWEEN %s AND %s",
+				"SELECT COUNT(*) FROM `{$table}` WHERE DATE(created_at) BETWEEN %s AND %s",
 				$date_from,
 				$date_to
 			)
@@ -304,7 +304,7 @@ class Module_Analytics extends Module_Base {
 			$wpdb->prepare(
 				"SELECT page_url, COUNT(*) as views
 				 FROM `{$table}`
-				 WHERE DATE(event_time) BETWEEN %s AND %s
+				 WHERE DATE(created_at) BETWEEN %s AND %s
 				 GROUP BY page_url
 				 ORDER BY views DESC
 				 LIMIT 10",
@@ -350,7 +350,7 @@ class Module_Analytics extends Module_Base {
 			$wpdb->prepare(
 				"SELECT referrer, COUNT(*) as visits
 				 FROM `{$table}`
-				 WHERE DATE(event_time) BETWEEN %s AND %s
+				 WHERE DATE(created_at) BETWEEN %s AND %s
 				   AND referrer IS NOT NULL AND referrer <> ''
 				 GROUP BY referrer
 				 ORDER BY visits DESC
@@ -397,7 +397,7 @@ class Module_Analytics extends Module_Base {
 			$wpdb->prepare(
 				"SELECT device_type, COUNT(*) as views
 				 FROM `{$table}`
-				 WHERE DATE(event_time) BETWEEN %s AND %s
+				 WHERE DATE(created_at) BETWEEN %s AND %s
 				 GROUP BY device_type
 				 ORDER BY views DESC",
 				$date_from,

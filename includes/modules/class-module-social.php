@@ -39,13 +39,13 @@ class Module_Social extends Module_Base {
 	 *
 	 * @var string[]
 	 */
-	private static array $allowed_platforms = [
+	private static array $allowed_platforms = array(
 		'facebook',
 		'instagram',
 		'linkedin',
 		'twitter',
 		'pinterest',
-	];
+	);
 
 	/**
 	 * Maximum length (characters) allowed for social post text.
@@ -101,11 +101,11 @@ class Module_Social extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'create_social_post',
 			'schedule_post',
 			'get_scheduled_posts',
-		];
+		);
 	}
 
 	/**
@@ -140,7 +140,7 @@ class Module_Social extends Module_Base {
 						__( 'Unknown social action: %s', 'wp-claw' ),
 						esc_html( $action )
 					),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -156,7 +156,7 @@ class Module_Social extends Module_Base {
 	 * @return void
 	 */
 	public function register_hooks(): void {
-		add_action( 'publish_post', [ $this, 'on_publish_post' ], 10, 2 );
+		add_action( 'publish_post', array( $this, 'on_publish_post' ), 10, 2 );
 	}
 
 	/**
@@ -193,10 +193,10 @@ class Module_Social extends Module_Base {
 
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		return [
+		return array(
 			'scheduled_posts' => $scheduled_count,
 			'recent_posts'    => $recent_count,
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -233,7 +233,7 @@ class Module_Social extends Module_Base {
 			? wp_trim_words( get_the_excerpt( $post ), 55, '...' )
 			: wp_trim_words( $post->post_content, 55, '...' );
 
-		$task = [
+		$task = array(
 			'agent'   => $this->get_agent(),
 			'module'  => $this->get_slug(),
 			'action'  => 'generate_social_posts',
@@ -244,20 +244,23 @@ class Module_Social extends Module_Base {
 				__( 'Generate social posts for: %s', 'wp-claw' ),
 				$post->post_title
 			),
-			'details' => [
+			'details' => array(
 				'post_id'    => $post_id,
 				'post_title' => $post->post_title,
 				'excerpt'    => wp_strip_all_tags( $excerpt ),
 				'post_url'   => get_permalink( $post_id ),
-			],
-		];
+			),
+		);
 
 		\WPClaw\Hooks::queue_task( $task );
 
 		wp_claw_log(
 			'Social: queued post generation task.',
 			'info',
-			[ 'post_id' => $post_id, 'post_title' => $post->post_title ]
+			array(
+				'post_id'    => $post_id,
+				'post_title' => $post->post_title,
+			)
 		);
 	}
 
@@ -297,7 +300,7 @@ class Module_Social extends Module_Base {
 					esc_html( $platform ),
 					implode( ', ', self::$allowed_platforms )
 				),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -308,7 +311,7 @@ class Module_Social extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_text',
 				__( 'Social post text is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -326,12 +329,12 @@ class Module_Social extends Module_Base {
 		// --- Persist locally -------------------------------------------------
 		$task_id = $this->insert_task_record(
 			'create_social_post',
-			[
+			array(
 				'platform'       => $platform,
 				'text'           => $text,
 				'scheduled_time' => $scheduled_time,
 				'post_id'        => $post_id,
-			],
+			),
 			'pending'
 		);
 
@@ -342,10 +345,13 @@ class Module_Social extends Module_Base {
 		wp_claw_log(
 			'Social: created social post task.',
 			'info',
-			[ 'task_id' => $task_id, 'platform' => $platform ]
+			array(
+				'task_id'  => $task_id,
+				'platform' => $platform,
+			)
 		);
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => sprintf(
@@ -353,7 +359,7 @@ class Module_Social extends Module_Base {
 				__( 'Social post queued for %s.', 'wp-claw' ),
 				$platform
 			),
-		];
+		);
 	}
 
 	/**
@@ -386,7 +392,7 @@ class Module_Social extends Module_Base {
 					esc_html( $platform ),
 					implode( ', ', self::$allowed_platforms )
 				),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -397,7 +403,7 @@ class Module_Social extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_text',
 				__( 'Social post text is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -414,7 +420,7 @@ class Module_Social extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_scheduled_time',
 				__( 'scheduled_time is required for schedule_post.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -425,7 +431,7 @@ class Module_Social extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_scheduled_time',
 				__( 'scheduled_time must be a valid ISO 8601 datetime string.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -435,7 +441,10 @@ class Module_Social extends Module_Base {
 			wp_claw_log(
 				'Social: schedule_post received a past scheduled_time — proceeding.',
 				'warning',
-				[ 'platform' => $platform, 'scheduled_time' => $scheduled_time ]
+				array(
+					'platform'       => $platform,
+					'scheduled_time' => $scheduled_time,
+				)
 			);
 		}
 
@@ -444,12 +453,12 @@ class Module_Social extends Module_Base {
 		// --- Persist ---------------------------------------------------------
 		$task_id = $this->insert_task_record(
 			'schedule_post',
-			[
+			array(
 				'platform'       => $platform,
 				'text'           => $text,
 				'scheduled_time' => $scheduled_time,
 				'post_id'        => $post_id,
-			],
+			),
 			'pending'
 		);
 
@@ -460,10 +469,14 @@ class Module_Social extends Module_Base {
 		wp_claw_log(
 			'Social: scheduled post task created.',
 			'info',
-			[ 'task_id' => $task_id, 'platform' => $platform, 'scheduled_time' => $scheduled_time ]
+			array(
+				'task_id'        => $task_id,
+				'platform'       => $platform,
+				'scheduled_time' => $scheduled_time,
+			)
 		);
 
-		return [
+		return array(
 			'success'        => true,
 			'task_id'        => $task_id,
 			'platform'       => $platform,
@@ -474,7 +487,7 @@ class Module_Social extends Module_Base {
 				$platform,
 				$scheduled_time
 			),
-		];
+		);
 	}
 
 	/**
@@ -511,20 +524,20 @@ class Module_Social extends Module_Base {
 					__( 'Invalid platform filter: %s', 'wp-claw' ),
 					esc_html( $platform )
 				),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query by design; agent needs fresh state.
 
 		if ( '' !== $platform ) {
-			// Fetch pending social tasks for a specific platform. The details
-			// column is JSON; filtering is done in PHP after fetching.
+			// Filter by platform using JSON_EXTRACT on the details column.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					"SELECT task_id, action, status, details, created_at, updated_at FROM {$table} WHERE module = %s AND status = %s ORDER BY created_at ASC LIMIT %d",  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+					"SELECT task_id, action, status, details, created_at, updated_at FROM {$table} WHERE module = %s AND status = %s AND JSON_EXTRACT(details, '$.platform') = %s ORDER BY created_at ASC LIMIT %d",  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
 					'social',
 					'pending',
+					$platform,
 					$limit
 				),
 				ARRAY_A
@@ -547,19 +560,19 @@ class Module_Social extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Database error fetching scheduled posts.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		$posts = [];
+		$posts = array();
 
 		foreach ( $rows as $row ) {
 			$details = ! empty( $row['details'] )
 				? json_decode( $row['details'], true )
-				: [];
+				: array();
 
 			if ( ! is_array( $details ) ) {
-				$details = [];
+				$details = array();
 			}
 
 			// Apply optional platform filter in PHP (details column is JSON).
@@ -567,7 +580,7 @@ class Module_Social extends Module_Base {
 				continue;
 			}
 
-			$posts[] = [
+			$posts[] = array(
 				'task_id'        => sanitize_text_field( $row['task_id'] ),
 				'action'         => sanitize_text_field( $row['action'] ),
 				'status'         => sanitize_text_field( $row['status'] ),
@@ -577,14 +590,14 @@ class Module_Social extends Module_Base {
 				'post_id'        => isset( $details['post_id'] ) ? absint( $details['post_id'] ) : 0,
 				'created_at'     => sanitize_text_field( $row['created_at'] ),
 				'updated_at'     => sanitize_text_field( $row['updated_at'] ),
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'count'   => count( $posts ),
 			'posts'   => $posts,
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -618,7 +631,7 @@ class Module_Social extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- local task log insert; no caching required.
 		$inserted = $wpdb->insert(
 			$table,
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -627,21 +640,24 @@ class Module_Social extends Module_Base {
 				'details'    => wp_json_encode( $details ),
 				'created_at' => $now,
 				'updated_at' => $now,
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			wp_claw_log(
 				'Social: failed to insert task record.',
 				'error',
-				[ 'action' => $action, 'db_error' => $wpdb->last_error ]
+				array(
+					'action'   => $action,
+					'db_error' => $wpdb->last_error,
+				)
 			);
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
 				__( 'Failed to save social post task to the database.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 

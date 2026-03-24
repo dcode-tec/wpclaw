@@ -49,7 +49,7 @@ class Deactivator {
 	 *
 	 * @var string[]
 	 */
-	private static array $cron_hooks = [
+	private static array $cron_hooks = array(
 		'wp_claw_health_check',
 		'wp_claw_sync_state',
 		'wp_claw_update_check',
@@ -59,7 +59,7 @@ class Deactivator {
 		'wp_claw_analytics_report',
 		'wp_claw_performance_check',
 		'wp_claw_analytics_cleanup',
-	];
+	);
 
 	/**
 	 * Transient keys that hold runtime-only data.
@@ -71,13 +71,13 @@ class Deactivator {
 	 *
 	 * @var string[]
 	 */
-	private static array $transient_keys = [
+	private static array $transient_keys = array(
 		'wp_claw_task_queue',
 		'wp_claw_last_health',
 		'wp_claw_circuit_failures',
 		'wp_claw_update_data',
 		'wp_claw_queue_lock',
-	];
+	);
 
 	/**
 	 * Run all deactivation routines.

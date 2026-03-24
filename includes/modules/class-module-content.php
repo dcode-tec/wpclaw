@@ -72,13 +72,13 @@ class Module_Content extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'create_draft_post',
 			'update_post_content',
 			'create_page',
 			'translate_post',
 			'generate_excerpt',
-		];
+		);
 	}
 
 	/**
@@ -116,7 +116,7 @@ class Module_Content extends Module_Base {
 						__( 'Unknown Content action: %s', 'wp-claw' ),
 						esc_html( $action )
 					),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -134,53 +134,55 @@ class Module_Content extends Module_Base {
 	public function get_state(): array {
 		$counts = wp_count_posts( 'post' );
 
-		$post_counts = [
+		$post_counts = array(
 			'publish' => (int) ( $counts->publish ?? 0 ),
 			'draft'   => (int) ( $counts->draft ?? 0 ),
 			'pending' => (int) ( $counts->pending ?? 0 ),
 			'future'  => (int) ( $counts->future ?? 0 ),
 			'trash'   => (int) ( $counts->trash ?? 0 ),
-		];
+		);
 
 		// Posts modified in the last 7 days.
-		$recent = new \WP_Query( [
-			'post_type'      => [ 'post', 'page' ],
-			'post_status'    => [ 'publish', 'draft', 'pending' ],
-			'posts_per_page' => 10,
-			'orderby'        => 'modified',
-			'order'          => 'DESC',
-			'date_query'     => [
-				[
-					'column' => 'post_modified_gmt',
-					'after'  => '7 days ago',
-				],
-			],
-			'fields'         => 'ids',
-		] );
+		$recent = new \WP_Query(
+			array(
+				'post_type'      => array( 'post', 'page' ),
+				'post_status'    => array( 'publish', 'draft', 'pending' ),
+				'posts_per_page' => 10,
+				'orderby'        => 'modified',
+				'order'          => 'DESC',
+				'date_query'     => array(
+					array(
+						'column' => 'post_modified_gmt',
+						'after'  => '7 days ago',
+					),
+				),
+				'fields'         => 'ids',
+			)
+		);
 
-		$recently_modified = [];
+		$recently_modified = array();
 		if ( $recent->have_posts() ) {
 			foreach ( $recent->posts as $post_id ) {
 				$post_id = absint( $post_id );
 				$post    = get_post( $post_id );
 				if ( $post ) {
-					$recently_modified[] = [
-						'post_id'      => $post_id,
-						'title'        => esc_html( get_the_title( $post_id ) ),
-						'status'       => esc_html( $post->post_status ),
-						'post_type'    => esc_html( $post->post_type ),
-						'modified'     => esc_html( $post->post_modified_gmt ),
-					];
+					$recently_modified[] = array(
+						'post_id'   => $post_id,
+						'title'     => esc_html( get_the_title( $post_id ) ),
+						'status'    => esc_html( $post->post_status ),
+						'post_type' => esc_html( $post->post_type ),
+						'modified'  => esc_html( $post->post_modified_gmt ),
+					);
 				}
 			}
 		}
 
 		wp_reset_postdata();
 
-		return [
+		return array(
 			'post_counts'       => $post_counts,
 			'recently_modified' => $recently_modified,
-		];
+		);
 	}
 
 	/**
@@ -220,18 +222,18 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
 				__( 'title parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		$content = isset( $params['content'] ) ? wp_kses_post( wp_unslash( $params['content'] ) ) : '';
 
-		$post_data = [
+		$post_data = array(
 			'post_title'   => $title,
 			'post_content' => $content,
 			'post_status'  => 'draft',
 			'post_type'    => 'post',
-		];
+		);
 
 		// Optional: tags (comma-separated string or array of tag names).
 		if ( ! empty( $params['tags'] ) ) {
@@ -251,20 +253,20 @@ class Module_Content extends Module_Base {
 		$post_id = wp_insert_post( $post_data, true );
 
 		if ( is_wp_error( $post_id ) ) {
-			wp_claw_log( 'Failed to create draft post.', 'error', [ 'error' => $post_id->get_error_message() ] );
+			wp_claw_log( 'Failed to create draft post.', 'error', array( 'error' => $post_id->get_error_message() ) );
 			return $post_id;
 		}
 
-		wp_claw_log( 'Draft post created.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'Draft post created.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'post_id'   => $post_id,
-				'title'     => esc_html( $title ),
-				'edit_url'  => esc_url( get_edit_post_link( $post_id, 'raw' ) ),
-			],
-		];
+			'data'    => array(
+				'post_id'  => $post_id,
+				'title'    => esc_html( $title ),
+				'edit_url' => esc_url( get_edit_post_link( $post_id, 'raw' ) ),
+			),
+		);
 	}
 
 	/**
@@ -285,7 +287,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_invalid_post',
 				__( 'Invalid or missing post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -294,7 +296,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_post_not_found',
 				__( 'Post not found.', 'wp-claw' ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
@@ -302,17 +304,17 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_content',
 				__( 'content parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		$content = wp_kses_post( wp_unslash( $params['content'] ) );
 
 		$result = wp_update_post(
-			[
+			array(
 				'ID'           => $post_id,
 				'post_content' => $content,
-			],
+			),
 			true
 		);
 
@@ -320,21 +322,24 @@ class Module_Content extends Module_Base {
 			wp_claw_log(
 				'Failed to update post content.',
 				'error',
-				[ 'post_id' => $post_id, 'error' => $result->get_error_message() ]
+				array(
+					'post_id' => $post_id,
+					'error'   => $result->get_error_message(),
+				)
 			);
 			return $result;
 		}
 
-		wp_claw_log( 'Post content updated.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'Post content updated.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'post_id'    => $post_id,
-				'post_type'  => esc_html( $post->post_type ),
+			'data'    => array(
+				'post_id'     => $post_id,
+				'post_type'   => esc_html( $post->post_type ),
 				'post_status' => esc_html( $post->post_status ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -355,7 +360,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
 				__( 'title parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -367,36 +372,36 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_invalid_parent',
 				__( 'parent_id does not refer to an existing post.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
-		$post_data = [
+		$post_data = array(
 			'post_title'   => $title,
 			'post_content' => $content,
 			'post_status'  => 'draft',
 			'post_type'    => 'page',
 			'post_parent'  => $parent_id,
-		];
+		);
 
 		$post_id = wp_insert_post( $post_data, true );
 
 		if ( is_wp_error( $post_id ) ) {
-			wp_claw_log( 'Failed to create page.', 'error', [ 'error' => $post_id->get_error_message() ] );
+			wp_claw_log( 'Failed to create page.', 'error', array( 'error' => $post_id->get_error_message() ) );
 			return $post_id;
 		}
 
-		wp_claw_log( 'Draft page created.', 'info', [ 'post_id' => $post_id ] );
+		wp_claw_log( 'Draft page created.', 'info', array( 'post_id' => $post_id ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id'   => $post_id,
 				'title'     => esc_html( $title ),
 				'post_type' => 'page',
 				'edit_url'  => esc_url( get_edit_post_link( $post_id, 'raw' ) ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -419,7 +424,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_invalid_source',
 				__( 'Invalid or missing source_post_id.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -428,7 +433,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_locale',
 				__( 'locale parameter is required (e.g. fr_FR).', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -437,7 +442,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
 				__( 'title parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -445,12 +450,12 @@ class Module_Content extends Module_Base {
 
 		$source_post = get_post( $source_post_id );
 
-		$post_data = [
+		$post_data = array(
 			'post_title'   => $title,
 			'post_content' => $content,
 			'post_status'  => 'draft',
 			'post_type'    => $source_post ? $source_post->post_type : 'post',
-		];
+		);
 
 		$new_post_id = wp_insert_post( $post_data, true );
 
@@ -458,7 +463,10 @@ class Module_Content extends Module_Base {
 			wp_claw_log(
 				'Failed to create translated post.',
 				'error',
-				[ 'error' => $new_post_id->get_error_message(), 'source_post_id' => $source_post_id ]
+				array(
+					'error'          => $new_post_id->get_error_message(),
+					'source_post_id' => $source_post_id,
+				)
 			);
 			return $new_post_id;
 		}
@@ -469,19 +477,23 @@ class Module_Content extends Module_Base {
 		wp_claw_log(
 			'Translated post draft created.',
 			'info',
-			[ 'post_id' => $new_post_id, 'source_post_id' => $source_post_id, 'locale' => $locale ]
+			array(
+				'post_id'        => $new_post_id,
+				'source_post_id' => $source_post_id,
+				'locale'         => $locale,
+			)
 		);
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'post_id'        => $new_post_id,
 				'source_post_id' => $source_post_id,
 				'locale'         => esc_html( $locale ),
 				'title'          => esc_html( $title ),
 				'edit_url'       => esc_url( get_edit_post_link( $new_post_id, 'raw' ) ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -513,7 +525,7 @@ class Module_Content extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_content_post_not_found',
 					__( 'Post not found.', 'wp-claw' ),
-					[ 'status' => 404 ]
+					array( 'status' => 404 )
 				);
 			}
 			$raw_text = wp_strip_all_tags( $post->post_content );
@@ -521,7 +533,7 @@ class Module_Content extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_content_missing_source',
 				__( 'Either post_id or text parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -530,19 +542,21 @@ class Module_Content extends Module_Base {
 		// If a post_id was provided, optionally persist the excerpt.
 		if ( ! empty( $params['post_id'] ) && ! empty( $params['save'] ) ) {
 			$post_id = absint( $params['post_id'] );
-			wp_update_post( [
-				'ID'           => $post_id,
-				'post_excerpt' => $excerpt,
-			] );
-			wp_claw_log( 'Post excerpt saved.', 'info', [ 'post_id' => $post_id ] );
+			wp_update_post(
+				array(
+					'ID'           => $post_id,
+					'post_excerpt' => $excerpt,
+				)
+			);
+			wp_claw_log( 'Post excerpt saved.', 'info', array( 'post_id' => $post_id ) );
 		}
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'excerpt'    => $excerpt,
 				'word_count' => $length,
-			],
-		];
+			),
+		);
 	}
 }

@@ -39,7 +39,7 @@ class I18n {
 	 * @return void
 	 */
 	public function init(): void {
-		add_action( 'init', [ $this, 'load_textdomain' ] );
+		add_action( 'init', array( $this, 'load_textdomain' ) );
 	}
 
 	/**

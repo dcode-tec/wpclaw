@@ -86,19 +86,19 @@ class Hooks {
 	 *
 	 * @var array<string, string[]>
 	 */
-	private static array $hook_map = [
-		'save_post'                        => [ 'seo', 'content' ],
-		'publish_post'                     => [ 'seo', 'social' ],
-		'wp_login_failed'                  => [ 'security' ],
-		'wp_login'                         => [ 'security' ],
-		'comment_post'                     => [ 'content' ],
-		'woocommerce_order_status_changed' => [ 'commerce' ],
-		'woocommerce_low_stock'            => [ 'commerce' ],
-		'woocommerce_new_order'            => [ 'commerce' ],
-		'wpforms_process_complete'         => [ 'crm' ],
-		'gform_after_submission'           => [ 'crm' ],
-		'wpcf7_mail_sent'                  => [ 'crm' ],
-	];
+	private static array $hook_map = array(
+		'save_post'                        => array( 'seo', 'content' ),
+		'publish_post'                     => array( 'seo', 'social' ),
+		'wp_login_failed'                  => array( 'security' ),
+		'wp_login'                         => array( 'security' ),
+		'comment_post'                     => array( 'content' ),
+		'woocommerce_order_status_changed' => array( 'commerce' ),
+		'woocommerce_low_stock'            => array( 'commerce' ),
+		'woocommerce_new_order'            => array( 'commerce' ),
+		'wpforms_process_complete'         => array( 'crm' ),
+		'gform_after_submission'           => array( 'crm' ),
+		'wpcf7_mail_sent'                  => array( 'crm' ),
+	);
 
 	/**
 	 * API client instance.
@@ -142,17 +142,17 @@ class Hooks {
 	 * @return void
 	 */
 	public function register_hooks(): void {
-		$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', [] );
+		$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
 
 		if ( empty( $enabled_modules ) ) {
 			return;
 		}
 
-		$woocommerce_hooks = [
+		$woocommerce_hooks = array(
 			'woocommerce_order_status_changed',
 			'woocommerce_low_stock',
 			'woocommerce_new_order',
-		];
+		);
 
 		foreach ( self::$hook_map as $hook_name => $module_slugs ) {
 			// Determine which of the mapped modules are currently enabled.
@@ -231,11 +231,11 @@ class Hooks {
 	 * @return array|null Task data array, or null to skip queuing.
 	 */
 	private function build_task( string $hook_name, string $module_slug, array $args ): ?array {
-		$base = [
+		$base = array(
 			'module' => $module_slug,
 			'source' => 'hook',
 			'hook'   => $hook_name,
-		];
+		);
 
 		switch ( $hook_name ) {
 			case 'save_post':
@@ -263,7 +263,7 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'     => sprintf(
 							/* translators: 1: Hook name. 2: Post title. */
 							__( '%1$s event: %2$s', 'wp-claw' ),
@@ -273,7 +273,7 @@ class Hooks {
 						'post_id'   => $post_id,
 						'post_type' => $post->post_type,
 						'post_slug' => $post->post_name,
-					]
+					)
 				);
 
 			case 'wp_login_failed':
@@ -281,11 +281,11 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'    => __( 'Failed login attempt detected', 'wp-claw' ),
 						'username' => $username,
 						// Never log the password — it's the second argument.
-					]
+					)
 				);
 
 			case 'wp_login':
@@ -294,11 +294,11 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'      => __( 'User login event', 'wp-claw' ),
 						'user_login' => $user_login,
-						'user_roles' => $user ? (array) $user->roles : [],
-					]
+						'user_roles' => $user ? (array) $user->roles : array(),
+					)
 				);
 
 			case 'comment_post':
@@ -310,10 +310,10 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'      => __( 'New comment submitted', 'wp-claw' ),
 						'comment_id' => $comment_id,
-					]
+					)
 				);
 
 			case 'woocommerce_order_status_changed':
@@ -327,7 +327,7 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'      => sprintf(
 							/* translators: 1: Order ID. 2: New status. */
 							__( 'Order #%1$d status changed to %2$s', 'wp-claw' ),
@@ -337,21 +337,21 @@ class Hooks {
 						'order_id'   => $order_id,
 						'old_status' => $old_status,
 						'new_status' => $new_status,
-					]
+					)
 				);
 
 			case 'woocommerce_low_stock':
-				$product = isset( $args[0] ) ? $args[0] : null;
+				$product    = isset( $args[0] ) ? $args[0] : null;
 				$product_id = ( $product && method_exists( $product, 'get_id' ) )
 					? (int) $product->get_id()
 					: 0;
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'      => __( 'Low stock alert', 'wp-claw' ),
 						'product_id' => $product_id,
-					]
+					)
 				);
 
 			case 'woocommerce_new_order':
@@ -363,14 +363,14 @@ class Hooks {
 
 				return array_merge(
 					$base,
-					[
+					array(
 						'title'    => sprintf(
 							/* translators: %d: Order ID. */
 							__( 'New order received: #%d', 'wp-claw' ),
 							$order_id
 						),
 						'order_id' => $order_id,
-					]
+					)
 				);
 
 			case 'wpforms_process_complete':
@@ -381,25 +381,25 @@ class Hooks {
 				// the agent will fetch the submission data via WP REST if needed.
 				return array_merge(
 					$base,
-					[
+					array(
 						'title' => sprintf(
 							/* translators: %s: Hook name. */
 							__( 'Form submission received (%s)', 'wp-claw' ),
 							$hook_name
 						),
-					]
+					)
 				);
 
 			default:
 				return array_merge(
 					$base,
-					[
+					array(
 						'title' => sprintf(
 							/* translators: %s: Hook name. */
 							__( 'WordPress event: %s', 'wp-claw' ),
 							$hook_name
 						),
-					]
+					)
 				);
 		}
 	}
@@ -427,7 +427,7 @@ class Hooks {
 		set_transient( self::TRANSIENT_QUEUE, $queue );
 
 		if ( ! self::$shutdown_registered ) {
-			add_action( 'shutdown', [ __CLASS__, 'process_queue' ], 20 );
+			add_action( 'shutdown', array( __CLASS__, 'process_queue' ), 20 );
 			self::$shutdown_registered = true;
 		}
 	}
@@ -474,7 +474,7 @@ class Hooks {
 			return;
 		}
 
-		$remaining = [];
+		$remaining = array();
 
 		foreach ( $queue as $task ) {
 			if ( ! is_array( $task ) || empty( $task['title'] ) ) {
@@ -487,22 +487,22 @@ class Hooks {
 			if ( is_wp_error( $result ) ) {
 				wp_claw_log_warning(
 					'Failed to dispatch queued task — will retry next request.',
-					[
+					array(
 						'task'    => $task['title'],
 						'module'  => $task['module'] ?? 'unknown',
 						'code'    => $result->get_error_code(),
 						'message' => $result->get_error_message(),
-					]
+					)
 				);
 				// Keep failed tasks for the next attempt.
 				$remaining[] = $task;
 			} else {
 				wp_claw_log_debug(
 					'Queued task dispatched.',
-					[
+					array(
 						'task'    => $task['title'],
 						'task_id' => $result['id'] ?? 'unknown',
-					]
+					)
 				);
 			}
 		}

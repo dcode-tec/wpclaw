@@ -15,8 +15,8 @@ defined( 'ABSPATH' ) || exit;
 // -------------------------------------------------------------------------
 // Fetch agent data — transient cache (5 min) then live API.
 // -------------------------------------------------------------------------
-$agents      = get_transient( 'wp_claw_agents_cache' );
-$api_error   = false;
+$agents    = get_transient( 'wp_claw_agents_cache' );
+$api_error = false;
 
 if ( false === $agents ) {
 	$api_response = $api_client->get_agents();
@@ -90,24 +90,24 @@ $wp_claw_agent_status_class = function ( $status ) {
 	<div class="wp-claw-admin-agent-grid">
 
 		<?php foreach ( $agents as $agent ) : ?>
-		<?php
-		if ( ! is_array( $agent ) ) {
-			continue;
-		}
+			<?php
+			if ( ! is_array( $agent ) ) {
+				continue;
+			}
 
-		$agent_name         = sanitize_text_field( (string) ( isset( $agent['name'] ) ? $agent['name'] : '' ) );
-		$agent_role         = sanitize_text_field( (string) ( isset( $agent['role'] ) ? $agent['role'] : '' ) );
-		$agent_emoji        = sanitize_text_field( (string) ( isset( $agent['emoji'] ) ? $agent['emoji'] : '' ) );
-		$agent_health       = sanitize_key( (string) ( isset( $agent['health'] ) ? $agent['health'] : 'unknown' ) );
-		$agent_current_task = sanitize_text_field( (string) ( isset( $agent['current_task'] ) ? $agent['current_task'] : '' ) );
-		$agent_uptime       = isset( $agent['uptime'] ) ? sanitize_text_field( (string) $agent['uptime'] ) : '';
-		$agent_task_count   = isset( $agent['task_count'] ) ? (int) $agent['task_count'] : 0;
-		$agent_cost_today   = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
-		$agent_last_seen    = isset( $agent['last_heartbeat'] ) ? sanitize_text_field( (string) $agent['last_heartbeat'] ) : '';
-		$agent_model        = isset( $agent['model'] ) ? sanitize_text_field( (string) $agent['model'] ) : '';
+			$agent_name         = sanitize_text_field( (string) ( isset( $agent['name'] ) ? $agent['name'] : '' ) );
+			$agent_role         = sanitize_text_field( (string) ( isset( $agent['role'] ) ? $agent['role'] : '' ) );
+			$agent_emoji        = sanitize_text_field( (string) ( isset( $agent['emoji'] ) ? $agent['emoji'] : '' ) );
+			$agent_health       = sanitize_key( (string) ( isset( $agent['health'] ) ? $agent['health'] : 'unknown' ) );
+			$agent_current_task = sanitize_text_field( (string) ( isset( $agent['current_task'] ) ? $agent['current_task'] : '' ) );
+			$agent_uptime       = isset( $agent['uptime'] ) ? sanitize_text_field( (string) $agent['uptime'] ) : '';
+			$agent_task_count   = isset( $agent['task_count'] ) ? (int) $agent['task_count'] : 0;
+			$agent_cost_today   = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
+			$agent_last_seen    = isset( $agent['last_heartbeat'] ) ? sanitize_text_field( (string) $agent['last_heartbeat'] ) : '';
+			$agent_model        = isset( $agent['model'] ) ? sanitize_text_field( (string) $agent['model'] ) : '';
 
-		$status_class = $wp_claw_agent_status_class( $agent_health );
-		?>
+			$status_class = $wp_claw_agent_status_class( $agent_health );
+			?>
 		<div class="wp-claw-admin-agent-card wp-claw-admin-agent-card--<?php echo esc_attr( sanitize_key( $agent_name ) ); ?>">
 
 			<div class="wp-claw-admin-agent-card-header">

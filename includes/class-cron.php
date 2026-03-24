@@ -75,9 +75,9 @@ class Cron {
 		$this->api_client = $api_client;
 
 		// Core system events.
-		add_action( 'wp_claw_health_check', [ $this, 'run_health_check' ] );
-		add_action( 'wp_claw_sync_state', [ $this, 'run_sync_state' ] );
-		add_action( 'wp_claw_update_check', [ $this, 'run_update_check' ] );
+		add_action( 'wp_claw_health_check', array( $this, 'run_health_check' ) );
+		add_action( 'wp_claw_sync_state', array( $this, 'run_sync_state' ) );
+		add_action( 'wp_claw_update_check', array( $this, 'run_update_check' ) );
 
 		// Module-specific scheduled events (closures capture slug cleanly).
 		add_action(
@@ -116,7 +116,7 @@ class Cron {
 		);
 
 		// Analytics data retention cleanup.
-		add_action( 'wp_claw_analytics_cleanup', [ $this, 'run_analytics_cleanup' ] );
+		add_action( 'wp_claw_analytics_cleanup', array( $this, 'run_analytics_cleanup' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -140,15 +140,15 @@ class Cron {
 		if ( is_wp_error( $result ) ) {
 			wp_claw_log_warning(
 				'Scheduled health check failed.',
-				[
+				array(
 					'code'    => $result->get_error_code(),
 					'message' => $result->get_error_message(),
-				]
+				)
 			);
 			return;
 		}
 
-		wp_claw_log_debug( 'Scheduled health check completed.', [ 'status' => $result['status'] ?? 'unknown' ] );
+		wp_claw_log_debug( 'Scheduled health check completed.', array( 'status' => $result['status'] ?? 'unknown' ) );
 	}
 
 	/**
@@ -167,7 +167,7 @@ class Cron {
 		global $wpdb;
 
 		// Build a lightweight state snapshot to send to Klawty.
-		$state = [
+		$state = array(
 			'wordpress_version' => get_bloginfo( 'version' ),
 			'php_version'       => PHP_VERSION,
 			'site_url'          => get_site_url(),
@@ -175,10 +175,10 @@ class Cron {
 			'active_plugins'    => $this->get_active_plugin_slugs(),
 			'post_counts'       => $this->get_post_counts(),
 			'woocommerce'       => $this->get_woocommerce_state(),
-			'enabled_modules'   => (array) get_option( 'wp_claw_enabled_modules', [] ),
+			'enabled_modules'   => (array) get_option( 'wp_claw_enabled_modules', array() ),
 			'pending_proposals' => $this->get_pending_proposal_count(),
 			'synced_at'         => gmdate( 'c' ),
-		];
+		);
 
 		/**
 		 * Allow other code to extend the state snapshot sent to Klawty.
@@ -189,15 +189,15 @@ class Cron {
 		 */
 		$state = (array) apply_filters( 'wp_claw_sync_state', $state );
 
-		$result = $this->api_client->post( '/api/state', $state );
+		$result = $this->api_client->sync_state( $state );
 
 		if ( is_wp_error( $result ) ) {
 			wp_claw_log_warning(
 				'State sync failed.',
-				[
+				array(
 					'code'    => $result->get_error_code(),
 					'message' => $result->get_error_message(),
-				]
+				)
 			);
 		} else {
 			wp_claw_log_debug( 'State sync completed successfully.' );
@@ -223,10 +223,10 @@ class Cron {
 		if ( is_wp_error( $result ) ) {
 			wp_claw_log_warning(
 				'Update check failed.',
-				[
+				array(
 					'code'    => $result->get_error_code(),
 					'message' => $result->get_error_message(),
-				]
+				)
 			);
 			return;
 		}
@@ -235,10 +235,10 @@ class Cron {
 
 		wp_claw_log_debug(
 			'Update check completed.',
-			[
-				'latest_version' => $result['latest_version'] ?? 'unknown',
+			array(
+				'latest_version'   => $result['latest_version'] ?? 'unknown',
 				'update_available' => ! empty( $result['update_available'] ),
-			]
+			)
 		);
 	}
 
@@ -261,12 +261,12 @@ class Cron {
 	public function run_module_cron( string $module_slug ): void {
 		$module_slug = sanitize_key( $module_slug );
 
-		$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', [] );
+		$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
 
 		if ( ! in_array( $module_slug, $enabled_modules, true ) ) {
 			wp_claw_log_debug(
 				'Skipping cron for disabled module.',
-				[ 'module' => $module_slug ]
+				array( 'module' => $module_slug )
 			);
 			return;
 		}
@@ -278,12 +278,12 @@ class Cron {
 		if ( null === $module ) {
 			wp_claw_log_warning(
 				'Module not found for cron dispatch — skipping.',
-				[ 'module' => $module_slug ]
+				array( 'module' => $module_slug )
 			);
 			return;
 		}
 
-		$task_data = [
+		$task_data = array(
 			'agent'  => $module->get_agent(),
 			'title'  => sprintf(
 				/* translators: %s: Human-readable module name. */
@@ -292,29 +292,29 @@ class Cron {
 			),
 			'module' => $module_slug,
 			'source' => 'cron',
-		];
+		);
 
 		$result = $this->api_client->create_task( $task_data );
 
 		if ( is_wp_error( $result ) ) {
 			wp_claw_log_warning(
 				'Failed to dispatch scheduled module task.',
-				[
+				array(
 					'module'  => $module_slug,
 					'agent'   => $module->get_agent(),
 					'code'    => $result->get_error_code(),
 					'message' => $result->get_error_message(),
-				]
+				)
 			);
 			return;
 		}
 
 		wp_claw_log_debug(
 			'Scheduled module task dispatched.',
-			[
+			array(
 				'module'  => $module_slug,
 				'task_id' => $result['id'] ?? 'unknown',
-			]
+			)
 		);
 	}
 
@@ -360,7 +360,7 @@ class Cron {
 		if ( false === $deleted ) {
 			wp_claw_log_error(
 				'Analytics cleanup query failed.',
-				[ 'last_error' => $wpdb->last_error ]
+				array( 'last_error' => $wpdb->last_error )
 			);
 			return;
 		}
@@ -368,11 +368,11 @@ class Cron {
 		wp_claw_log(
 			'Analytics cleanup completed.',
 			'info',
-			[
-				'rows_deleted'    => $deleted,
-				'retention_days'  => $retention_days,
-				'cutoff'          => $cutoff,
-			]
+			array(
+				'rows_deleted'   => $deleted,
+				'retention_days' => $retention_days,
+				'cutoff'         => $cutoff,
+			)
 		);
 	}
 
@@ -391,8 +391,8 @@ class Cron {
 	 * @return string[] Array of plugin slugs.
 	 */
 	private function get_active_plugin_slugs(): array {
-		$active = (array) get_option( 'active_plugins', [] );
-		$slugs  = [];
+		$active = (array) get_option( 'active_plugins', array() );
+		$slugs  = array();
 
 		foreach ( $active as $plugin_file ) {
 			$parts = explode( '/', (string) $plugin_file );
@@ -415,8 +415,8 @@ class Cron {
 	 * @return array<string, int> Map of post_type => count.
 	 */
 	private function get_post_counts(): array {
-		$counts    = [];
-		$post_types = get_post_types( [ 'public' => true ], 'names' );
+		$counts     = array();
+		$post_types = get_post_types( array( 'public' => true ), 'names' );
 
 		foreach ( $post_types as $type ) {
 			$count = wp_count_posts( $type );
@@ -437,15 +437,15 @@ class Cron {
 	 */
 	private function get_woocommerce_state(): array {
 		if ( ! class_exists( 'WooCommerce' ) ) {
-			return [];
+			return array();
 		}
 
-		return [
+		return array(
 			'active'        => true,
 			'version'       => defined( 'WC_VERSION' ) ? WC_VERSION : 'unknown',
 			'currency'      => get_woocommerce_currency(),
 			'product_count' => (int) wp_count_posts( 'product' )->publish,
-		];
+		);
 	}
 
 	/**

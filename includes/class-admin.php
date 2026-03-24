@@ -50,7 +50,7 @@ class Admin {
 	 *
 	 * @var string[]
 	 */
-	private array $page_hooks = [];
+	private array $page_hooks = array();
 
 	/**
 	 * Constructor.
@@ -64,11 +64,12 @@ class Admin {
 	public function __construct( API_Client $api_client ) {
 		$this->api_client = $api_client;
 
-		add_action( 'admin_menu', [ $this, 'register_menus' ] );
-		add_action( 'admin_enqueue_scripts', [ $this, 'enqueue_assets' ] );
-		add_action( 'admin_init', [ $this, 'register_settings' ] );
-		add_action( 'admin_init', [ $this, 'maybe_redirect_after_activation' ] );
-		add_action( 'admin_bar_menu', [ $this, 'add_admin_bar_node' ], 100 );
+		add_action( 'admin_menu', array( $this, 'register_menus' ) );
+		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
+		add_action( 'admin_init', array( $this, 'register_settings' ) );
+		add_action( 'admin_init', array( $this, 'maybe_redirect_after_activation' ) );
+		add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_node' ), 100 );
+		add_action( 'admin_post_wp_claw_clear_local_data', array( $this, 'handle_clear_local_data' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -92,7 +93,7 @@ class Admin {
 			__( 'WP-Claw', 'wp-claw' ),
 			'wp_claw_view_dashboard',
 			'wp-claw',
-			[ $this, 'render_dashboard' ],
+			array( $this, 'render_dashboard' ),
 			'dashicons-superhero',
 			80
 		);
@@ -104,7 +105,7 @@ class Admin {
 			__( 'Dashboard', 'wp-claw' ),
 			'wp_claw_view_dashboard',
 			'wp-claw',
-			[ $this, 'render_dashboard' ]
+			array( $this, 'render_dashboard' )
 		);
 
 		// Agents overview.
@@ -114,7 +115,7 @@ class Admin {
 			__( 'Agents', 'wp-claw' ),
 			'wp_claw_manage_agents',
 			'wp-claw-agents',
-			[ $this, 'render_agents' ]
+			array( $this, 'render_agents' )
 		);
 
 		// Proposals queue.
@@ -124,7 +125,7 @@ class Admin {
 			__( 'Proposals', 'wp-claw' ),
 			'wp_claw_approve_proposals',
 			'wp-claw-proposals',
-			[ $this, 'render_proposals' ]
+			array( $this, 'render_proposals' )
 		);
 
 		// Settings page.
@@ -134,7 +135,7 @@ class Admin {
 			__( 'Settings', 'wp-claw' ),
 			'wp_claw_manage_settings',
 			'wp-claw-settings',
-			[ $this, 'render_settings' ]
+			array( $this, 'render_settings' )
 		);
 
 		// Modules management.
@@ -144,7 +145,17 @@ class Admin {
 			__( 'Modules', 'wp-claw' ),
 			'wp_claw_manage_modules',
 			'wp-claw-modules',
-			[ $this, 'render_modules' ]
+			array( $this, 'render_modules' )
+		);
+
+		// Command Center.
+		$this->page_hooks[] = add_submenu_page(
+			'wp-claw',
+			__( 'Command Center — WP-Claw', 'wp-claw' ),
+			__( '🏗️ Command Center', 'wp-claw' ),
+			'wp_claw_command_center',
+			'wp-claw-command-center',
+			array( $this, 'render_command_center_page' )
 		);
 	}
 
@@ -172,37 +183,51 @@ class Admin {
 		wp_enqueue_style(
 			'wp-claw-admin',
 			WP_CLAW_PLUGIN_URL . 'admin/css/wp-claw-admin.css',
-			[],
+			array(),
 			WP_CLAW_VERSION
 		);
 
 		wp_enqueue_script(
 			'wp-claw-admin',
 			WP_CLAW_PLUGIN_URL . 'admin/js/wp-claw-admin.js',
-			[],
+			array(),
 			WP_CLAW_VERSION,
 			true
 		);
 
+		// Determine the current WP-Claw page identifier for the JS router.
+		$current_page = '';
+		// phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only page routing.
+		$raw_page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : '';
+		if ( 'wp-claw-command-center' === $raw_page ) {
+			$current_page = 'command-center';
+		} elseif ( 'wp-claw' === $raw_page ) {
+			$current_page = 'dashboard';
+		} elseif ( '' !== $raw_page && 0 === strpos( $raw_page, 'wp-claw-' ) ) {
+			$current_page = substr( $raw_page, strlen( 'wp-claw-' ) );
+		}
+
 		wp_localize_script(
 			'wp-claw-admin',
 			'wpClaw',
-			[
+			array(
 				'restUrl'    => rest_url( 'wp-claw/v1/' ),
 				'nonce'      => wp_create_nonce( 'wp_rest' ),
 				'adminNonce' => wp_create_nonce( 'wp_claw_admin' ),
-				'i18n'       => [
+				'page'       => $current_page,
+				'i18n'       => array(
 					'approve'        => __( 'Approve', 'wp-claw' ),
 					'reject'         => __( 'Reject', 'wp-claw' ),
 					'confirmReject'  => __( 'Are you sure you want to reject this proposal?', 'wp-claw' ),
-					'saving'         => __( 'Saving…', 'wp-claw' ),
+					'saving'         => __( 'Saving\u2026', 'wp-claw' ),
 					'saved'          => __( 'Saved.', 'wp-claw' ),
 					'error'          => __( 'An error occurred. Please try again.', 'wp-claw' ),
 					'connected'      => __( 'Connected', 'wp-claw' ),
 					'disconnected'   => __( 'Disconnected', 'wp-claw' ),
 					'testConnection' => __( 'Test connection', 'wp-claw' ),
-				],
-			]
+					'noCommands'     => __( 'No commands yet.', 'wp-claw' ),
+				),
+			)
 		);
 	}
 
@@ -225,108 +250,108 @@ class Admin {
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_api_key',
-			[
+			array(
 				'type'              => 'string',
-				'sanitize_callback' => [ $this, 'sanitize_api_key' ],
+				'sanitize_callback' => array( $this, 'sanitize_api_key' ),
 				'default'           => '',
-			]
+			)
 		);
 
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_connection_mode',
-			[
+			array(
 				'type'              => 'string',
-				'sanitize_callback' => [ $this, 'sanitize_connection_mode' ],
+				'sanitize_callback' => array( $this, 'sanitize_connection_mode' ),
 				'default'           => 'managed',
-			]
+			)
 		);
 
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_instance_url',
-			[
+			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'esc_url_raw',
 				'default'           => '',
-			]
+			)
 		);
 
 		// ----- Module toggles -----
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_enabled_modules',
-			[
+			array(
 				'type'              => 'array',
-				'sanitize_callback' => [ $this, 'sanitize_enabled_modules' ],
-				'default'           => [],
-			]
+				'sanitize_callback' => array( $this, 'sanitize_enabled_modules' ),
+				'default'           => array(),
+			)
 		);
 
 		// ----- Chat widget settings -----
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_chat_enabled',
-			[
+			array(
 				'type'              => 'boolean',
 				'sanitize_callback' => 'rest_sanitize_boolean',
 				'default'           => false,
-			]
+			)
 		);
 
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_chat_position',
-			[
+			array(
 				'type'              => 'string',
-				'sanitize_callback' => [ $this, 'sanitize_chat_position' ],
+				'sanitize_callback' => array( $this, 'sanitize_chat_position' ),
 				'default'           => 'bottom-right',
-			]
+			)
 		);
 
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_chat_welcome',
-			[
+			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 				'default'           => __( 'Hi! How can I help you today?', 'wp-claw' ),
-			]
+			)
 		);
 
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_chat_agent_name',
-			[
+			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
 				'default'           => __( 'Assistant', 'wp-claw' ),
-			]
+			)
 		);
 
 		// ----- Analytics settings -----
 		register_setting(
 			'wp_claw_settings',
 			'wp_claw_analytics_enabled',
-			[
+			array(
 				'type'              => 'boolean',
 				'sanitize_callback' => 'rest_sanitize_boolean',
 				'default'           => false,
-			]
+			)
 		);
 
 		// ----- Settings sections -----
 		add_settings_section(
 			'wp_claw_connection',
 			__( 'Klawty Connection', 'wp-claw' ),
-			[ $this, 'render_connection_section_description' ],
+			array( $this, 'render_connection_section_description' ),
 			'wp-claw-settings'
 		);
 
 		add_settings_section(
 			'wp_claw_chat',
 			__( 'Chat Widget', 'wp-claw' ),
-			[ $this, 'render_chat_section_description' ],
+			array( $this, 'render_chat_section_description' ),
 			'wp-claw-settings'
 		);
 
@@ -341,7 +366,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_api_key',
 			__( 'API Key', 'wp-claw' ),
-			[ $this, 'render_field_api_key' ],
+			array( $this, 'render_field_api_key' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
 		);
@@ -349,7 +374,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_connection_mode',
 			__( 'Connection Mode', 'wp-claw' ),
-			[ $this, 'render_field_connection_mode' ],
+			array( $this, 'render_field_connection_mode' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
 		);
@@ -357,7 +382,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_instance_url',
 			__( 'Self-hosted Instance URL', 'wp-claw' ),
-			[ $this, 'render_field_instance_url' ],
+			array( $this, 'render_field_instance_url' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
 		);
@@ -366,7 +391,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_chat_enabled',
 			__( 'Enable Chat Widget', 'wp-claw' ),
-			[ $this, 'render_field_chat_enabled' ],
+			array( $this, 'render_field_chat_enabled' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
 		);
@@ -374,7 +399,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_chat_position',
 			__( 'Widget Position', 'wp-claw' ),
-			[ $this, 'render_field_chat_position' ],
+			array( $this, 'render_field_chat_position' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
 		);
@@ -382,7 +407,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_chat_welcome',
 			__( 'Welcome Message', 'wp-claw' ),
-			[ $this, 'render_field_chat_welcome' ],
+			array( $this, 'render_field_chat_welcome' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
 		);
@@ -390,7 +415,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_chat_agent_name',
 			__( 'Agent Display Name', 'wp-claw' ),
-			[ $this, 'render_field_chat_agent_name' ],
+			array( $this, 'render_field_chat_agent_name' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
 		);
@@ -399,7 +424,7 @@ class Admin {
 		add_settings_field(
 			'wp_claw_analytics_enabled',
 			__( 'Enable Analytics Tracking', 'wp-claw' ),
-			[ $this, 'render_field_analytics_enabled' ],
+			array( $this, 'render_field_analytics_enabled' ),
 			'wp-claw-settings',
 			'wp_claw_analytics_section'
 		);
@@ -450,14 +475,14 @@ class Admin {
 		);
 
 		$admin_bar->add_node(
-			[
+			array(
 				'id'    => 'wp-claw-status',
 				'title' => $dot . esc_html( $label ),
 				'href'  => admin_url( 'admin.php?page=wp-claw' ),
-				'meta'  => [
+				'meta'  => array(
 					'title' => esc_attr( $label ),
-				],
-			]
+				),
+			)
 		);
 	}
 
@@ -488,6 +513,52 @@ class Admin {
 		}
 
 		wp_safe_redirect( admin_url( 'admin.php?page=wp-claw-settings' ) );
+		exit;
+	}
+
+	// -------------------------------------------------------------------------
+	// Clear local data handler
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Handle the "Clear Local Task Log" form submission.
+	 *
+	 * Verifies the nonce and capability, then truncates the wp_claw_tasks
+	 * and wp_claw_proposals tables. Redirects back to the settings page
+	 * with a success or error admin notice query arg.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function handle_clear_local_data(): void {
+		// Verify nonce — action name must match wp_nonce_field() in settings.php.
+		check_admin_referer( 'wp_claw_clear_local_data', 'wp_claw_clear_nonce' );
+
+		// Verify capability.
+		if ( ! wp_claw_current_user_can( 'manage_settings' ) ) {
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'wp-claw' ), 403 );
+		}
+
+		global $wpdb;
+
+		$tasks_table     = $wpdb->prefix . 'wp_claw_tasks';
+		$proposals_table = $wpdb->prefix . 'wp_claw_proposals';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional bulk delete of local log data.
+		$wpdb->query( "DELETE FROM `{$tasks_table}`" );
+		$wpdb->query( "DELETE FROM `{$proposals_table}`" );
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		wp_claw_log( 'Local task log and proposal history cleared by admin.', 'info' );
+
+		wp_safe_redirect(
+			add_query_arg(
+				'wp_claw_cleared',
+				'1',
+				admin_url( 'admin.php?page=wp-claw-settings' )
+			)
+		);
 		exit;
 	}
 
@@ -563,6 +634,23 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/modules.php';
+	}
+
+	/**
+	 * Render the Command Center admin page.
+	 *
+	 * The view performs its own capability check via wp_claw_current_user_can().
+	 * This method mirrors the pattern of all other render_* methods in this class.
+	 *
+	 * @since 1.0.0
+	 *
+	 * @return void
+	 */
+	public function render_command_center_page(): void {
+		if ( ! current_user_can( 'wp_claw_command_center' ) ) {
+			wp_die( esc_html__( 'You do not have permission to access the Command Center.', 'wp-claw' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/command-center.php';
 	}
 
 	// -------------------------------------------------------------------------
@@ -849,7 +937,7 @@ class Admin {
 	 * @return string Sanitized connection mode.
 	 */
 	public function sanitize_connection_mode( string $value ): string {
-		$allowed = [ 'managed', 'self-hosted' ];
+		$allowed = array( 'managed', 'self-hosted' );
 		return in_array( $value, $allowed, true ) ? $value : 'managed';
 	}
 
@@ -863,7 +951,7 @@ class Admin {
 	 * @return string Sanitized position.
 	 */
 	public function sanitize_chat_position( string $value ): string {
-		$allowed = [ 'bottom-right', 'bottom-left' ];
+		$allowed = array( 'bottom-right', 'bottom-left' );
 		return in_array( $value, $allowed, true ) ? $value : 'bottom-right';
 	}
 
@@ -881,10 +969,10 @@ class Admin {
 	 */
 	public function sanitize_enabled_modules( $value ): array {
 		if ( ! is_array( $value ) ) {
-			return [];
+			return array();
 		}
 
-		$known_modules = [
+		$known_modules = array(
 			'seo',
 			'security',
 			'content',
@@ -896,9 +984,9 @@ class Admin {
 			'backup',
 			'social',
 			'chat',
-		];
+		);
 
-		$sanitized = [];
+		$sanitized = array();
 		foreach ( $value as $slug ) {
 			$slug = sanitize_key( (string) $slug );
 			if ( in_array( $slug, $known_modules, true ) ) {

@@ -118,7 +118,7 @@ class Module_Security extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'block_ip',
 			'update_security_headers',
 			'log_security_event',
@@ -126,7 +126,7 @@ class Module_Security extends Module_Base {
 			'enable_brute_force_protection',
 			'update_htaccess_rules',
 			'get_login_attempts',
-		];
+		);
 	}
 
 	/**
@@ -170,7 +170,7 @@ class Module_Security extends Module_Base {
 						__( 'Unknown Security action: %s', 'wp-claw' ),
 						esc_html( $action )
 					),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -190,7 +190,7 @@ class Module_Security extends Module_Base {
 		$login_attempts = $this->get_raw_login_attempts();
 
 		// Count attempts in last 24 hours.
-		$cutoff      = time() - DAY_IN_SECONDS;
+		$cutoff       = time() - DAY_IN_SECONDS;
 		$recent_fails = 0;
 		foreach ( $login_attempts as $attempt ) {
 			if ( isset( $attempt['time'] ) && (int) $attempt['time'] >= $cutoff ) {
@@ -198,11 +198,11 @@ class Module_Security extends Module_Base {
 			}
 		}
 
-		return [
+		return array(
 			'failed_logins_24h' => $recent_fails,
 			'blocked_ips_count' => count( $blocked_ips ),
 			'last_scan_time'    => get_option( self::OPT_LAST_SCAN, '' ),
-		];
+		);
 	}
 
 	/**
@@ -216,8 +216,8 @@ class Module_Security extends Module_Base {
 	 * @return void
 	 */
 	public function register_hooks(): void {
-		add_action( 'wp_login_failed', [ $this, 'on_login_failed' ], 10, 1 );
-		add_action( 'wp_login', [ $this, 'on_wp_login' ], 10, 2 );
+		add_action( 'wp_login_failed', array( $this, 'on_login_failed' ), 10, 1 );
+		add_action( 'wp_login', array( $this, 'on_wp_login' ), 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -239,12 +239,12 @@ class Module_Security extends Module_Base {
 	public function on_login_failed( string $username ): void {
 		$attempts = $this->get_raw_login_attempts();
 
-		$attempts[] = [
+		$attempts[] = array(
 			'type'     => 'failed',
 			'username' => sanitize_user( $username ),
 			'ip'       => $this->get_client_ip(),
 			'time'     => time(),
-		];
+		);
 
 		// FIFO eviction — keep most recent MAX_LOGIN_ATTEMPTS entries.
 		if ( count( $attempts ) > self::MAX_LOGIN_ATTEMPTS ) {
@@ -256,7 +256,10 @@ class Module_Security extends Module_Base {
 		wp_claw_log(
 			'Failed login attempt recorded.',
 			'warning',
-			[ 'username' => sanitize_user( $username ), 'ip' => $this->get_client_ip() ]
+			array(
+				'username' => sanitize_user( $username ),
+				'ip'       => $this->get_client_ip(),
+			)
 		);
 	}
 
@@ -274,11 +277,11 @@ class Module_Security extends Module_Base {
 		wp_claw_log(
 			'Successful login.',
 			'info',
-			[
+			array(
 				'user_id'    => $user->ID,
 				'user_login' => sanitize_user( $user_login ),
 				'ip'         => $this->get_client_ip(),
-			]
+			)
 		);
 	}
 
@@ -306,34 +309,34 @@ class Module_Security extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_security_invalid_ip',
 				__( 'A valid IP address is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		$blocked = $this->get_blocked_ips();
 
 		if ( in_array( $ip, $blocked, true ) ) {
-			return [
+			return array(
 				'success' => true,
-				'data'    => [
+				'data'    => array(
 					'ip'      => $ip,
 					'already' => true,
-				],
-			];
+				),
+			);
 		}
 
 		$blocked[] = $ip;
 		update_option( self::OPT_BLOCKED_IPS, $blocked );
 
-		wp_claw_log( 'IP address blocked.', 'warning', [ 'ip' => $ip ] );
+		wp_claw_log( 'IP address blocked.', 'warning', array( 'ip' => $ip ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'ip'           => $ip,
+			'data'    => array(
+				'ip'            => $ip,
 				'blocked_total' => count( $blocked ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -353,11 +356,11 @@ class Module_Security extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_security_missing_headers',
 				__( 'headers must be a non-empty associative array.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
-		$sanitized = [];
+		$sanitized = array();
 		foreach ( $params['headers'] as $name => $value ) {
 			$clean_name  = sanitize_text_field( wp_unslash( (string) $name ) );
 			$clean_value = sanitize_text_field( wp_unslash( (string) $value ) );
@@ -370,20 +373,20 @@ class Module_Security extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_security_invalid_headers',
 				__( 'No valid header entries after sanitization.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		update_option( self::OPT_SECURITY_HEADERS, $sanitized );
 
-		wp_claw_log( 'Security headers configuration updated.', 'info', [ 'count' => count( $sanitized ) ] );
+		wp_claw_log( 'Security headers configuration updated.', 'info', array( 'count' => count( $sanitized ) ) );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'headers_stored' => count( $sanitized ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -401,25 +404,25 @@ class Module_Security extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_security_missing_message',
 				__( 'message parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
 		$level   = isset( $params['level'] ) ? sanitize_text_field( wp_unslash( $params['level'] ) ) : 'warning';
-		$context = isset( $params['context'] ) && is_array( $params['context'] ) ? $params['context'] : [];
+		$context = isset( $params['context'] ) && is_array( $params['context'] ) ? $params['context'] : array();
 
 		// Sanitize context values to prevent log injection.
 		$safe_context = array_map( 'sanitize_text_field', array_map( 'wp_unslash', array_map( 'strval', $context ) ) );
 
 		wp_claw_log( $message, $level, $safe_context );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'message' => $message,
 				'level'   => $level,
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -439,13 +442,13 @@ class Module_Security extends Module_Base {
 
 		wp_claw_log( 'File integrity check triggered.', 'info' );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'triggered_at' => $timestamp,
 				'note'         => 'Scan delegated to Sentinel agent via Klawty task queue.',
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -475,20 +478,20 @@ class Module_Security extends Module_Base {
 		wp_claw_log(
 			'Brute-force protection enabled.',
 			'info',
-			[
+			array(
 				'max_attempts'    => $max_attempts,
 				'lockout_minutes' => $lockout_minutes,
-			]
+			)
 		);
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'max_attempts'    => $max_attempts,
 				'lockout_minutes' => $lockout_minutes,
 				'enabled'         => true,
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -510,7 +513,7 @@ class Module_Security extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_security_missing_rules',
 				__( 'rules parameter is required.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -526,7 +529,7 @@ class Module_Security extends Module_Base {
 		if ( file_exists( $htaccess_file ) && is_writable( $htaccess_file ) ) {
 			insert_with_markers( $htaccess_file, 'WP-Claw Security', array_values( $lines ) );
 
-			wp_claw_log( '.htaccess security rules written.', 'info', [ 'lines' => count( $lines ) ] );
+			wp_claw_log( '.htaccess security rules written.', 'info', array( 'lines' => count( $lines ) ) );
 		} else {
 			wp_claw_log( '.htaccess not writable — rules stored in option only.', 'warning' );
 		}
@@ -534,13 +537,13 @@ class Module_Security extends Module_Base {
 		// Always persist to option as the source of truth.
 		update_option( 'wp_claw_htaccess_rules', $rules );
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
-				'lines_stored' => count( $lines ),
+			'data'    => array(
+				'lines_stored'     => count( $lines ),
 				'htaccess_written' => file_exists( $htaccess_file ) && is_writable( $htaccess_file ),
-			],
-		];
+			),
+		);
 	}
 
 	/**
@@ -579,13 +582,13 @@ class Module_Security extends Module_Base {
 			$attempts = array_slice( $attempts, -$limit );
 		}
 
-		return [
+		return array(
 			'success' => true,
-			'data'    => [
+			'data'    => array(
 				'attempts' => $attempts,
 				'total'    => count( $attempts ),
-			],
-		];
+			),
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -600,8 +603,8 @@ class Module_Security extends Module_Base {
 	 * @return array
 	 */
 	private function get_raw_login_attempts(): array {
-		$raw = get_option( self::OPT_LOGIN_ATTEMPTS, [] );
-		return is_array( $raw ) ? $raw : [];
+		$raw = get_option( self::OPT_LOGIN_ATTEMPTS, array() );
+		return is_array( $raw ) ? $raw : array();
 	}
 
 	/**
@@ -612,8 +615,8 @@ class Module_Security extends Module_Base {
 	 * @return string[]
 	 */
 	private function get_blocked_ips(): array {
-		$raw = get_option( self::OPT_BLOCKED_IPS, [] );
-		return is_array( $raw ) ? array_values( array_map( 'strval', $raw ) ) : [];
+		$raw = get_option( self::OPT_BLOCKED_IPS, array() );
+		return is_array( $raw ) ? array_values( array_map( 'strval', $raw ) ) : array();
 	}
 
 	/**

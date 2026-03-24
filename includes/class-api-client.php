@@ -248,6 +248,22 @@ class API_Client {
 	}
 
 	/**
+	 * Push a WordPress site state snapshot to the Klawty instance.
+	 *
+	 * Called by the state sync cron to give agents fresh context about the
+	 * WordPress installation (plugin list, post counts, WooCommerce state, etc.).
+	 *
+	 * @since 1.0.0
+	 *
+	 * @param array $state Associative array of site state data.
+	 *
+	 * @return array|\WP_Error Sanitized response array on success, WP_Error on failure.
+	 */
+	public function sync_state( array $state ) {
+		return $this->request( 'POST', '/api/state', $state );
+	}
+
+	/**
 	 * Register WordPress event hooks with the Klawty instance.
 	 *
 	 * Informs the agent brain which WP hooks are active so it can react to
@@ -320,8 +336,8 @@ class API_Client {
 	public function check_for_updates() {
 		global $wp_version;
 
-		$wp_ver  = isset( $wp_version ) ? $wp_version : 'unknown';
-		$php_ver = PHP_VERSION;
+		$wp_ver     = isset( $wp_version ) ? $wp_version : 'unknown';
+		$php_ver    = PHP_VERSION;
 		$plugin_ver = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : 'unknown';
 
 		$endpoint = add_query_arg(
@@ -412,9 +428,9 @@ class API_Client {
 			wp_claw_log_warning(
 				'Circuit breaker is open — skipping Klawty request.',
 				array(
-					'endpoint'  => $endpoint,
-					'open_for'  => $remaining . 's',
-					'failures'  => $failures,
+					'endpoint' => $endpoint,
+					'open_for' => $remaining . 's',
+					'failures' => $failures,
 				)
 			);
 			return new \WP_Error(
@@ -462,8 +478,8 @@ class API_Client {
 			'body'    => $body,
 		);
 
-		$max_attempts   = 3; // 1 original + 2 retries for 5xx
-		$retry_delays   = array( 0, 1, 3 ); // seconds before each attempt
+		$max_attempts = 3; // 1 original + 2 retries for 5xx
+		$retry_delays = array( 0, 1, 3 ); // seconds before each attempt
 
 		for ( $attempt = 0; $attempt < $max_attempts; $attempt++ ) {
 
@@ -550,7 +566,7 @@ class API_Client {
 						'wp_claw_server_error',
 						sprintf(
 							/* translators: %d: HTTP status code */
-							__( 'Klawty returned server error %d after %d attempts.', 'wp-claw' ),
+							__( 'Klawty returned server error %1$d after %2$d attempts.', 'wp-claw' ),
 							$code,
 							$max_attempts
 						),
@@ -617,8 +633,8 @@ class API_Client {
 			wp_claw_log_error(
 				'Klawty response is not valid JSON.',
 				array(
-					'endpoint'  => $endpoint,
-					'json_error' => json_last_error_msg(),
+					'endpoint'     => $endpoint,
+					'json_error'   => json_last_error_msg(),
 					'body_preview' => substr( $raw_body, 0, 200 ),
 				)
 			);
@@ -668,7 +684,7 @@ class API_Client {
 	 */
 	private function record_failure(): void {
 		$failures = (int) get_transient( self::TRANSIENT_FAILURES );
-		$failures++;
+		++$failures;
 
 		// Store the new failure count; use a long TTL so it outlives the cooldown.
 		set_transient( self::TRANSIENT_FAILURES, $failures, HOUR_IN_SECONDS * 2 );

@@ -147,7 +147,7 @@ class Module_Forms extends Module_Base {
 		$form_count = is_array( $forms ) ? count( $forms ) : 0;
 
 		// Count submissions stored as tasks with module='forms'.
-		$table_name       = $wpdb->prefix . 'claw_tasks';
+		$table_name       = $wpdb->prefix . 'wp_claw_tasks';
 		$submission_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM `{$table_name}` WHERE module = %s",
@@ -214,8 +214,8 @@ class Module_Forms extends Module_Base {
 			);
 		}
 
-		$definition              = $this->sanitize_form_definition( $params['definition'] );
-		$definition['form_id']   = $form_id;
+		$definition               = $this->sanitize_form_definition( $params['definition'] );
+		$definition['form_id']    = $form_id;
 		$definition['created_at'] = gmdate( 'Y-m-d H:i:s' );
 		$definition['updated_at'] = gmdate( 'Y-m-d H:i:s' );
 
@@ -246,7 +246,7 @@ class Module_Forms extends Module_Base {
 	private function action_get_submissions( array $params ) {
 		global $wpdb;
 
-		$table_name = $wpdb->prefix . 'claw_tasks';
+		$table_name = $wpdb->prefix . 'wp_claw_tasks';
 		$limit      = min( 200, absint( $params['limit'] ?? 50 ) );
 		$offset     = absint( $params['offset'] ?? 0 );
 
@@ -330,12 +330,12 @@ class Module_Forms extends Module_Base {
 			);
 		}
 
-		$existing                   = $forms[ $form_id ];
-		$updated                    = array_merge( $existing, $this->sanitize_form_definition( $params['definition'] ) );
-		$updated['form_id']         = $form_id;
-		$updated['created_at']      = $existing['created_at'] ?? gmdate( 'Y-m-d H:i:s' );
-		$updated['updated_at']      = gmdate( 'Y-m-d H:i:s' );
-		$forms[ $form_id ]          = $updated;
+		$existing              = $forms[ $form_id ];
+		$updated               = array_merge( $existing, $this->sanitize_form_definition( $params['definition'] ) );
+		$updated['form_id']    = $form_id;
+		$updated['created_at'] = $existing['created_at'] ?? gmdate( 'Y-m-d H:i:s' );
+		$updated['updated_at'] = gmdate( 'Y-m-d H:i:s' );
+		$forms[ $form_id ]     = $updated;
 
 		update_option( self::FORMS_OPTION, $forms, false );
 

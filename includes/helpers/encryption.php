@@ -49,7 +49,7 @@ function wp_claw_encrypt( string $plaintext ): string {
 			return base64_encode( $nonce . $ciphertext ); // phpcs:ignore WordPress.PHP.DiscouragedPHPFunctions.obfuscation_base64_encode
 		} catch ( Exception $e ) {
 			sodium_memzero( $key );
-			wp_claw_log_error( 'Sodium encrypt failed, attempting OpenSSL fallback.', [ 'error' => $e->getMessage() ] );
+			wp_claw_log_error( 'Sodium encrypt failed, attempting OpenSSL fallback.', array( 'error' => $e->getMessage() ) );
 		}
 	} else {
 		wp_claw_log_warning( 'libsodium unavailable — falling back to AES-256-CBC for encryption.' );
@@ -108,9 +108,9 @@ function wp_claw_decrypt( string $ciphertext ): string {
 			return '';
 		}
 
-		$iv         = substr( $blob, 0, 16 );
-		$encrypted  = substr( $blob, 16 );
-		$plaintext  = openssl_decrypt( $encrypted, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv );
+		$iv        = substr( $blob, 0, 16 );
+		$encrypted = substr( $blob, 16 );
+		$plaintext = openssl_decrypt( $encrypted, 'aes-256-cbc', $key, OPENSSL_RAW_DATA, $iv );
 
 		$key = str_repeat( "\0", strlen( $key ) );
 		unset( $key );
@@ -154,7 +154,7 @@ function wp_claw_decrypt( string $ciphertext ): string {
 		return $plaintext;
 	} catch ( Exception $e ) {
 		sodium_memzero( $key );
-		wp_claw_log_error( 'Sodium decrypt threw exception.', [ 'error' => $e->getMessage() ] );
+		wp_claw_log_error( 'Sodium decrypt threw exception.', array( 'error' => $e->getMessage() ) );
 		return '';
 	}
 }

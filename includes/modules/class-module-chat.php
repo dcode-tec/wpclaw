@@ -79,13 +79,13 @@ class Module_Chat extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'get_product_catalog',
 			'get_order_status',
 			'search_knowledge_base',
 			'capture_chat_lead',
 			'escalate_to_human',
-		];
+		);
 	}
 
 	/**
@@ -126,7 +126,7 @@ class Module_Chat extends Module_Base {
 						__( 'Unknown chat action: %s', 'wp-claw' ),
 						esc_html( $action )
 					),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -143,8 +143,8 @@ class Module_Chat extends Module_Base {
 	 * @return void
 	 */
 	public function register_hooks(): void {
-		add_action( 'wp_footer', [ $this, 'output_chat_widget' ], 100 );
-		add_action( 'wp_enqueue_scripts', [ $this, 'enqueue_chat_assets' ] );
+		add_action( 'wp_footer', array( $this, 'output_chat_widget' ), 100 );
+		add_action( 'wp_enqueue_scripts', array( $this, 'enqueue_chat_assets' ) );
 	}
 
 	/**
@@ -173,12 +173,12 @@ class Module_Chat extends Module_Base {
 
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
-		$faq = (array) get_option( 'wp_claw_chat_faq', [] );
+		$faq = (array) get_option( 'wp_claw_chat_faq', array() );
 
-		return [
+		return array(
 			'chat_sessions_today' => $sessions_today,
 			'faq_entry_count'     => count( $faq ),
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -220,19 +220,19 @@ class Module_Chat extends Module_Base {
 	public function enqueue_chat_assets(): void {
 		$version    = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
 		$suffix     = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
-		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( dirname( dirname( __FILE__ ) ) );
+		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( dirname( __DIR__ ) );
 
 		wp_enqueue_style(
 			'wp-claw-chat',
 			$plugin_url . 'public/css/wp-claw-chat' . $suffix . '.css',
-			[],
+			array(),
 			$version
 		);
 
 		wp_enqueue_script(
 			'wp-claw-chat',
 			$plugin_url . 'public/js/wp-claw-chat' . $suffix . '.js',
-			[],
+			array(),
 			$version,
 			true // load in footer
 		);
@@ -279,14 +279,14 @@ class Module_Chat extends Module_Base {
 	 */
 	private function get_woocommerce_catalog(): array {
 		$products = wc_get_products(
-			[
+			array(
 				'limit'  => 50,
 				'status' => 'publish',
 				'return' => 'objects',
-			]
+			)
 		);
 
-		$items = [];
+		$items = array();
 
 		foreach ( $products as $product ) {
 			if ( ! ( $product instanceof \WC_Product ) ) {
@@ -296,21 +296,21 @@ class Module_Chat extends Module_Base {
 			$image_id  = $product->get_image_id();
 			$image_url = $image_id ? wp_get_attachment_image_url( (int) $image_id, 'thumbnail' ) : '';
 
-			$items[] = [
+			$items[] = array(
 				'id'        => $product->get_id(),
 				'name'      => $product->get_name(),
 				'price'     => $product->get_price(),
 				'permalink' => get_permalink( $product->get_id() ),
 				'image'     => $image_url ? esc_url_raw( $image_url ) : '',
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success'  => true,
 			'source'   => 'woocommerce',
 			'count'    => count( $items ),
 			'products' => $items,
-		];
+		);
 	}
 
 	/**
@@ -322,14 +322,14 @@ class Module_Chat extends Module_Base {
 	 */
 	private function get_recent_posts_catalog(): array {
 		$posts = get_posts(
-			[
+			array(
 				'numberposts'      => 20,
 				'post_status'      => 'publish',
 				'suppress_filters' => false,
-			]
+			)
 		);
 
-		$items = [];
+		$items = array();
 
 		foreach ( $posts as $post ) {
 			if ( ! ( $post instanceof \WP_Post ) ) {
@@ -338,21 +338,21 @@ class Module_Chat extends Module_Base {
 
 			$thumbnail = get_the_post_thumbnail_url( $post->ID, 'thumbnail' );
 
-			$items[] = [
+			$items[] = array(
 				'id'        => $post->ID,
 				'name'      => $post->post_title,
 				'price'     => '',
 				'permalink' => get_permalink( $post->ID ),
 				'image'     => $thumbnail ? esc_url_raw( $thumbnail ) : '',
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success'  => true,
 			'source'   => 'posts',
 			'count'    => count( $items ),
 			'products' => $items,
-		];
+		);
 	}
 
 	/**
@@ -375,7 +375,7 @@ class Module_Chat extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_woocommerce_inactive',
 				__( 'WooCommerce is not active. Order status is unavailable.', 'wp-claw' ),
-				[ 'status' => 422 ]
+				array( 'status' => 422 )
 			);
 		}
 
@@ -385,7 +385,7 @@ class Module_Chat extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_order_id',
 				__( 'order_id is required and must be a positive integer.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -399,38 +399,38 @@ class Module_Chat extends Module_Base {
 					__( 'Order #%d was not found.', 'wp-claw' ),
 					$order_id
 				),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
 		// Build line items — do not expose customer PII.
-		$items = [];
+		$items = array();
 
 		foreach ( $order->get_items() as $item ) {
 			if ( ! ( $item instanceof \WC_Order_Item_Product ) ) {
 				continue;
 			}
 
-			$items[] = [
+			$items[] = array(
 				'name'     => $item->get_name(),
 				'quantity' => (int) $item->get_quantity(),
 				'total'    => $item->get_total(),
-			];
+			);
 		}
 
-		return [
-			'success'    => true,
-			'order_id'   => $order->get_id(),
-			'status'     => $order->get_status(),
-			'date_created' => $order->get_date_created()
+		return array(
+			'success'       => true,
+			'order_id'      => $order->get_id(),
+			'status'        => $order->get_status(),
+			'date_created'  => $order->get_date_created()
 				? $order->get_date_created()->date( 'c' )
 				: '',
 			'date_modified' => $order->get_date_modified()
 				? $order->get_date_modified()->date( 'c' )
 				: '',
-			'items'      => $items,
-			'item_count' => count( $items ),
-		];
+			'items'         => $items,
+			'item_count'    => count( $items ),
+		);
 	}
 
 	/**
@@ -454,12 +454,12 @@ class Module_Chat extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_query',
 				__( 'A search query is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
-		$faq     = (array) get_option( 'wp_claw_chat_faq', [] );
-		$matches = [];
+		$faq     = (array) get_option( 'wp_claw_chat_faq', array() );
+		$matches = array();
 
 		$query_lower = strtolower( $query );
 
@@ -480,19 +480,19 @@ class Module_Chat extends Module_Base {
 				false !== strpos( strtolower( $question ), $query_lower ) ||
 				false !== strpos( strtolower( $answer ), $query_lower )
 			) {
-				$matches[] = [
+				$matches[] = array(
 					'question' => sanitize_text_field( $question ),
 					'answer'   => sanitize_textarea_field( $answer ),
-				];
+				);
 			}
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'query'   => $query,
 			'count'   => count( $matches ),
 			'results' => $matches,
-		];
+		);
 	}
 
 	/**
@@ -526,7 +526,7 @@ class Module_Chat extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_name',
 				__( 'Visitor name is required to capture a lead.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -534,7 +534,7 @@ class Module_Chat extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
 				__( 'A valid email address is required to capture a lead.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -547,19 +547,19 @@ class Module_Chat extends Module_Base {
 		$now     = current_time( 'mysql', true );
 
 		$details = wp_json_encode(
-			[
+			array(
 				'name'       => $name,
 				'email'      => $email,
 				'message'    => $message,
 				'session_id' => $session_id,
 				'source'     => 'chat_widget',
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- local task log insert; no caching required.
 		$inserted = $wpdb->insert(
 			$table,
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => 'commerce',
 				'module'     => 'crm',
@@ -568,35 +568,41 @@ class Module_Chat extends Module_Base {
 				'details'    => $details,
 				'created_at' => $now,
 				'updated_at' => $now,
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			wp_claw_log(
 				'Chat: failed to insert CRM lead task.',
 				'error',
-				[ 'email' => $email, 'db_error' => $wpdb->last_error ]
+				array(
+					'email'    => $email,
+					'db_error' => $wpdb->last_error,
+				)
 			);
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
 				__( 'Failed to save chat lead to the database.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
 		wp_claw_log(
 			'Chat: captured lead from chat widget.',
 			'info',
-			[ 'task_id' => $task_id, 'name' => $name ]
+			array(
+				'task_id' => $task_id,
+				'name'    => $name,
+			)
 		);
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Lead captured successfully.', 'wp-claw' ),
-		];
+		);
 	}
 
 	/**
@@ -634,57 +640,64 @@ class Module_Chat extends Module_Base {
 		$now     = current_time( 'mysql', true );
 
 		$details = wp_json_encode(
-			[
+			array(
 				'session_id' => $session_id,
 				'reason'     => $reason,
 				'name'       => $name,
 				'email'      => $email,
 				'message'    => $message,
 				'source'     => 'chat_escalation',
-			]
+				'priority'   => 'high',
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- local task log insert; no caching required.
 		$inserted = $wpdb->insert(
 			$table,
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
 				'action'     => 'escalate_to_human',
-				'status'     => 'high',   // priority flag stored in status column for simple filtering.
+				'status'     => 'pending',
 				'details'    => $details,
 				'created_at' => $now,
 				'updated_at' => $now,
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			wp_claw_log(
 				'Chat: failed to insert escalation task.',
 				'error',
-				[ 'session_id' => $session_id, 'db_error' => $wpdb->last_error ]
+				array(
+					'session_id' => $session_id,
+					'db_error'   => $wpdb->last_error,
+				)
 			);
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
 				__( 'Failed to record escalation request.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
 		wp_claw_log(
 			'Chat: escalation to human recorded.',
 			'info',
-			[ 'task_id' => $task_id, 'session_id' => $session_id ]
+			array(
+				'task_id'    => $task_id,
+				'session_id' => $session_id,
+			)
 		);
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Your conversation has been flagged for human follow-up. The team will contact you shortly.', 'wp-claw' ),
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -716,7 +729,7 @@ class Module_Chat extends Module_Base {
 		);
 
 		// Constrain to known positions.
-		if ( ! in_array( $position, [ 'bottom-right', 'bottom-left' ], true ) ) {
+		if ( ! in_array( $position, array( 'bottom-right', 'bottom-left' ), true ) ) {
 			$position = 'bottom-right';
 		}
 
@@ -740,9 +753,9 @@ class Module_Chat extends Module_Base {
 			$accent_color = '#2563EB';
 		}
 
-		$business_hours = (array) get_option( 'wp_claw_chat_business_hours', [] );
+		$business_hours = (array) get_option( 'wp_claw_chat_business_hours', array() );
 
-		return [
+		return array(
 			'position'       => $position,
 			'accentColor'    => $accent_color,
 			'welcomeMessage' => $welcome,
@@ -751,6 +764,6 @@ class Module_Chat extends Module_Base {
 			'restUrl'        => esc_url_raw( rest_url( 'wp-claw/v1/' ) ),
 			'businessHours'  => $business_hours,
 			'nonce'          => wp_create_nonce( 'wp_rest' ),
-		];
+		);
 	}
 }

@@ -75,7 +75,7 @@ class Module_Commerce extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'update_stock_alert',
 			'update_product_price',
 			'create_coupon',
@@ -83,7 +83,7 @@ class Module_Commerce extends Module_Base {
 			'get_products',
 			'send_abandoned_cart_reminder',
 			'update_product_description',
-		];
+		);
 	}
 
 	/**
@@ -120,7 +120,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_woocommerce_unavailable',
 				__( 'WooCommerce is not active. The Commerce module requires WooCommerce.', 'wp-claw' ),
-				[ 'status' => 503 ]
+				array( 'status' => 503 )
 			);
 		}
 
@@ -151,7 +151,7 @@ class Module_Commerce extends Module_Base {
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
 					sprintf( __( 'Unknown Commerce action: %s', 'wp-claw' ), esc_html( $action ) ),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -186,7 +186,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'product_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -196,7 +196,7 @@ class Module_Commerce extends Module_Base {
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
 				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
@@ -204,11 +204,11 @@ class Module_Commerce extends Module_Base {
 		$product->set_low_stock_amount( $low_stock_amount );
 		$product->save();
 
-		return [
+		return array(
 			'success'          => true,
 			'product_id'       => $product_id,
 			'low_stock_amount' => $low_stock_amount,
-		];
+		);
 	}
 
 	/**
@@ -233,7 +233,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'product_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -242,7 +242,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_price',
 				__( 'price must be a non-negative numeric value.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -252,18 +252,18 @@ class Module_Commerce extends Module_Base {
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
 				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
 		$product->set_regular_price( $price );
 		$product->save();
 
-		return [
+		return array(
 			'success'    => true,
 			'product_id' => $product_id,
 			'price'      => $price,
-		];
+		);
 	}
 
 	/**
@@ -294,11 +294,11 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'Coupon code is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
-		$allowed_types = [ 'percent', 'fixed_cart', 'fixed_product' ];
+		$allowed_types = array( 'percent', 'fixed_cart', 'fixed_product' );
 		if ( ! in_array( $discount_type, $allowed_types, true ) ) {
 			$discount_type = 'percent';
 		}
@@ -322,17 +322,17 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_coupon_save_failed',
 				__( 'Failed to save coupon.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success'       => true,
 			'coupon_id'     => $coupon_id,
 			'code'          => $code,
 			'discount_type' => $discount_type,
 			'amount'        => $amount,
-		];
+		);
 	}
 
 	/**
@@ -355,33 +355,33 @@ class Module_Commerce extends Module_Base {
 		$limit  = max( 1, $limit );
 
 		$orders = wc_get_orders(
-			[
+			array(
 				'status' => $status,
 				'limit'  => $limit,
 				'return' => 'objects',
-			]
+			)
 		);
 
-		$result = [];
+		$result = array();
 		foreach ( $orders as $order ) {
 			if ( ! ( $order instanceof \WC_Order ) ) {
 				continue;
 			}
-			$result[] = [
+			$result[] = array(
 				'order_id'   => $order->get_id(),
 				'status'     => $order->get_status(),
 				'total'      => $order->get_total(),
 				'currency'   => $order->get_currency(),
 				'customer'   => $order->get_billing_email(),
 				'created_at' => $order->get_date_created() ? $order->get_date_created()->format( 'c' ) : '',
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'orders'  => $result,
 			'count'   => count( $result ),
-		];
+		);
 	}
 
 	/**
@@ -403,20 +403,20 @@ class Module_Commerce extends Module_Base {
 		$limit    = max( 1, $limit );
 		$category = sanitize_text_field( $params['category'] ?? '' );
 
-		$query_args = [ 'limit' => $limit ];
+		$query_args = array( 'limit' => $limit );
 
 		if ( ! empty( $category ) ) {
-			$query_args['category'] = [ $category ];
+			$query_args['category'] = array( $category );
 		}
 
 		$products = wc_get_products( $query_args );
 
-		$result = [];
+		$result = array();
 		foreach ( $products as $product ) {
 			if ( ! ( $product instanceof \WC_Product ) ) {
 				continue;
 			}
-			$result[] = [
+			$result[] = array(
 				'product_id'   => $product->get_id(),
 				'name'         => $product->get_name(),
 				'sku'          => $product->get_sku(),
@@ -424,14 +424,14 @@ class Module_Commerce extends Module_Base {
 				'stock_status' => $product->get_stock_status(),
 				'stock_qty'    => $product->get_stock_quantity(),
 				'status'       => $product->get_status(),
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success'  => true,
 			'products' => $result,
 			'count'    => count( $result ),
-		];
+		);
 	}
 
 	/**
@@ -464,23 +464,23 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
 				__( 'A valid customer_email is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
 		$task_id = 'commerce-cart-' . wp_generate_uuid4();
 		$details = wp_json_encode(
-			[
+			array(
 				'customer_email' => $customer_email,
 				'cart_contents'  => $cart_contents,
 				'queued_at'      => current_time( 'c' ),
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$inserted = $wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -489,23 +489,23 @@ class Module_Commerce extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to queue abandoned cart reminder.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Abandoned cart reminder queued for agent review.', 'wp-claw' ),
-		];
+		);
 	}
 
 	/**
@@ -530,7 +530,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'product_id is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -538,7 +538,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_missing_param',
 				__( 'description is required.', 'wp-claw' ),
-				[ 'status' => 400 ]
+				array( 'status' => 400 )
 			);
 		}
 
@@ -548,18 +548,18 @@ class Module_Commerce extends Module_Base {
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
 				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
-				[ 'status' => 404 ]
+				array( 'status' => 404 )
 			);
 		}
 
 		$product->set_description( $description );
 		$product->save();
 
-		return [
+		return array(
 			'success'    => true,
 			'product_id' => $product_id,
 			'message'    => __( 'Product description updated.', 'wp-claw' ),
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -582,9 +582,9 @@ class Module_Commerce extends Module_Base {
 			return;
 		}
 
-		add_action( 'woocommerce_order_status_changed', [ $this, 'handle_order_status_changed' ], 10, 4 );
-		add_action( 'woocommerce_low_stock', [ $this, 'handle_low_stock' ], 10, 1 );
-		add_action( 'woocommerce_new_order', [ $this, 'handle_new_order' ], 10, 2 );
+		add_action( 'woocommerce_order_status_changed', array( $this, 'handle_order_status_changed' ), 10, 4 );
+		add_action( 'woocommerce_low_stock', array( $this, 'handle_low_stock' ), 10, 1 );
+		add_action( 'woocommerce_new_order', array( $this, 'handle_new_order' ), 10, 2 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -614,17 +614,17 @@ class Module_Commerce extends Module_Base {
 
 		$task_id = 'commerce-order-status-' . $order_id . '-' . $to . '-' . time();
 		$details = wp_json_encode(
-			[
+			array(
 				'order_id' => $order_id,
 				'from'     => $from,
 				'to'       => $to,
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -633,8 +633,8 @@ class Module_Commerce extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 	}
 
@@ -659,17 +659,17 @@ class Module_Commerce extends Module_Base {
 		$product_id = $product->get_id();
 		$task_id    = 'commerce-lowstock-' . $product_id . '-' . time();
 		$details    = wp_json_encode(
-			[
+			array(
 				'product_id'   => $product_id,
 				'product_name' => $product->get_name(),
 				'stock_qty'    => $product->get_stock_quantity(),
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -678,8 +678,8 @@ class Module_Commerce extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 	}
 
@@ -709,17 +709,17 @@ class Module_Commerce extends Module_Base {
 
 		$task_id = 'commerce-neworder-' . $order_id . '-' . time();
 		$details = wp_json_encode(
-			[
+			array(
 				'order_id'       => $order_id,
 				'customer_email' => $customer_email,
 				'total'          => $total,
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -728,8 +728,8 @@ class Module_Commerce extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 	}
 
@@ -746,16 +746,16 @@ class Module_Commerce extends Module_Base {
 	 */
 	public function get_state(): array {
 		if ( ! $this->is_available() ) {
-			return [
+			return array(
 				'module'       => $this->get_slug(),
 				'available'    => false,
 				'message'      => __( 'WooCommerce is not active.', 'wp-claw' ),
 				'generated_at' => current_time( 'c' ),
-			];
+			);
 		}
 
 		// Order counts by status.
-		$order_counts = [];
+		$order_counts = array();
 		$wc_statuses  = wc_get_order_statuses();
 		foreach ( array_keys( $wc_statuses ) as $raw_status ) {
 			$status = str_replace( 'wc-', '', sanitize_key( $raw_status ) );
@@ -766,13 +766,13 @@ class Module_Commerce extends Module_Base {
 		}
 
 		// Product count.
-		$product_count = wp_count_posts( 'product' );
+		$product_count  = wp_count_posts( 'product' );
 		$total_products = isset( $product_count->publish ) ? absint( $product_count->publish ) : 0;
 
 		// Low stock count via WooCommerce data store.
 		$low_stock_count = $this->get_low_stock_count();
 
-		return [
+		return array(
 			'module'          => $this->get_slug(),
 			'available'       => true,
 			'order_counts'    => $order_counts,
@@ -780,7 +780,7 @@ class Module_Commerce extends Module_Base {
 			'total_products'  => $total_products,
 			'low_stock_count' => $low_stock_count,
 			'generated_at'    => current_time( 'c' ),
-		];
+		);
 	}
 
 	/**
@@ -792,12 +792,12 @@ class Module_Commerce extends Module_Base {
 	 */
 	private function get_low_stock_count(): int {
 		$low_stock = wc_get_products(
-			[
+			array(
 				'status'       => 'publish',
 				'stock_status' => 'instock',
 				'limit'        => -1,
 				'return'       => 'ids',
-			]
+			)
 		);
 
 		$count = 0;
@@ -817,7 +817,7 @@ class Module_Commerce extends Module_Base {
 				}
 				$stock_qty = (int) $product->get_stock_quantity();
 				if ( $stock_qty <= $threshold ) {
-					$count++;
+					++$count;
 				}
 			}
 		}

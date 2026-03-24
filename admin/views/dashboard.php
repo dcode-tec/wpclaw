@@ -32,7 +32,7 @@ $recent_tasks = $wpdb->get_results(
 );
 
 // Pending proposal count.
-$proposals_table   = $wpdb->prefix . 'wp_claw_proposals';
+$proposals_table = $wpdb->prefix . 'wp_claw_proposals';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $pending_proposals = (int) $wpdb->get_var(
 	$wpdb->prepare(
@@ -59,9 +59,9 @@ if ( false === $agents ) {
 }
 
 // Connection health.
-$is_connected   = $api_client->is_connected();
-$health_data    = get_transient( 'wp_claw_health_data' );
-$health_status  = ( is_array( $health_data ) && ! empty( $health_data['status'] ) )
+$is_connected  = $api_client->is_connected();
+$health_data   = get_transient( 'wp_claw_health_data' );
+$health_status = ( is_array( $health_data ) && ! empty( $health_data['status'] ) )
 	? sanitize_text_field( $health_data['status'] )
 	: ( $is_connected ? 'ok' : 'disconnected' );
 
@@ -77,18 +77,18 @@ $health_status  = ( is_array( $health_data ) && ! empty( $health_data['status'] 
  */
 $wp_claw_safe_status_class = function ( $status ) {
 	$allowed = array(
-		'pending'    => 'pending',
-		'running'    => 'running',
-		'done'       => 'done',
-		'failed'     => 'failed',
-		'ok'         => 'ok',
-		'degraded'   => 'degraded',
+		'pending'      => 'pending',
+		'running'      => 'running',
+		'done'         => 'done',
+		'failed'       => 'failed',
+		'ok'           => 'ok',
+		'degraded'     => 'degraded',
 		'disconnected' => 'disconnected',
-		'healthy'    => 'ok',
-		'idle'       => 'idle',
-		'unknown'    => 'unknown',
+		'healthy'      => 'ok',
+		'idle'         => 'idle',
+		'unknown'      => 'unknown',
 	);
-	$key = strtolower( sanitize_key( (string) $status ) );
+	$key     = strtolower( sanitize_key( (string) $status ) );
 	return isset( $allowed[ $key ] ) ? $allowed[ $key ] : 'unknown';
 };
 ?>
@@ -230,18 +230,18 @@ $wp_claw_safe_status_class = function ( $status ) {
 		<?php else : ?>
 		<div class="wp-claw-admin-agent-grid">
 			<?php foreach ( $agents as $agent ) : ?>
-			<?php
-			if ( ! is_array( $agent ) ) {
-				continue;
-			}
-			$agent_name         = isset( $agent['name'] ) ? sanitize_text_field( (string) $agent['name'] ) : '';
-			$agent_role         = isset( $agent['role'] ) ? sanitize_text_field( (string) $agent['role'] ) : '';
-			$agent_emoji        = isset( $agent['emoji'] ) ? sanitize_text_field( (string) $agent['emoji'] ) : '';
-			$agent_health       = isset( $agent['health'] ) ? sanitize_key( (string) $agent['health'] ) : 'unknown';
-			$agent_current_task = isset( $agent['current_task'] ) ? sanitize_text_field( (string) $agent['current_task'] ) : '';
-			$agent_cost         = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
-			$agent_task_count   = isset( $agent['task_count'] ) ? (int) $agent['task_count'] : 0;
-			?>
+				<?php
+				if ( ! is_array( $agent ) ) {
+					continue;
+				}
+				$agent_name         = isset( $agent['name'] ) ? sanitize_text_field( (string) $agent['name'] ) : '';
+				$agent_role         = isset( $agent['role'] ) ? sanitize_text_field( (string) $agent['role'] ) : '';
+				$agent_emoji        = isset( $agent['emoji'] ) ? sanitize_text_field( (string) $agent['emoji'] ) : '';
+				$agent_health       = isset( $agent['health'] ) ? sanitize_key( (string) $agent['health'] ) : 'unknown';
+				$agent_current_task = isset( $agent['current_task'] ) ? sanitize_text_field( (string) $agent['current_task'] ) : '';
+				$agent_cost         = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
+				$agent_task_count   = isset( $agent['task_count'] ) ? (int) $agent['task_count'] : 0;
+				?>
 			<div class="wp-claw-admin-agent-card">
 				<div class="wp-claw-admin-agent-card-header">
 					<?php if ( '' !== $agent_emoji ) : ?>
@@ -254,7 +254,7 @@ $wp_claw_safe_status_class = function ( $status ) {
 						<?php endif; ?>
 					</div>
 					<span class="wp-claw-admin-status-dot wp-claw-admin-status-<?php echo esc_attr( $wp_claw_safe_status_class( $agent_health ) ); ?>"
-						  title="<?php echo esc_attr( ucfirst( $agent_health ) ); ?>"></span>
+							title="<?php echo esc_attr( ucfirst( $agent_health ) ); ?>"></span>
 				</div>
 				<div class="wp-claw-admin-agent-card-body">
 					<p class="wp-claw-admin-agent-task">

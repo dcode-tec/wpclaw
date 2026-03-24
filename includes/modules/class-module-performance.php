@@ -99,13 +99,13 @@ class Module_Performance extends Module_Base {
 	 * @return string[]
 	 */
 	public function get_allowed_actions(): array {
-		return [
+		return array(
 			'get_core_web_vitals',
 			'run_db_cleanup',
 			'optimize_images',
 			'suggest_cache_strategy',
 			'get_page_speed_data',
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -144,7 +144,7 @@ class Module_Performance extends Module_Base {
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
 					sprintf( __( 'Unknown Performance action: %s', 'wp-claw' ), esc_html( $action ) ),
-					[ 'status' => 400 ]
+					array( 'status' => 400 )
 				);
 		}
 	}
@@ -168,18 +168,18 @@ class Module_Performance extends Module_Base {
 		$data = get_transient( self::CWV_TRANSIENT );
 
 		if ( false === $data || ! is_array( $data ) ) {
-			return [
+			return array(
 				'success'   => true,
 				'available' => false,
 				'message'   => __( 'No Core Web Vitals data available yet. Run the performance check cron to populate.', 'wp-claw' ),
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success'   => true,
 			'available' => true,
 			'data'      => $data,
-		];
+		);
 	}
 
 	/**
@@ -250,13 +250,13 @@ class Module_Performance extends Module_Base {
 
 		$transients_deleted = $expired_timeouts + $orphaned_values;
 
-		return [
-			'success'             => true,
-			'revisions_deleted'   => $revisions_deleted,
-			'spam_deleted'        => $spam_deleted,
-			'transients_deleted'  => $transients_deleted,
-			'message'             => __( 'Database cleanup completed.', 'wp-claw' ),
-		];
+		return array(
+			'success'            => true,
+			'revisions_deleted'  => $revisions_deleted,
+			'spam_deleted'       => $spam_deleted,
+			'transients_deleted' => $transients_deleted,
+			'message'            => __( 'Database cleanup completed.', 'wp-claw' ),
+		);
 	}
 
 	/**
@@ -284,25 +284,25 @@ class Module_Performance extends Module_Base {
 		global $wpdb;
 
 		$attachment_id = absint( $params['attachment_id'] ?? 0 );
-		$format        = in_array( sanitize_key( $params['format'] ?? 'webp' ), [ 'webp', 'original' ], true )
+		$format        = in_array( sanitize_key( $params['format'] ?? 'webp' ), array( 'webp', 'original' ), true )
 			? sanitize_key( $params['format'] ?? 'webp' )
 			: 'webp';
 		$quality       = min( 100, max( 1, absint( $params['quality'] ?? 82 ) ) );
 
 		$task_id = 'perf-imgopt-' . wp_generate_uuid4();
 		$details = wp_json_encode(
-			[
+			array(
 				'attachment_id' => $attachment_id,
 				'format'        => $format,
 				'quality'       => $quality,
 				'queued_at'     => current_time( 'c' ),
-			]
+			)
 		);
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
 		$inserted = $wpdb->insert(
 			$wpdb->prefix . 'wp_claw_tasks',
-			[
+			array(
 				'task_id'    => $task_id,
 				'agent'      => $this->get_agent(),
 				'module'     => $this->get_slug(),
@@ -311,23 +311,23 @@ class Module_Performance extends Module_Base {
 				'details'    => $details,
 				'created_at' => current_time( 'mysql' ),
 				'updated_at' => current_time( 'mysql' ),
-			],
-			[ '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' ]
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
 		);
 
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
 				__( 'Failed to queue image optimization task.', 'wp-claw' ),
-				[ 'status' => 500 ]
+				array( 'status' => 500 )
 			);
 		}
 
-		return [
+		return array(
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Image optimization task queued.', 'wp-claw' ),
-		];
+		);
 	}
 
 	/**
@@ -341,23 +341,23 @@ class Module_Performance extends Module_Base {
 	 * @return array
 	 */
 	private function handle_suggest_cache_strategy(): array {
-		$active_plugins = (array) get_option( 'active_plugins', [] );
+		$active_plugins = (array) get_option( 'active_plugins', array() );
 		$plugins_string = implode( ' ', $active_plugins );
 
 		$detected_cache_plugin = '';
-		$recommendations       = [];
+		$recommendations       = array();
 
 		// Detect known caching plugins by slug fragment.
-		$cache_plugin_map = [
-			'wp-rocket'          => 'WP Rocket',
-			'w3-total-cache'     => 'W3 Total Cache',
-			'wp-super-cache'     => 'WP Super Cache',
-			'litespeed-cache'    => 'LiteSpeed Cache',
-			'wp-fastest-cache'   => 'WP Fastest Cache',
-			'autoptimize'        => 'Autoptimize',
-			'swift-performance'  => 'Swift Performance',
-			'sg-cachepress'      => 'SiteGround Optimizer',
-		];
+		$cache_plugin_map = array(
+			'wp-rocket'         => 'WP Rocket',
+			'w3-total-cache'    => 'W3 Total Cache',
+			'wp-super-cache'    => 'WP Super Cache',
+			'litespeed-cache'   => 'LiteSpeed Cache',
+			'wp-fastest-cache'  => 'WP Fastest Cache',
+			'autoptimize'       => 'Autoptimize',
+			'swift-performance' => 'Swift Performance',
+			'sg-cachepress'     => 'SiteGround Optimizer',
+		);
 
 		foreach ( $cache_plugin_map as $slug_fragment => $plugin_name ) {
 			if ( false !== strpos( $plugins_string, $slug_fragment ) ) {
@@ -386,11 +386,11 @@ class Module_Performance extends Module_Base {
 			$recommendations[] = __( 'WooCommerce detected: exclude /cart/, /checkout/, and /my-account/ from page cache.', 'wp-claw' );
 		}
 
-		return [
+		return array(
 			'success'               => true,
 			'detected_cache_plugin' => $detected_cache_plugin ?: __( 'None', 'wp-claw' ),
 			'recommendations'       => $recommendations,
-		];
+		);
 	}
 
 	/**
@@ -404,18 +404,18 @@ class Module_Performance extends Module_Base {
 		$data = get_transient( self::PSI_TRANSIENT );
 
 		if ( false === $data || ! is_array( $data ) ) {
-			return [
+			return array(
 				'success'   => true,
 				'available' => false,
 				'message'   => __( 'No PageSpeed data available. Run the performance cron or trigger a manual check.', 'wp-claw' ),
-			];
+			);
 		}
 
-		return [
+		return array(
 			'success'   => true,
 			'available' => true,
 			'data'      => $data,
-		];
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -496,16 +496,16 @@ class Module_Performance extends Module_Base {
 		// Core Web Vitals snapshot (from transient, may be empty).
 		$cwv = get_transient( self::CWV_TRANSIENT );
 
-		return [
-			'module'            => $this->get_slug(),
-			'db_size_bytes'     => $db_size_bytes,
-			'db_size_mb'        => round( $db_size_bytes / 1048576, 2 ),
-			'autoloaded_bytes'  => $autoloaded_bytes,
-			'autoloaded_kb'     => round( $autoloaded_bytes / 1024, 1 ),
-			'revision_count'    => $revision_count,
-			'spam_count'        => $spam_count,
-			'core_web_vitals'   => is_array( $cwv ) ? $cwv : null,
-			'generated_at'      => current_time( 'c' ),
-		];
+		return array(
+			'module'           => $this->get_slug(),
+			'db_size_bytes'    => $db_size_bytes,
+			'db_size_mb'       => round( $db_size_bytes / 1048576, 2 ),
+			'autoloaded_bytes' => $autoloaded_bytes,
+			'autoloaded_kb'    => round( $autoloaded_bytes / 1024, 1 ),
+			'revision_count'   => $revision_count,
+			'spam_count'       => $spam_count,
+			'core_web_vitals'  => is_array( $cwv ) ? $cwv : null,
+			'generated_at'     => current_time( 'c' ),
+		);
 	}
 }
