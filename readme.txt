@@ -1,5 +1,6 @@
 === Claw ===
 Contributors: dcodetechnologies
+Donate link: https://wp-claw.ai
 Tags: ai, automation, seo, security, woocommerce
 Requires at least: 6.4
 Tested up to: 6.8
