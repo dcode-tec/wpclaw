@@ -577,6 +577,7 @@ class Admin {
 		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
+		$api_client = $this->api_client;
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/dashboard.php';
 	}
 
@@ -591,6 +592,7 @@ class Admin {
 		if ( ! current_user_can( 'wp_claw_manage_agents' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
+		$api_client = $this->api_client;
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/agents.php';
 	}
 
@@ -619,6 +621,7 @@ class Admin {
 		if ( ! current_user_can( 'wp_claw_manage_settings' ) ) {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
+		$api_client = $this->api_client;
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/settings.php';
 	}
 
