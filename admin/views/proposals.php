@@ -33,9 +33,14 @@ $proposals = $wpdb->get_results(
 // Tab selection — "pending" (default) or "all".
 // -------------------------------------------------------------------------
 // phpcs:ignore WordPress.Security.NonceVerification.Recommended -- read-only filter, no state change.
-$show_all = isset( $_GET['show'] ) && 'all' === sanitize_key( $_GET['show'] );
+$current_filter = isset( $_GET['show'] ) ? sanitize_key( $_GET['show'] ) : 'pending';
 
-if ( $show_all ) {
+$valid_filters = array( 'pending', 'all', 'approved', 'rejected' );
+if ( ! in_array( $current_filter, $valid_filters, true ) ) {
+	$current_filter = 'pending';
+}
+
+if ( 'all' === $current_filter ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$proposals = $wpdb->get_results(
 		$wpdb->prepare(
@@ -44,100 +49,136 @@ if ( $show_all ) {
 			50
 		)
 	);
+} elseif ( 'approved' === $current_filter ) {
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$proposals = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status IN (%s, %s) ORDER BY created_at DESC LIMIT %d',
+			$proposals_table,
+			'approved',
+			'executed',
+			50
+		)
+	);
+} elseif ( 'rejected' === $current_filter ) {
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$proposals = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC LIMIT %d',
+			$proposals_table,
+			'rejected',
+			50
+		)
+	);
 }
 
+// Count per status for tab badges.
+// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+$proposal_status_counts_raw = $wpdb->get_results(
+	$wpdb->prepare( 'SELECT status, COUNT(*) AS cnt FROM %i GROUP BY status', $proposals_table )
+);
+$proposal_status_counts = array();
+if ( $proposal_status_counts_raw ) {
+	foreach ( $proposal_status_counts_raw as $row ) {
+		$proposal_status_counts[ sanitize_key( (string) $row->status ) ] = (int) $row->cnt;
+	}
+}
+$total_proposals   = array_sum( $proposal_status_counts );
+$pending_count     = isset( $proposal_status_counts['pending'] ) ? $proposal_status_counts['pending'] : 0;
+$approved_count    = ( isset( $proposal_status_counts['approved'] ) ? $proposal_status_counts['approved'] : 0 )
+					+ ( isset( $proposal_status_counts['executed'] ) ? $proposal_status_counts['executed'] : 0 );
+$rejected_count    = isset( $proposal_status_counts['rejected'] ) ? $proposal_status_counts['rejected'] : 0;
+
 /**
- * Map a raw proposal status to a safe CSS class suffix.
+ * Map a raw proposal status to a badge modifier class.
  *
  * @param string $status Raw status string.
- * @return string Sanitized CSS class suffix.
+ * @return string Badge modifier.
  */
-$wp_claw_proposal_status_class = function ( $status ) {
+$wp_claw_proposal_badge = function ( $status ) {
 	$map = array(
 		'pending'     => 'pending',
-		'approved'    => 'ok',
+		'approved'    => 'active',
 		'rejected'    => 'failed',
-		'executing'   => 'running',
+		'executing'   => 'active',
 		'executed'    => 'done',
-		'rolled_back' => 'degraded',
-		'expired'     => 'unknown',
+		'rolled_back' => 'error',
+		'expired'     => 'idle',
 	);
 	$key = strtolower( sanitize_key( (string) $status ) );
-	return isset( $map[ $key ] ) ? $map[ $key ] : 'unknown';
+	return isset( $map[ $key ] ) ? $map[ $key ] : 'pending';
 };
 ?>
-<div class="wrap wp-claw-admin-wrap">
+<div class="wpc-admin-wrap">
 
-	<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+	<h1 class="wpc-section-heading"><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
-	<!-- ------------------------------------------------------------------ -->
-	<!-- Filter tabs                                                          -->
-	<!-- ------------------------------------------------------------------ -->
-	<ul class="subsubsub">
-		<li>
-			<a
-				href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals' ) ); ?>"
-				<?php echo ! $show_all ? 'class="current" aria-current="page"' : ''; ?>
-			>
-				<?php esc_html_e( 'Pending', 'claw-agent' ); ?>
-			</a>
-			|
-		</li>
-		<li>
-			<a
-				href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=all' ) ); ?>"
-				<?php echo $show_all ? 'class="current" aria-current="page"' : ''; ?>
-			>
-				<?php esc_html_e( 'All (last 50)', 'claw-agent' ); ?>
-			</a>
-		</li>
-	</ul>
+	<!-- Filter Tabs -->
+	<nav class="wpc-nav-tabs" aria-label="<?php esc_attr_e( 'Proposal filters', 'claw-agent' ); ?>">
+		<a
+			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals' ) ); ?>"
+			class="<?php echo esc_attr( 'pending' === $current_filter ? 'wpc-nav-tabs--active' : '' ); ?>"
+			<?php echo 'pending' === $current_filter ? 'aria-current="page"' : ''; ?>
+		>
+			<?php esc_html_e( 'Pending', 'claw-agent' ); ?>
+			<?php if ( $pending_count > 0 ) : ?>
+				<span class="wpc-badge wpc-badge--pending"><?php echo esc_html( number_format_i18n( $pending_count ) ); ?></span>
+			<?php endif; ?>
+		</a>
+		<a
+			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=approved' ) ); ?>"
+			class="<?php echo esc_attr( 'approved' === $current_filter ? 'wpc-nav-tabs--active' : '' ); ?>"
+			<?php echo 'approved' === $current_filter ? 'aria-current="page"' : ''; ?>
+		>
+			<?php esc_html_e( 'Approved', 'claw-agent' ); ?>
+			<?php if ( $approved_count > 0 ) : ?>
+				<span class="wpc-badge wpc-badge--done"><?php echo esc_html( number_format_i18n( $approved_count ) ); ?></span>
+			<?php endif; ?>
+		</a>
+		<a
+			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=rejected' ) ); ?>"
+			class="<?php echo esc_attr( 'rejected' === $current_filter ? 'wpc-nav-tabs--active' : '' ); ?>"
+			<?php echo 'rejected' === $current_filter ? 'aria-current="page"' : ''; ?>
+		>
+			<?php esc_html_e( 'Rejected', 'claw-agent' ); ?>
+			<?php if ( $rejected_count > 0 ) : ?>
+				<span class="wpc-badge wpc-badge--failed"><?php echo esc_html( number_format_i18n( $rejected_count ) ); ?></span>
+			<?php endif; ?>
+		</a>
+		<a
+			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=all' ) ); ?>"
+			class="<?php echo esc_attr( 'all' === $current_filter ? 'wpc-nav-tabs--active' : '' ); ?>"
+			<?php echo 'all' === $current_filter ? 'aria-current="page"' : ''; ?>
+		>
+			<?php esc_html_e( 'All', 'claw-agent' ); ?>
+			<span class="wpc-badge wpc-badge--idle"><?php echo esc_html( number_format_i18n( $total_proposals ) ); ?></span>
+		</a>
+	</nav>
 
-	<!-- ------------------------------------------------------------------ -->
-	<!-- Empty state                                                          -->
-	<!-- ------------------------------------------------------------------ -->
+	<!-- Empty State -->
 	<?php if ( empty( $proposals ) ) : ?>
-	<p class="wp-claw-admin-empty">
-		<?php
-		if ( $show_all ) {
-			esc_html_e( 'No proposals recorded yet.', 'claw-agent' );
-		} else {
-			esc_html_e( 'No pending proposals. Your agents are operating autonomously.', 'claw-agent' );
-		}
-		?>
-	</p>
+	<div class="wpc-empty-state">
+		<p>
+			<?php
+			if ( 'pending' === $current_filter ) {
+				esc_html_e( 'No pending proposals. Your agents are operating autonomously.', 'claw-agent' );
+			} elseif ( 'approved' === $current_filter ) {
+				esc_html_e( 'No approved proposals yet.', 'claw-agent' );
+			} elseif ( 'rejected' === $current_filter ) {
+				esc_html_e( 'No rejected proposals.', 'claw-agent' );
+			} else {
+				esc_html_e( 'No proposals recorded yet.', 'claw-agent' );
+			}
+			?>
+		</p>
+	</div>
 
 	<?php else : ?>
 
-	<!-- ------------------------------------------------------------------ -->
-	<!-- Proposal table                                                       -->
-	<!-- ------------------------------------------------------------------ -->
-	<table class="wp-list-table widefat fixed striped wp-claw-admin-proposals">
-		<thead>
-			<tr>
-				<th scope="col" class="column-agent">
-					<?php esc_html_e( 'Agent', 'claw-agent' ); ?>
-				</th>
-				<th scope="col" class="column-action">
-					<?php esc_html_e( 'Action', 'claw-agent' ); ?>
-				</th>
-				<th scope="col" class="column-details">
-					<?php esc_html_e( 'Details', 'claw-agent' ); ?>
-				</th>
-				<th scope="col" class="column-created">
-					<?php esc_html_e( 'Requested', 'claw-agent' ); ?>
-				</th>
-				<th scope="col" class="column-status">
-					<?php esc_html_e( 'Status', 'claw-agent' ); ?>
-				</th>
-				<th scope="col" class="column-actions">
-					<?php esc_html_e( 'Actions', 'claw-agent' ); ?>
-				</th>
-			</tr>
-		</thead>
-		<tbody>
+	<!-- Proposal Cards -->
+	<div class="wpc-proposal-list">
 		<?php foreach ( $proposals as $proposal ) : ?>
 			<?php
 			$proposal_id     = sanitize_text_field( (string) $proposal->proposal_id );
@@ -146,35 +187,25 @@ $wp_claw_proposal_status_class = function ( $status ) {
 			$proposal_status = sanitize_key( (string) $proposal->status );
 			$proposal_raw    = sanitize_text_field( (string) $proposal->details );
 			$proposal_age    = ! empty( $proposal->created_at ) ? strtotime( $proposal->created_at ) : 0;
-			$status_class    = $wp_claw_proposal_status_class( $proposal_status );
+			$badge_class     = $wp_claw_proposal_badge( $proposal_status );
 			$is_pending      = 'pending' === $proposal_status;
 
-			// Trim details to a readable excerpt — wp_trim_words works on plain text.
-			$proposal_excerpt = wp_trim_words( $proposal_raw, 20, '&hellip;' );
+			$proposal_excerpt = wp_trim_words( $proposal_raw, 30, '...' );
 			?>
-		<tr
-			class="wp-claw-admin-proposal-row <?php echo esc_attr( $is_pending ? 'wp-claw-admin-proposal-row--pending' : '' ); ?>"
+		<article
+			class="wpc-proposal-card <?php echo esc_attr( $is_pending ? 'wpc-proposal-card--pending' : '' ); ?>"
 			data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"
 		>
-			<td class="column-agent">
-				<span class="wp-claw-admin-agent-badge wp-claw-admin-agent-badge--<?php echo esc_attr( sanitize_key( $proposal_agent ) ); ?>">
-					<?php echo esc_html( ucfirst( $proposal_agent ) ); ?>
-				</span>
-			</td>
-
-			<td class="column-action">
-				<code><?php echo esc_html( $proposal_action ); ?></code>
-			</td>
-
-			<td class="column-details">
-				<span class="wp-claw-admin-proposal-details" title="<?php echo esc_attr( $proposal_raw ); ?>">
-					<?php echo esc_html( $proposal_excerpt ); ?>
-				</span>
-			</td>
-
-			<td class="column-created">
-				<?php if ( $proposal_age ) : ?>
-					<span title="<?php echo esc_attr( gmdate( 'Y-m-d H:i:s', $proposal_age ) . ' UTC' ); ?>">
+			<header>
+				<div>
+					<span class="wpc-badge wpc-badge--active">
+						<?php echo esc_html( ucfirst( $proposal_agent ) ); ?>
+					</span>
+					<code><?php echo esc_html( $proposal_action ); ?></code>
+				</div>
+				<div>
+					<?php if ( $proposal_age ) : ?>
+					<time title="<?php echo esc_attr( gmdate( 'Y-m-d H:i:s', $proposal_age ) . ' UTC' ); ?>">
 						<?php
 						echo esc_html(
 							sprintf(
@@ -184,23 +215,25 @@ $wp_claw_proposal_status_class = function ( $status ) {
 							)
 						);
 						?>
+					</time>
+					<?php endif; ?>
+					<span class="wpc-badge wpc-badge--<?php echo esc_attr( $badge_class ); ?>">
+						<?php echo esc_html( ucfirst( str_replace( '_', ' ', $proposal_status ) ) ); ?>
 					</span>
-				<?php else : ?>
-					&mdash;
-				<?php endif; ?>
-			</td>
+				</div>
+			</header>
 
-			<td class="column-status">
-				<span class="wp-claw-admin-status-pill wp-claw-admin-status-<?php echo esc_attr( $status_class ); ?>">
-					<?php echo esc_html( ucfirst( str_replace( '_', ' ', $proposal_status ) ) ); ?>
-				</span>
-			</td>
+			<div class="wpc-proposal-card__details">
+				<p title="<?php echo esc_attr( $proposal_raw ); ?>">
+					<?php echo esc_html( $proposal_excerpt ); ?>
+				</p>
+			</div>
 
-			<td class="column-actions">
-				<?php if ( $is_pending ) : ?>
+			<?php if ( $is_pending ) : ?>
+			<footer>
 				<button
 					type="button"
-					class="button button-primary wp-claw-admin-btn-approve"
+					class="wpc-btn wpc-btn--success wpc-admin-btn-approve"
 					data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"
 					data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_claw_proposal_' . $proposal_id ) ); ?>"
 				>
@@ -208,40 +241,23 @@ $wp_claw_proposal_status_class = function ( $status ) {
 				</button>
 				<button
 					type="button"
-					class="button button-secondary wp-claw-admin-btn-reject"
+					class="wpc-btn wpc-btn--danger wpc-admin-btn-reject"
 					data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"
 					data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_claw_proposal_' . $proposal_id ) ); ?>"
 				>
 					<?php esc_html_e( 'Reject', 'claw-agent' ); ?>
 				</button>
-				<?php else : ?>
-				<span class="wp-claw-admin-muted">&mdash;</span>
-				<?php endif; ?>
-			</td>
+			</footer>
+			<?php endif; ?>
 
-		</tr>
+		</article>
 		<?php endforeach; ?>
-		</tbody>
+	</div>
 
-		<tfoot>
-			<tr>
-				<th scope="col"><?php esc_html_e( 'Agent', 'claw-agent' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Action', 'claw-agent' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Details', 'claw-agent' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Requested', 'claw-agent' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Actions', 'claw-agent' ); ?></th>
-			</tr>
-		</tfoot>
-
-	</table><!-- /.wp-claw-admin-proposals -->
-
-	<p class="wp-claw-admin-section-footer">
-		<em class="wp-claw-admin-muted">
-			<?php esc_html_e( 'Approving or rejecting a proposal sends the decision to the Klawty instance via the REST API.', 'claw-agent' ); ?>
-		</em>
+	<p class="wpc-kpi-label">
+		<?php esc_html_e( 'Approving or rejecting a proposal sends the decision to the Klawty instance via the REST API.', 'claw-agent' ); ?>
 	</p>
 
 	<?php endif; ?>
 
-</div><!-- /.wrap -->
+</div>

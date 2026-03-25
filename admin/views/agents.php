@@ -54,14 +54,52 @@ $wp_claw_agent_status_class = function ( $status ) {
 	$key = strtolower( sanitize_key( (string) $status ) );
 	return isset( $map[ $key ] ) ? $map[ $key ] : 'unknown';
 };
-?>
-<div class="wrap wp-claw-admin-wrap">
 
-	<h1><?php echo esc_html( get_admin_page_title() ); ?></h1>
+/**
+ * Map health status to a status dot color.
+ *
+ * @param string $health Raw health string.
+ * @return string Dot color class suffix.
+ */
+$wp_claw_health_dot = function ( $health ) {
+	$key = strtolower( sanitize_key( (string) $health ) );
+	if ( in_array( $key, array( 'ok', 'healthy' ), true ) ) {
+		return 'green';
+	}
+	if ( in_array( $key, array( 'degraded', 'idle', 'busy', 'running' ), true ) ) {
+		return 'yellow';
+	}
+	return 'red';
+};
+
+/**
+ * Map health status to a badge modifier.
+ *
+ * @param string $health Raw health string.
+ * @return string Badge modifier.
+ */
+$wp_claw_health_badge = function ( $health ) {
+	$key = strtolower( sanitize_key( (string) $health ) );
+	if ( in_array( $key, array( 'ok', 'healthy' ), true ) ) {
+		return 'active';
+	}
+	if ( in_array( $key, array( 'idle' ), true ) ) {
+		return 'idle';
+	}
+	if ( in_array( $key, array( 'error', 'failed', 'disconnected' ), true ) ) {
+		return 'error';
+	}
+	return 'pending';
+};
+?>
+<div class="wpc-admin-wrap">
+
+	<h1 class="wpc-section-heading"><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
 	<?php if ( $api_error ) : ?>
-	<div class="notice notice-error wp-claw-admin-notice">
-		<p>
+	<div class="wpc-connection-banner wpc-connection-banner--disconnected">
+		<span class="wpc-status-dot wpc-status-dot--red"></span>
+		<span>
 			<?php
 			printf(
 				/* translators: %s: error message from the API */
@@ -69,26 +107,22 @@ $wp_claw_agent_status_class = function ( $status ) {
 				'<strong>' . esc_html( $api_error ) . '</strong>'
 			);
 			?>
-		</p>
-		<p>
+			&mdash;
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ); ?>">
-				<?php esc_html_e( 'Check connection settings &rarr;', 'claw-agent' ); ?>
+				<?php esc_html_e( 'Check connection settings', 'claw-agent' ); ?>
 			</a>
-		</p>
+		</span>
 	</div>
 	<?php endif; ?>
 
 	<?php if ( empty( $agents ) && ! $api_error ) : ?>
-	<div class="notice notice-info wp-claw-admin-notice">
+	<div class="wpc-empty-state">
 		<p><?php esc_html_e( 'No agents are currently reporting status. The Klawty instance may still be starting up.', 'claw-agent' ); ?></p>
 	</div>
 	<?php endif; ?>
 
 	<?php if ( ! empty( $agents ) ) : ?>
-	<!-- ------------------------------------------------------------------ -->
-	<!-- Agent grid                                                           -->
-	<!-- ------------------------------------------------------------------ -->
-	<div class="wp-claw-admin-agent-grid">
+	<div class="wpc-module-grid">
 
 		<?php foreach ( $agents as $agent ) : ?>
 			<?php
@@ -106,114 +140,95 @@ $wp_claw_agent_status_class = function ( $status ) {
 			$agent_cost_today   = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
 			$agent_last_seen    = isset( $agent['last_heartbeat'] ) ? sanitize_text_field( (string) $agent['last_heartbeat'] ) : '';
 			$agent_model        = isset( $agent['model'] ) ? sanitize_text_field( (string) $agent['model'] ) : '';
-
-			$status_class = $wp_claw_agent_status_class( $agent_health );
 			?>
-		<div class="wp-claw-admin-agent-card wp-claw-admin-agent-card--<?php echo esc_attr( sanitize_key( $agent_name ) ); ?>">
+		<article class="wpc-module-card">
 
-			<div class="wp-claw-admin-agent-card-header">
-
-				<?php if ( '' !== $agent_emoji ) : ?>
-				<span class="wp-claw-admin-agent-emoji" aria-hidden="true">
-					<?php echo esc_html( $agent_emoji ); ?>
-				</span>
-				<?php endif; ?>
-
-				<div class="wp-claw-admin-agent-identity">
-					<strong class="wp-claw-admin-agent-name">
-						<?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'claw-agent' ) ); ?>
-					</strong>
-					<?php if ( '' !== $agent_role ) : ?>
-					<span class="wp-claw-admin-agent-role">
-						<?php echo esc_html( $agent_role ); ?>
-					</span>
+			<header>
+				<div>
+					<?php if ( '' !== $agent_emoji ) : ?>
+					<span aria-hidden="true"><?php echo esc_html( $agent_emoji ); ?></span>
 					<?php endif; ?>
+					<strong><?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'claw-agent' ) ); ?></strong>
 				</div>
+				<span class="wpc-badge wpc-badge--<?php echo esc_attr( $wp_claw_health_badge( $agent_health ) ); ?>">
+					<span class="wpc-status-dot wpc-status-dot--<?php echo esc_attr( $wp_claw_health_dot( $agent_health ) ); ?>"></span>
+					<?php echo esc_html( ucfirst( $agent_health ) ); ?>
+				</span>
+			</header>
 
-				<span
-					class="wp-claw-admin-status-dot wp-claw-admin-status-<?php echo esc_attr( $status_class ); ?>"
-					title="<?php echo esc_attr( ucfirst( $agent_health ) ); ?>"
-				></span>
+			<?php if ( '' !== $agent_role ) : ?>
+			<p class="wpc-kpi-label"><?php echo esc_html( $agent_role ); ?></p>
+			<?php endif; ?>
 
-			</div><!-- /.wp-claw-admin-agent-card-header -->
-
-			<div class="wp-claw-admin-agent-card-body">
-
-				<p class="wp-claw-admin-agent-current-task">
+			<div>
+				<p>
 					<?php if ( '' !== $agent_current_task ) : ?>
+						<strong><?php esc_html_e( 'Current:', 'claw-agent' ); ?></strong>
 						<?php echo esc_html( $agent_current_task ); ?>
 					<?php else : ?>
-						<em class="wp-claw-admin-muted"><?php esc_html_e( 'Idle', 'claw-agent' ); ?></em>
+						<em><?php esc_html_e( 'Idle — no active task', 'claw-agent' ); ?></em>
 					<?php endif; ?>
 				</p>
+			</div>
 
-				<dl class="wp-claw-admin-agent-meta">
-
-					<dt><?php esc_html_e( 'Status', 'claw-agent' ); ?></dt>
-					<dd>
-						<span class="wp-claw-admin-status-pill wp-claw-admin-status-<?php echo esc_attr( $status_class ); ?>">
-							<?php echo esc_html( ucfirst( $agent_health ) ); ?>
-						</span>
-					</dd>
-
-					<?php if ( $agent_task_count > 0 ) : ?>
-					<dt><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></dt>
-					<dd><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></dd>
-					<?php endif; ?>
-
-					<?php if ( $agent_cost_today > 0 ) : ?>
-					<dt><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></dt>
-					<dd><?php echo esc_html( '€' . number_format( $agent_cost_today, 4 ) ); ?></dd>
-					<?php endif; ?>
-
+			<table class="wpc-agent-table">
+				<tbody>
 					<?php if ( '' !== $agent_uptime ) : ?>
-					<dt><?php esc_html_e( 'Uptime', 'claw-agent' ); ?></dt>
-					<dd><?php echo esc_html( $agent_uptime ); ?></dd>
+					<tr>
+						<td><?php esc_html_e( 'Uptime', 'claw-agent' ); ?></td>
+						<td><?php echo esc_html( $agent_uptime ); ?></td>
+					</tr>
 					<?php endif; ?>
-
+					<tr>
+						<td><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></td>
+						<td><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></td>
+					</tr>
+					<tr>
+						<td><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></td>
+						<td><?php echo esc_html( number_format( $agent_cost_today, 4 ) . ' EUR' ); ?></td>
+					</tr>
 					<?php if ( '' !== $agent_model ) : ?>
-					<dt><?php esc_html_e( 'Model', 'claw-agent' ); ?></dt>
-					<dd><?php echo esc_html( $agent_model ); ?></dd>
+					<tr>
+						<td><?php esc_html_e( 'Model', 'claw-agent' ); ?></td>
+						<td><code><?php echo esc_html( $agent_model ); ?></code></td>
+					</tr>
 					<?php endif; ?>
-
 					<?php if ( '' !== $agent_last_seen ) : ?>
-					<dt><?php esc_html_e( 'Last seen', 'claw-agent' ); ?></dt>
-					<dd>
-						<?php
-						$ts = strtotime( $agent_last_seen );
-						if ( $ts ) {
-							echo esc_html(
-								sprintf(
-									/* translators: %s: human-readable time difference */
-									__( '%s ago', 'claw-agent' ),
-									human_time_diff( $ts )
-								)
-							);
-						} else {
-							echo esc_html( $agent_last_seen );
-						}
-						?>
-					</dd>
+					<tr>
+						<td><?php esc_html_e( 'Last seen', 'claw-agent' ); ?></td>
+						<td>
+							<?php
+							$ts = strtotime( $agent_last_seen );
+							if ( $ts ) {
+								echo esc_html(
+									sprintf(
+										/* translators: %s: human-readable time difference */
+										__( '%s ago', 'claw-agent' ),
+										human_time_diff( $ts )
+									)
+								);
+							} else {
+								echo esc_html( $agent_last_seen );
+							}
+							?>
+						</td>
+					</tr>
 					<?php endif; ?>
+				</tbody>
+			</table>
 
-				</dl>
-
-			</div><!-- /.wp-claw-admin-agent-card-body -->
-
-		</div><!-- /.wp-claw-admin-agent-card -->
+		</article>
 		<?php endforeach; ?>
 
-	</div><!-- /.wp-claw-admin-agent-grid -->
+	</div>
 
-	<p class="wp-claw-admin-section-footer">
-		<em class="wp-claw-admin-muted">
-			<?php esc_html_e( 'Agent data is cached for 5 minutes.', 'claw-agent' ); ?>
-			<a href="<?php echo esc_url( add_query_arg( 'page', 'wp-claw-agents', admin_url( 'admin.php' ) ) ); ?>">
-				<?php esc_html_e( 'Refresh', 'claw-agent' ); ?>
-			</a>
-		</em>
+	<p class="wpc-kpi-label">
+		<?php esc_html_e( 'Agent data is cached for 5 minutes.', 'claw-agent' ); ?>
+		<a href="<?php echo esc_url( add_query_arg( 'page', 'wp-claw-agents', admin_url( 'admin.php' ) ) ); ?>" class="wpc-btn wpc-btn--ghost">
+			<?php esc_html_e( 'Refresh', 'claw-agent' ); ?>
+		</a>
 	</p>
 
 	<?php endif; ?>
 
-</div><!-- /.wrap -->
+</div>

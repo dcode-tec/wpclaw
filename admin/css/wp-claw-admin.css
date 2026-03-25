@@ -1,8 +1,8 @@
 /**
  * WP-Claw Admin Styles
  *
- * All selectors prefixed with .wp-claw-admin-* to avoid conflicts.
- * Uses var(--wp-admin-theme-color, #0073aa) for accent color compatibility.
+ * Modern SaaS dashboard aesthetic. All selectors prefixed with .wpc-*.
+ * Uses CSS custom properties for theming.
  *
  * @package    WPClaw
  * @subpackage WPClaw/admin/css
@@ -12,1308 +12,988 @@
  * @since      1.0.0
  */
 
-/* =============================================================================
-	CSS Custom Properties
-	============================================================================= */
+/* ==========================================================================
+   Custom Properties
+   ========================================================================== */
 
-.wp-claw-admin-wrap {
-	--wp-claw-accent: var(--wp-admin-theme-color, #0073aa);
-	--wp-claw-green: #46b450;
-	--wp-claw-yellow: #ffb900;
-	--wp-claw-red: #dc3232;
-	--wp-claw-purple: #826eb4;
-	--wp-claw-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
-	--wp-claw-radius: 4px;
-	--wp-claw-gap: 16px;
+.wpc-admin-wrap {
+	--wpc-bg: #f8f9fb;
+	--wpc-card: #ffffff;
+	--wpc-border: #e5e7eb;
+	--wpc-accent: #4F46E5;
+	--wpc-accent-light: #eef2ff;
+	--wpc-accent-hover: #4338CA;
+	--wpc-success: #10b981;
+	--wpc-success-light: #ecfdf5;
+	--wpc-warning: #f59e0b;
+	--wpc-warning-light: #fffbeb;
+	--wpc-danger: #ef4444;
+	--wpc-danger-light: #fef2f2;
+	--wpc-text: #111827;
+	--wpc-dim: #6b7280;
+	--wpc-muted: #9ca3af;
+	--wpc-radius: 8px;
+	--wpc-radius-sm: 6px;
+	--wpc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	--wpc-mono: "SF Mono", "Cascadia Code", "Fira Code", monospace;
+	--wpc-transition: 0.15s ease;
 }
 
-/* =============================================================================
-	Outer Wrap
-	============================================================================= */
+/* ==========================================================================
+   Layout — Outer Wrap
+   ========================================================================== */
 
-.wp-claw-admin-wrap {
-	max-width: 1200px;
+.wpc-admin-wrap {
+	max-width: 1400px;
 	margin: 20px auto;
-	padding: 0 12px;
+	padding: 0 20px 40px;
+	font-family: var(--wpc-font);
+	font-size: 0.8125rem;
+	line-height: 1.5;
+	color: var(--wpc-text);
+	background: var(--wpc-bg);
+	-webkit-font-smoothing: antialiased;
 }
 
-/* =============================================================================
-	Dashboard Grid
-	============================================================================= */
-
-.wp-claw-admin-dashboard-grid {
-	display: grid;
-	grid-template-columns: repeat(4, 1fr);
-	gap: var(--wp-claw-gap);
-	margin-bottom: 24px;
+.wpc-admin-wrap *,
+.wpc-admin-wrap *::before,
+.wpc-admin-wrap *::after {
+	box-sizing: border-box;
 }
 
-@media (max-width: 1200px) {
-	.wp-claw-admin-dashboard-grid {
-		grid-template-columns: repeat(2, 1fr);
-	}
-}
+/* ==========================================================================
+   Section Headings
+   ========================================================================== */
 
-@media (max-width: 782px) {
-	.wp-claw-admin-dashboard-grid {
-		grid-template-columns: 1fr;
-	}
-}
-
-/* =============================================================================
-	KPI Cards
-	============================================================================= */
-
-.wp-claw-admin-kpi {
-	padding: 20px;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	border-left: 4px solid var(--wp-claw-accent);
-	box-shadow: var(--wp-claw-shadow);
-	transition: box-shadow 0.15s ease;
-}
-
-.wp-claw-admin-kpi:hover {
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-.wp-claw-admin-kpi-value {
-	display: block;
-	font-size: 2em;
-	font-weight: 700;
-	line-height: 1.1;
-	color: #1d2327;
-	margin-bottom: 4px;
-}
-
-.wp-claw-admin-kpi-label {
-	display: block;
-	font-size: 13px;
-	color: #666;
+.wpc-section-heading {
+	font-size: 0.6875rem;
+	font-weight: 600;
 	text-transform: uppercase;
-	letter-spacing: 0.04em;
+	letter-spacing: 0.08em;
+	color: var(--wpc-dim);
+	margin: 28px 0 12px;
+	padding: 0;
 }
 
-.wp-claw-admin-kpi-trend {
-	display: inline-block;
-	font-size: 11px;
-	margin-top: 6px;
-	padding: 1px 6px;
-	border-radius: 10px;
-	background: #f0f6fc;
-	color: #555;
+/* ==========================================================================
+   Cards
+   ========================================================================== */
+
+.wpc-card {
+	background: var(--wpc-card);
+	border: 1px solid var(--wpc-border);
+	border-radius: var(--wpc-radius);
+	padding: 20px;
 }
 
-.wp-claw-admin-kpi-trend.up {
-	background: #edfaed;
-	color: #2a6a2a;
+.wpc-card + .wpc-card {
+	margin-top: 16px;
 }
 
-.wp-claw-admin-kpi-trend.down {
-	background: #fdf0f0;
-	color: #8a2a2a;
-}
-
-/* KPI border-left accent variants */
-.wp-claw-admin-kpi--tasks {
-	border-left-color: var(--wp-claw-accent);
-}
-
-.wp-claw-admin-kpi--proposals {
-	border-left-color: var(--wp-claw-yellow);
-}
-
-.wp-claw-admin-kpi--health {
-	border-left-color: var(--wp-claw-green);
-}
-
-.wp-claw-admin-kpi--cost {
-	border-left-color: var(--wp-claw-purple);
-}
-
-/* =============================================================================
-	Agent Cards Grid
-	============================================================================= */
-
-.wp-claw-admin-agents-grid {
-	display: flex;
-	flex-wrap: wrap;
-	gap: var(--wp-claw-gap);
-	margin-bottom: 24px;
-}
-
-.wp-claw-admin-agent-card {
-	display: flex;
-	flex-direction: row;
-	align-items: flex-start;
-	gap: 12px;
-	padding: 16px;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	flex: 0 0 calc(33.333% - 11px);
-	min-width: 240px;
-	transition: box-shadow 0.15s ease;
-}
-
-.wp-claw-admin-agent-card:hover {
-	box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-}
-
-@media (max-width: 1200px) {
-	.wp-claw-admin-agent-card {
-		flex: 0 0 calc(50% - 8px);
-	}
-}
-
-@media (max-width: 782px) {
-	.wp-claw-admin-agent-card {
-		flex: 0 0 100%;
-	}
-}
-
-.wp-claw-admin-agent-emoji {
-	font-size: 2em;
-	line-height: 1;
-	flex-shrink: 0;
-	margin-top: 2px;
-}
-
-.wp-claw-admin-agent-info {
-	flex: 1;
-	min-width: 0;
-}
-
-.wp-claw-admin-agent-name {
-	font-weight: 700;
-	font-size: 14px;
-	color: #1d2327;
+.wpc-card__header {
 	display: flex;
 	align-items: center;
-	gap: 6px;
-	margin-bottom: 2px;
+	justify-content: space-between;
+	margin-bottom: 16px;
 }
 
-.wp-claw-admin-agent-role {
-	font-size: 12px;
-	color: #666;
-	margin-bottom: 6px;
+.wpc-card__title {
+	font-size: 0.875rem;
+	font-weight: 600;
+	color: var(--wpc-text);
+	margin: 0;
 }
 
-.wp-claw-admin-agent-task {
-	font-size: 12px;
-	color: #444;
-	white-space: nowrap;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	max-width: 100%;
+/* ==========================================================================
+   KPI Grid
+   ========================================================================== */
+
+.wpc-kpi-grid {
+	display: grid;
+	grid-template-columns: repeat(4, 1fr);
+	gap: 16px;
+	margin-bottom: 24px;
 }
 
-.wp-claw-admin-agent-task-label {
-	font-size: 11px;
-	color: #888;
+.wpc-kpi-card {
+	background: var(--wpc-card);
+	border: 1px solid var(--wpc-border);
+	border-radius: var(--wpc-radius);
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 4px;
+}
+
+.wpc-kpi-value {
+	font-size: 2rem;
+	font-weight: 900;
+	letter-spacing: -0.02em;
+	line-height: 1.1;
+	color: var(--wpc-text);
+}
+
+.wpc-kpi-label {
+	font-size: 0.6875rem;
+	font-weight: 600;
 	text-transform: uppercase;
-	letter-spacing: 0.03em;
+	letter-spacing: 0.08em;
+	color: var(--wpc-dim);
 }
 
-/* Agent status dot (inline in name row) */
-.wp-claw-admin-status-dot {
+.wpc-kpi-card .wpc-badge {
+	align-self: flex-start;
+	margin-top: 6px;
+}
+
+/* ==========================================================================
+   Connection Banner
+   ========================================================================== */
+
+.wpc-connection-banner {
+	display: flex;
+	align-items: center;
+	gap: 10px;
+	padding: 12px 16px;
+	border-radius: var(--wpc-radius);
+	margin-bottom: 20px;
+	font-size: 0.8125rem;
+	font-weight: 500;
+}
+
+.wpc-connection-banner--connected {
+	background: var(--wpc-success-light);
+	border: 1px solid var(--wpc-success);
+	color: #065f46;
+}
+
+.wpc-connection-banner--disconnected {
+	background: var(--wpc-danger-light);
+	border: 1px solid var(--wpc-danger);
+	color: #991b1b;
+}
+
+.wpc-connection-banner .wpc-status-dot {
+	flex-shrink: 0;
+}
+
+/* ==========================================================================
+   Status Dot
+   ========================================================================== */
+
+.wpc-status-dot {
 	display: inline-block;
 	width: 8px;
 	height: 8px;
 	border-radius: 50%;
-	flex-shrink: 0;
+	background: var(--wpc-muted);
 }
 
-.wp-claw-admin-status-dot--healthy,
-.wp-claw-admin-status-dot--online {
-	background-color: var(--wp-claw-green);
+.wpc-status-dot--active {
+	background: var(--wpc-success);
 }
 
-.wp-claw-admin-status-dot--warning,
-.wp-claw-admin-status-dot--degraded {
-	background-color: var(--wp-claw-yellow);
+.wpc-status-dot--idle {
+	background: var(--wpc-warning);
 }
 
-.wp-claw-admin-status-dot--error,
-.wp-claw-admin-status-dot--offline {
-	background-color: var(--wp-claw-red);
+.wpc-status-dot--error {
+	background: var(--wpc-danger);
 }
 
-.wp-claw-admin-status-dot--connected {
-	background-color: var(--wp-claw-green);
-	animation: wp-claw-pulse 2s infinite;
+.wpc-status-dot--pulse {
+	animation: wpc-pulse 2s ease-in-out infinite;
 }
 
-/* =============================================================================
-	Pulse Animation (connected state)
-	============================================================================= */
-
-@keyframes wp-claw-pulse {
-	0% {
-		box-shadow: 0 0 0 0 rgba(70, 180, 80, 0.5);
-	}
-	70% {
-		box-shadow: 0 0 0 6px rgba(70, 180, 80, 0);
-	}
-	100% {
-		box-shadow: 0 0 0 0 rgba(70, 180, 80, 0);
-	}
+@keyframes wpc-pulse {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.4; }
 }
 
-/* =============================================================================
-	Status Pills
-	============================================================================= */
+/* ==========================================================================
+   Badges
+   ========================================================================== */
 
-.wp-claw-admin-status-pill {
-	display: inline-block;
+.wpc-badge {
+	display: inline-flex;
+	align-items: center;
+	gap: 4px;
 	padding: 2px 8px;
-	border-radius: 10px;
-	font-size: 12px;
-	font-weight: 500;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	border-radius: 9999px;
 	line-height: 1.6;
 	white-space: nowrap;
 }
 
-.wp-claw-admin-status-pending {
-	background-color: #fff8e5;
-	color: #805600;
-	border: 1px solid #ffb900;
+.wpc-badge--active {
+	background: var(--wpc-success-light);
+	color: #065f46;
 }
 
-.wp-claw-admin-status-in_progress {
-	background-color: #e8f4fb;
-	color: #005177;
-	border: 1px solid #0073aa;
+.wpc-badge--idle {
+	background: var(--wpc-warning-light);
+	color: #92400e;
 }
 
-.wp-claw-admin-status-done {
-	background-color: #edfaed;
-	color: #2a6a2a;
-	border: 1px solid #46b450;
+.wpc-badge--error,
+.wpc-badge--failed {
+	background: var(--wpc-danger-light);
+	color: #991b1b;
 }
 
-.wp-claw-admin-status-failed {
-	background-color: #fdf0f0;
-	color: #8a1a1a;
-	border: 1px solid #dc3232;
+.wpc-badge--done {
+	background: #f0fdf4;
+	color: #166534;
 }
 
-.wp-claw-admin-status-review {
-	background-color: #f5f2fb;
-	color: #4a3a6a;
-	border: 1px solid #826eb4;
+.wpc-badge--pending {
+	background: var(--wpc-accent-light);
+	color: #3730a3;
 }
 
-.wp-claw-admin-status-backlog {
-	background-color: #f6f7f7;
-	color: #50575e;
-	border: 1px solid #c3c4c7;
+/* ==========================================================================
+   Tier Badges (autonomy tiers)
+   ========================================================================== */
+
+.wpc-tier-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
 }
 
-/* =============================================================================
-	Proposal Table
-	============================================================================= */
-
-.wp-claw-admin-proposals {
-	width: 100%;
-	border-collapse: collapse;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	overflow: hidden;
+.wpc-tier-badges .wpc-badge {
+	font-family: var(--wpc-mono);
+	font-size: 0.625rem;
+	letter-spacing: 0.04em;
 }
 
-.wp-claw-admin-proposals thead th {
-	background: #f6f7f7;
-	padding: 10px 14px;
-	text-align: left;
-	font-size: 13px;
-	font-weight: 600;
-	color: #1d2327;
-	border-bottom: 1px solid #e2e4e7;
+.wpc-badge--auto {
+	background: #ecfdf5;
+	color: #065f46;
 }
 
-.wp-claw-admin-proposals tbody td {
-	padding: 10px 14px;
-	font-size: 13px;
-	color: #1d2327;
-	border-bottom: 1px solid #f0f0f1;
-	vertical-align: middle;
+.wpc-badge--auto-plus {
+	background: #f0fdf4;
+	color: #14532d;
 }
 
-.wp-claw-admin-proposals tbody tr:last-child td {
+.wpc-badge--propose {
+	background: #fffbeb;
+	color: #92400e;
+}
+
+.wpc-badge--confirm {
+	background: #eef2ff;
+	color: #3730a3;
+}
+
+.wpc-badge--block {
+	background: #fef2f2;
+	color: #991b1b;
+}
+
+/* ==========================================================================
+   Stat Row
+   ========================================================================== */
+
+.wpc-stat-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 8px 0;
+	border-bottom: 1px solid var(--wpc-border);
+	font-size: 0.8125rem;
+}
+
+.wpc-stat-row:last-child {
 	border-bottom: none;
 }
 
-.wp-claw-admin-proposals tbody tr:hover td {
-	background-color: #f9f9f9;
+.wpc-stat-row__label {
+	color: var(--wpc-dim);
 }
 
-.wp-claw-admin-proposals .wp-claw-admin-proposal-details {
-	font-size: 12px;
-	color: #666;
-	margin-top: 3px;
+.wpc-stat-row__value {
+	font-weight: 600;
+	color: var(--wpc-text);
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
-.wp-claw-admin-proposals .wp-claw-admin-proposal-timer {
-	font-size: 11px;
-	color: #888;
-	font-variant-numeric: tabular-nums;
-}
+/* ==========================================================================
+   Progress Bar
+   ========================================================================== */
 
-/* Proposal action buttons */
-.wp-claw-admin-btn {
-	display: inline-block;
-	padding: 4px 12px;
+.wpc-progress-bar {
+	width: 100%;
+	height: 6px;
+	background: #f3f4f6;
 	border-radius: 3px;
-	font-size: 12px;
-	font-weight: 500;
-	cursor: pointer;
-	border: none;
-	line-height: 1.6;
-	text-decoration: none;
-	transition: opacity 0.15s ease, background-color 0.15s ease;
+	overflow: hidden;
 }
 
-.wp-claw-admin-btn:focus {
-	outline: 2px solid var(--wp-claw-accent);
+.wpc-progress-bar__fill {
+	height: 100%;
+	border-radius: 3px;
+	background: var(--wpc-bar-color, var(--wpc-accent));
+	transition: width 0.4s ease;
+}
+
+/* ==========================================================================
+   Agent Table
+   ========================================================================== */
+
+.wpc-agent-table {
+	width: 100%;
+	border-collapse: collapse;
+	font-size: 0.8125rem;
+}
+
+.wpc-agent-table th {
+	text-align: left;
+	font-size: 0.6875rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.06em;
+	color: var(--wpc-dim);
+	padding: 10px 12px;
+	border-bottom: 2px solid var(--wpc-border);
+}
+
+.wpc-agent-table td {
+	padding: 12px;
+	border-bottom: 1px solid var(--wpc-border);
+	vertical-align: middle;
+	color: var(--wpc-text);
+}
+
+.wpc-agent-table tr:last-child td {
+	border-bottom: none;
+}
+
+.wpc-agent-table tr:hover td {
+	background: #fafbfc;
+}
+
+.wpc-agent-table__name {
+	font-weight: 600;
+}
+
+.wpc-agent-table__role {
+	color: var(--wpc-dim);
+	font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   Agent Bar (horizontal task count bar)
+   ========================================================================== */
+
+.wpc-agent-bar {
+	display: flex;
+	height: 8px;
+	border-radius: 4px;
+	overflow: hidden;
+	background: #f3f4f6;
+	min-width: 120px;
+}
+
+.wpc-agent-bar__segment {
+	height: 100%;
+	transition: width 0.3s ease;
+}
+
+.wpc-agent-bar__segment--done {
+	background: var(--wpc-success);
+}
+
+.wpc-agent-bar__segment--active {
+	background: var(--wpc-accent);
+}
+
+.wpc-agent-bar__segment--failed {
+	background: var(--wpc-danger);
+}
+
+/* ==========================================================================
+   Buttons
+   ========================================================================== */
+
+.wpc-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 8px 16px;
+	font-family: var(--wpc-font);
+	font-size: 0.8125rem;
+	font-weight: 500;
+	line-height: 1;
+	border-radius: var(--wpc-radius-sm);
+	border: 1px solid transparent;
+	cursor: pointer;
+	transition: background var(--wpc-transition), border-color var(--wpc-transition), color var(--wpc-transition);
+	text-decoration: none;
+	white-space: nowrap;
+}
+
+.wpc-btn:focus-visible {
+	outline: 2px solid var(--wpc-accent);
 	outline-offset: 2px;
 }
 
-.wp-claw-admin-btn:disabled {
+.wpc-btn--primary {
+	background: var(--wpc-accent);
+	color: #fff;
+	border-color: var(--wpc-accent);
+}
+
+.wpc-btn--primary:hover {
+	background: var(--wpc-accent-hover);
+	border-color: var(--wpc-accent-hover);
+}
+
+.wpc-btn--success {
+	background: var(--wpc-success);
+	color: #fff;
+	border-color: var(--wpc-success);
+}
+
+.wpc-btn--success:hover {
+	background: #059669;
+	border-color: #059669;
+}
+
+.wpc-btn--danger {
+	background: var(--wpc-danger);
+	color: #fff;
+	border-color: var(--wpc-danger);
+}
+
+.wpc-btn--danger:hover {
+	background: #dc2626;
+	border-color: #dc2626;
+}
+
+.wpc-btn--ghost {
+	background: transparent;
+	color: var(--wpc-dim);
+	border-color: var(--wpc-border);
+}
+
+.wpc-btn--ghost:hover {
+	background: #f9fafb;
+	color: var(--wpc-text);
+	border-color: #d1d5db;
+}
+
+.wpc-btn--sm {
+	padding: 5px 10px;
+	font-size: 0.75rem;
+}
+
+.wpc-btn[disabled] {
 	opacity: 0.5;
 	cursor: not-allowed;
 }
 
-.wp-claw-admin-btn-approve {
-	background: var(--wp-claw-green);
-	color: #fff;
-}
+/* ==========================================================================
+   Nav Tabs
+   ========================================================================== */
 
-.wp-claw-admin-btn-approve:hover:not(:disabled) {
-	background: #3a9941;
-	color: #fff;
-}
-
-.wp-claw-admin-btn-reject {
-	background: var(--wp-claw-red);
-	color: #fff;
-	margin-left: 4px;
-}
-
-.wp-claw-admin-btn-reject:hover:not(:disabled) {
-	background: #b52929;
-	color: #fff;
-}
-
-.wp-claw-admin-btn-secondary {
-	background: #f6f7f7;
-	color: #1d2327;
-	border: 1px solid #c3c4c7;
-}
-
-.wp-claw-admin-btn-secondary:hover:not(:disabled) {
-	background: #edecec;
-	color: #1d2327;
-}
-
-/* =============================================================================
-	Settings Form
-	============================================================================= */
-
-.wp-claw-admin-settings-section {
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	padding: 20px 24px;
-	margin-bottom: 20px;
-}
-
-.wp-claw-admin-settings-section h2 {
-	font-size: 15px;
-	font-weight: 600;
-	margin: 0 0 16px;
-	padding-bottom: 10px;
-	border-bottom: 1px solid #f0f0f1;
-	color: #1d2327;
-}
-
-.wp-claw-admin-settings-section .form-table th {
-	padding: 14px 10px 14px 0;
-	width: 200px;
-	vertical-align: top;
-}
-
-.wp-claw-admin-settings-section .form-table td {
-	padding: 10px 0;
-}
-
-/* Password field with toggle */
-.wp-claw-admin-password-wrap {
+.wpc-nav-tabs {
 	display: flex;
-	align-items: center;
-	gap: 6px;
-	max-width: 400px;
-}
-
-.wp-claw-admin-password-wrap input[type="password"],
-.wp-claw-admin-password-wrap input[type="text"] {
-	flex: 1;
-}
-
-.wp-claw-admin-toggle-password {
-	background: none;
-	border: 1px solid #c3c4c7;
-	border-radius: 3px;
-	padding: 4px 8px;
-	cursor: pointer;
-	font-size: 12px;
-	color: #555;
-	flex-shrink: 0;
-	transition: background 0.15s ease;
-}
-
-.wp-claw-admin-toggle-password:hover {
-	background: #f6f7f7;
-}
-
-/* Instance URL field (shown/hidden based on connection mode) */
-.wp-claw-admin-instance-url-row {
-	display: none;
-}
-
-.wp-claw-admin-instance-url-row.visible {
-	display: table-row;
-}
-
-/* Connection mode radio group */
-.wp-claw-admin-radio-group {
-	display: flex;
-	flex-direction: column;
-	gap: 8px;
-}
-
-.wp-claw-admin-radio-group label {
-	display: flex;
-	align-items: flex-start;
-	gap: 8px;
-	cursor: pointer;
-}
-
-.wp-claw-admin-radio-group input[type="radio"] {
-	margin-top: 2px;
-	flex-shrink: 0;
-}
-
-.wp-claw-admin-radio-desc {
-	font-size: 12px;
-	color: #666;
-	display: block;
-}
-
-/* =============================================================================
-	Module Toggles (custom switch)
-	============================================================================= */
-
-.wp-claw-admin-modules-grid {
-	display: grid;
-	grid-template-columns: repeat(2, 1fr);
-	gap: 12px;
-	margin-top: 4px;
-}
-
-@media (max-width: 782px) {
-	.wp-claw-admin-modules-grid {
-		grid-template-columns: 1fr;
-	}
-}
-
-.wp-claw-admin-module-item {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	padding: 10px 14px;
-	background: #f9f9f9;
-	border-radius: var(--wp-claw-radius);
-	border: 1px solid #e2e4e7;
-	transition: background 0.15s ease;
-}
-
-.wp-claw-admin-module-item:hover {
-	background: #f0f6fc;
-}
-
-.wp-claw-admin-module-info {
-	flex: 1;
-	min-width: 0;
-}
-
-.wp-claw-admin-module-name {
-	font-weight: 600;
-	font-size: 13px;
-	color: #1d2327;
-}
-
-.wp-claw-admin-module-desc {
-	font-size: 11px;
-	color: #666;
-	margin-top: 2px;
-}
-
-/* Toggle switch */
-.wp-claw-admin-toggle {
-	position: relative;
-	flex-shrink: 0;
-	margin-left: 12px;
-}
-
-.wp-claw-admin-toggle input[type="checkbox"] {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	margin: -1px;
-	padding: 0;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	border: 0;
-}
-
-.wp-claw-admin-toggle-label {
-	display: block;
-	width: 40px;
-	height: 22px;
-	background: #c3c4c7;
-	border-radius: 11px;
-	cursor: pointer;
-	position: relative;
-	transition: background 0.3s ease;
-}
-
-.wp-claw-admin-toggle-label::after {
-	content: '';
-	position: absolute;
-	top: 3px;
-	left: 3px;
-	width: 16px;
-	height: 16px;
-	background: #fff;
-	border-radius: 50%;
-	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
-	transition: transform 0.3s ease;
-}
-
-.wp-claw-admin-toggle input:checked + .wp-claw-admin-toggle-label {
-	background: var(--wp-claw-accent);
-}
-
-.wp-claw-admin-toggle input:checked + .wp-claw-admin-toggle-label::after {
-	transform: translateX(18px);
-}
-
-.wp-claw-admin-toggle input:focus + .wp-claw-admin-toggle-label {
-	outline: 2px solid var(--wp-claw-accent);
-	outline-offset: 2px;
-}
-
-/* =============================================================================
-	Connection Indicator
-	============================================================================= */
-
-.wp-claw-admin-connection-status {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	padding: 10px 14px;
-	background: #f9f9f9;
-	border-radius: var(--wp-claw-radius);
-	border: 1px solid #e2e4e7;
-	font-size: 13px;
-	color: #1d2327;
-	margin-bottom: 16px;
-}
-
-.wp-claw-admin-connection-text {
-	flex: 1;
-}
-
-.wp-claw-admin-connection-detail {
-	font-size: 12px;
-	color: #666;
-}
-
-/* =============================================================================
-	Task List
-	============================================================================= */
-
-.wp-claw-admin-task-list {
-	list-style: none;
-	margin: 0;
-	padding: 0;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	overflow: hidden;
-}
-
-.wp-claw-admin-task-item {
-	display: flex;
-	align-items: center;
-	gap: 10px;
-	padding: 10px 14px;
-	border-bottom: 1px solid #f0f0f1;
-	font-size: 13px;
-	transition: background 0.1s ease;
-}
-
-.wp-claw-admin-task-item:last-child {
-	border-bottom: none;
-}
-
-.wp-claw-admin-task-item:hover {
-	background: #f9f9f9;
-}
-
-.wp-claw-admin-task-agent-badge {
-	display: inline-flex;
-	align-items: center;
-	justify-content: center;
-	width: 28px;
-	height: 28px;
-	border-radius: 50%;
-	background: #f0f6fc;
-	font-size: 14px;
-	flex-shrink: 0;
-}
-
-.wp-claw-admin-task-title {
-	flex: 1;
-	min-width: 0;
-	overflow: hidden;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-	color: #1d2327;
-}
-
-.wp-claw-admin-task-meta {
-	font-size: 11px;
-	color: #888;
-	white-space: nowrap;
-	flex-shrink: 0;
-}
-
-/* =============================================================================
-	Admin Notices
-	============================================================================= */
-
-.wp-claw-admin-notice {
-	position: relative;
-	background: #fff;
-	border-left: 4px solid var(--wp-claw-accent);
-	border-radius: 0 var(--wp-claw-radius) var(--wp-claw-radius) 0;
-	box-shadow: var(--wp-claw-shadow);
-	padding: 10px 38px 10px 14px;
-	margin: 12px 0;
-	font-size: 13px;
-	color: #1d2327;
-}
-
-.wp-claw-admin-notice--success {
-	border-left-color: var(--wp-claw-green);
-}
-
-.wp-claw-admin-notice--warning {
-	border-left-color: var(--wp-claw-yellow);
-}
-
-.wp-claw-admin-notice--error {
-	border-left-color: var(--wp-claw-red);
-}
-
-.wp-claw-admin-notice p {
-	margin: 0;
-}
-
-.wp-claw-admin-notice .notice-dismiss {
-	position: absolute;
-	top: 0;
-	right: 0;
-	padding: 10px 14px;
-	background: none;
-	border: none;
-	cursor: pointer;
-	color: #787c82;
-	font-size: 16px;
-	line-height: 1;
-	transition: color 0.15s ease;
-}
-
-.wp-claw-admin-notice .notice-dismiss:hover {
-	color: var(--wp-claw-red);
-}
-
-/* =============================================================================
-	Tab Navigation
-	============================================================================= */
-
-.wp-claw-admin-tabs {
-	display: flex;
-	flex-direction: row;
-	flex-wrap: wrap;
 	gap: 0;
-	border-bottom: 1px solid #c3c4c7;
-	margin-bottom: 20px;
-}
-
-.wp-claw-admin-tab {
-	display: inline-block;
-	padding: 8px 16px;
-	font-size: 13px;
-	font-weight: 500;
-	color: #555;
-	text-decoration: none;
-	border-bottom: 2px solid transparent;
-	cursor: pointer;
-	background: none;
-	border-top: none;
-	border-left: none;
-	border-right: none;
-	margin-bottom: -1px;
-	transition: color 0.15s ease, border-bottom-color 0.15s ease;
-}
-
-.wp-claw-admin-tab:hover {
-	color: var(--wp-claw-accent);
-}
-
-.wp-claw-admin-tab.active,
-.wp-claw-admin-tab[aria-selected="true"] {
-	color: var(--wp-claw-accent);
-	border-bottom-color: var(--wp-claw-accent);
-	font-weight: 600;
-}
-
-.wp-claw-admin-tab-panel {
-	display: none;
-}
-
-.wp-claw-admin-tab-panel.active {
-	display: block;
-}
-
-/* =============================================================================
-	Section Header
-	============================================================================= */
-
-.wp-claw-admin-section-header {
-	display: flex;
-	align-items: center;
-	justify-content: space-between;
-	margin-bottom: 14px;
-}
-
-.wp-claw-admin-section-title {
-	font-size: 15px;
-	font-weight: 600;
-	color: #1d2327;
-	margin: 0;
-}
-
-/* =============================================================================
-	Empty States
-	============================================================================= */
-
-.wp-claw-admin-empty {
-	padding: 32px 20px;
-	text-align: center;
-	color: #666;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-}
-
-.wp-claw-admin-empty-icon {
-	font-size: 2.5em;
-	display: block;
-	margin-bottom: 10px;
-	opacity: 0.5;
-}
-
-.wp-claw-admin-empty-text {
-	font-size: 14px;
-}
-
-/* =============================================================================
-	Loading Spinner
-	============================================================================= */
-
-.wp-claw-admin-spinner {
-	display: inline-block;
-	width: 16px;
-	height: 16px;
-	border: 2px solid #c3c4c7;
-	border-top-color: var(--wp-claw-accent);
-	border-radius: 50%;
-	animation: wp-claw-spin 0.6s linear infinite;
-	vertical-align: middle;
-	margin-right: 6px;
-}
-
-@keyframes wp-claw-spin {
-	to {
-		transform: rotate(360deg);
-	}
-}
-
-/* =============================================================================
-	Health Monitor Cards
-	============================================================================= */
-
-.wp-claw-admin-health-grid {
-	display: grid;
-	grid-template-columns: repeat(3, 1fr);
-	gap: var(--wp-claw-gap);
+	border-bottom: 2px solid var(--wpc-border);
 	margin-bottom: 24px;
 }
 
+.wpc-nav-tabs__item {
+	padding: 10px 18px;
+	font-size: 0.8125rem;
+	font-weight: 500;
+	color: var(--wpc-dim);
+	text-decoration: none;
+	border-bottom: 2px solid transparent;
+	margin-bottom: -2px;
+	cursor: pointer;
+	transition: color var(--wpc-transition), border-color var(--wpc-transition);
+}
+
+.wpc-nav-tabs__item:hover {
+	color: var(--wpc-text);
+}
+
+.wpc-nav-tabs__item--active {
+	color: var(--wpc-accent);
+	border-bottom-color: var(--wpc-accent);
+	font-weight: 600;
+}
+
+/* ==========================================================================
+   Module Grid & Cards
+   ========================================================================== */
+
+.wpc-module-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+.wpc-module-card {
+	background: var(--wpc-card);
+	border: 1px solid var(--wpc-border);
+	border-radius: var(--wpc-radius);
+	padding: 20px;
+	display: flex;
+	flex-direction: column;
+	gap: 12px;
+}
+
+.wpc-module-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+}
+
+.wpc-module-card__name {
+	font-weight: 600;
+	font-size: 0.875rem;
+	color: var(--wpc-text);
+}
+
+.wpc-module-card__agent {
+	font-size: 0.75rem;
+	color: var(--wpc-dim);
+}
+
+.wpc-module-card__desc {
+	font-size: 0.8125rem;
+	color: var(--wpc-dim);
+	line-height: 1.5;
+}
+
+/* ==========================================================================
+   Toggle Switch (CSS-only)
+   ========================================================================== */
+
+.wpc-toggle-switch {
+	position: relative;
+	display: inline-block;
+	width: 36px;
+	height: 20px;
+	flex-shrink: 0;
+}
+
+.wpc-toggle-switch input {
+	position: absolute;
+	opacity: 0;
+	width: 0;
+	height: 0;
+}
+
+.wpc-toggle-switch__slider {
+	position: absolute;
+	inset: 0;
+	background: #d1d5db;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: background var(--wpc-transition);
+}
+
+.wpc-toggle-switch__slider::before {
+	content: "";
+	position: absolute;
+	width: 14px;
+	height: 14px;
+	left: 3px;
+	top: 3px;
+	background: #fff;
+	border-radius: 50%;
+	transition: transform var(--wpc-transition);
+}
+
+.wpc-toggle-switch input:checked + .wpc-toggle-switch__slider {
+	background: var(--wpc-accent);
+}
+
+.wpc-toggle-switch input:checked + .wpc-toggle-switch__slider::before {
+	transform: translateX(16px);
+}
+
+.wpc-toggle-switch input:focus-visible + .wpc-toggle-switch__slider {
+	outline: 2px solid var(--wpc-accent);
+	outline-offset: 2px;
+}
+
+/* ==========================================================================
+   Proposal Card
+   ========================================================================== */
+
+.wpc-proposal-card {
+	background: var(--wpc-card);
+	border: 1px solid var(--wpc-border);
+	border-radius: var(--wpc-radius);
+	padding: 16px 20px;
+	margin-bottom: 12px;
+}
+
+.wpc-proposal-card__header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 12px;
+}
+
+.wpc-proposal-card__agent {
+	font-weight: 600;
+	font-size: 0.8125rem;
+}
+
+.wpc-proposal-card__action {
+	font-size: 0.8125rem;
+	color: var(--wpc-dim);
+	flex: 1;
+}
+
+.wpc-proposal-card__actions {
+	display: flex;
+	gap: 8px;
+}
+
+.wpc-proposal-card__body {
+	margin-top: 12px;
+	padding-top: 12px;
+	border-top: 1px solid var(--wpc-border);
+	font-size: 0.8125rem;
+	color: var(--wpc-dim);
+	line-height: 1.6;
+}
+
+.wpc-proposal-card__timer {
+	font-family: var(--wpc-mono);
+	font-size: 0.75rem;
+	color: var(--wpc-warning);
+}
+
+/* ==========================================================================
+   Activity Feed
+   ========================================================================== */
+
+.wpc-activity-feed {
+	display: flex;
+	flex-direction: column;
+}
+
+.wpc-activity-item {
+	display: flex;
+	gap: 12px;
+	padding: 12px 0;
+	border-bottom: 1px solid var(--wpc-border);
+	font-size: 0.8125rem;
+}
+
+.wpc-activity-item:last-child {
+	border-bottom: none;
+}
+
+.wpc-activity-item__dot {
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
+	background: var(--wpc-accent);
+	margin-top: 6px;
+	flex-shrink: 0;
+}
+
+.wpc-activity-item__content {
+	flex: 1;
+	min-width: 0;
+}
+
+.wpc-activity-item__text {
+	color: var(--wpc-text);
+	line-height: 1.5;
+}
+
+.wpc-activity-item__text strong {
+	font-weight: 600;
+}
+
+.wpc-activity-item__time {
+	font-size: 0.75rem;
+	color: var(--wpc-muted);
+	margin-top: 2px;
+}
+
+/* ==========================================================================
+   Settings Form
+   ========================================================================== */
+
+.wpc-settings-form {
+	max-width: 640px;
+}
+
+.wpc-settings-form .wpc-form-group {
+	margin-bottom: 20px;
+}
+
+.wpc-settings-form label {
+	display: block;
+	font-size: 0.8125rem;
+	font-weight: 600;
+	color: var(--wpc-text);
+	margin-bottom: 6px;
+}
+
+.wpc-settings-form .wpc-form-hint {
+	font-size: 0.75rem;
+	color: var(--wpc-muted);
+	margin-top: 4px;
+}
+
+.wpc-settings-form input[type="text"],
+.wpc-settings-form input[type="url"],
+.wpc-settings-form input[type="email"],
+.wpc-settings-form input[type="password"],
+.wpc-settings-form select,
+.wpc-settings-form textarea {
+	width: 100%;
+	padding: 8px 12px;
+	font-family: var(--wpc-font);
+	font-size: 0.8125rem;
+	color: var(--wpc-text);
+	background: var(--wpc-card);
+	border: 1px solid var(--wpc-border);
+	border-radius: var(--wpc-radius-sm);
+	transition: border-color var(--wpc-transition);
+}
+
+.wpc-settings-form input:focus,
+.wpc-settings-form select:focus,
+.wpc-settings-form textarea:focus {
+	border-color: var(--wpc-accent);
+	outline: 2px solid var(--wpc-accent-light);
+}
+
+.wpc-settings-form input[type="password"] {
+	font-family: var(--wpc-mono);
+	letter-spacing: 0.1em;
+}
+
+/* ==========================================================================
+   Empty State
+   ========================================================================== */
+
+.wpc-empty-state {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 48px 24px;
+	text-align: center;
+	color: var(--wpc-muted);
+}
+
+.wpc-empty-state__icon {
+	font-size: 2rem;
+	margin-bottom: 12px;
+	opacity: 0.5;
+}
+
+.wpc-empty-state__text {
+	font-size: 0.875rem;
+	max-width: 320px;
+}
+
+/* ==========================================================================
+   Donut Chart (CSS-only)
+   ========================================================================== */
+
+.wpc-donut {
+	position: relative;
+	width: 80px;
+	height: 80px;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.wpc-donut__value {
+	font-size: 1.125rem;
+	font-weight: 700;
+	color: var(--wpc-text);
+}
+
+.wpc-donut svg {
+	position: absolute;
+	inset: 0;
+	width: 100%;
+	height: 100%;
+	transform: rotate(-90deg);
+}
+
+.wpc-donut__track {
+	fill: none;
+	stroke: #f3f4f6;
+	stroke-width: 6;
+}
+
+.wpc-donut__fill {
+	fill: none;
+	stroke: var(--wpc-accent);
+	stroke-width: 6;
+	stroke-linecap: round;
+	transition: stroke-dashoffset 0.6s ease;
+}
+
+/* ==========================================================================
+   Chart Bars (CSS grid bar chart)
+   ========================================================================== */
+
+.wpc-chart-bars {
+	display: flex;
+	align-items: flex-end;
+	gap: 6px;
+	height: 120px;
+	padding-top: 8px;
+}
+
+.wpc-chart-bars__col {
+	flex: 1;
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	gap: 4px;
+	height: 100%;
+	justify-content: flex-end;
+}
+
+.wpc-chart-bars__bar {
+	width: 100%;
+	max-width: 32px;
+	border-radius: 3px 3px 0 0;
+	background: var(--wpc-accent);
+	transition: height 0.3s ease;
+}
+
+.wpc-chart-bars__label {
+	font-size: 0.625rem;
+	color: var(--wpc-muted);
+	text-align: center;
+}
+
+/* ==========================================================================
+   Status Grid (3-column)
+   ========================================================================== */
+
+.wpc-status-grid {
+	display: grid;
+	grid-template-columns: repeat(3, 1fr);
+	gap: 16px;
+}
+
+/* ==========================================================================
+   Responsive
+   ========================================================================== */
+
 @media (max-width: 1200px) {
-	.wp-claw-admin-health-grid {
+	.wpc-kpi-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.wpc-module-grid {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.wpc-status-grid {
 		grid-template-columns: repeat(2, 1fr);
 	}
 }
 
 @media (max-width: 782px) {
-	.wp-claw-admin-health-grid {
+	.wpc-admin-wrap {
+		padding: 0 12px 24px;
+	}
+
+	.wpc-kpi-grid,
+	.wpc-module-grid,
+	.wpc-status-grid {
 		grid-template-columns: 1fr;
 	}
-}
 
-.wp-claw-admin-health-card {
-	padding: 16px;
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-}
-
-.wp-claw-admin-health-card-header {
-	display: flex;
-	align-items: center;
-	gap: 8px;
-	margin-bottom: 8px;
-}
-
-.wp-claw-admin-health-card-name {
-	font-weight: 600;
-	font-size: 13px;
-	color: #1d2327;
-	flex: 1;
-}
-
-.wp-claw-admin-health-uptime {
-	font-size: 20px;
-	font-weight: 700;
-	color: var(--wp-claw-green);
-	margin-bottom: 4px;
-}
-
-.wp-claw-admin-health-last-check {
-	font-size: 11px;
-	color: #888;
-}
-
-/* =============================================================================
-	Cost / Activity Charts Placeholder
-	============================================================================= */
-
-.wp-claw-admin-chart-wrap {
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	padding: 20px 24px;
-	margin-bottom: 20px;
-	min-height: 160px;
-	display: flex;
-	align-items: center;
-	justify-content: center;
-	color: #888;
-	font-size: 13px;
-}
-
-/* =============================================================================
-	Admin Bar Badge
-	============================================================================= */
-
-#wp-admin-bar-wp-claw .ab-icon {
-	font-size: 16px;
-	line-height: 28px;
-	vertical-align: middle;
-}
-
-#wp-admin-bar-wp-claw .wp-claw-admin-bar-count {
-	display: inline-block;
-	background: var(--wp-claw-red);
-	color: #fff;
-	font-size: 10px;
-	font-weight: 700;
-	padding: 1px 5px;
-	border-radius: 8px;
-	vertical-align: middle;
-	margin-left: 4px;
-	min-width: 16px;
-	text-align: center;
-	line-height: 1.4;
-}
-
-/* =============================================================================
-	Utility — Accessibility
-	============================================================================= */
-
-.wp-claw-admin-sr-only {
-	position: absolute;
-	width: 1px;
-	height: 1px;
-	padding: 0;
-	margin: -1px;
-	overflow: hidden;
-	clip: rect(0, 0, 0, 0);
-	white-space: nowrap;
-	border: 0;
-}
-
-/* =============================================================================
-	Command Center
-	============================================================================= */
-
-/* Page title + subtitle */
-.wp-claw-admin-title {
-	font-size: 1.4em;
-	margin-bottom: 4px;
-}
-
-.wp-claw-admin-subtitle {
-	color: #50575e;
-	font-size: 13px;
-	margin-top: 0;
-	margin-bottom: 16px;
-}
-
-/* Generic card wrapper (shared with other views) */
-.wp-claw-admin-card {
-	background: #fff;
-	border-radius: var(--wp-claw-radius);
-	box-shadow: var(--wp-claw-shadow);
-	padding: 20px 24px;
-	margin-bottom: 20px;
-}
-
-/* Chat container */
-.wp-claw-cc-chat-container {
-	display: flex;
-	flex-direction: column;
-}
-
-/* Messages area */
-.wp-claw-cc-messages {
-	overflow-y: auto;
-	max-height: 400px;
-	min-height: 120px;
-	padding: 16px;
-	background: #f9f9f9;
-	border: 1px solid #e2e4e7;
-	border-radius: var(--wp-claw-radius);
-	margin-bottom: 12px;
-	scroll-behavior: smooth;
-}
-
-/* Individual message bubble */
-.wp-claw-cc-message {
-	margin-bottom: 12px;
-	padding: 10px 14px;
-	border-radius: 8px;
-	line-height: 1.5;
-}
-
-.wp-claw-cc-message:last-child {
-	margin-bottom: 0;
-}
-
-.wp-claw-cc-message p {
-	margin: 4px 0 0;
-}
-
-/* User bubble — right-aligned, accent colour */
-.wp-claw-cc-user {
-	background: var(--wp-claw-accent, #0073aa);
-	color: #fff;
-	margin-left: 40px;
-}
-
-.wp-claw-cc-user .wp-claw-cc-badge {
-	background: rgba(255, 255, 255, 0.2);
-	color: #fff;
-}
-
-/* Agent (Atlas) bubble — left-aligned, white card */
-.wp-claw-cc-agent {
-	background: #fff;
-	border: 1px solid #e2e4e7;
-	margin-right: 40px;
-}
-
-/* System message — centred, muted */
-.wp-claw-cc-system {
-	background: #f0f0f0;
-	color: #666;
-	font-size: 13px;
-	text-align: center;
-}
-
-/* Error bubble */
-.wp-claw-cc-error {
-	background: #fef2f2;
-	border: 1px solid #fca5a5;
-	color: #b91c1c;
-	margin-right: 40px;
-}
-
-/* Loading / processing bubble */
-.wp-claw-cc-loading {
-	background: #f0f0f0;
-	color: #999;
-	margin-right: 40px;
-	font-style: italic;
-}
-
-/* Badge label (e.g. "You", "Atlas") */
-.wp-claw-cc-badge {
-	display: inline-block;
-	font-size: 11px;
-	font-weight: 600;
-	padding: 2px 8px;
-	border-radius: 4px;
-	background: #e5e7eb;
-	color: #374151;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-}
-
-/* Task ID below agent response */
-.wp-claw-cc-task-id {
-	display: block;
-	font-size: 11px;
-	color: #9ca3af;
-	margin-top: 4px;
-	font-family: monospace;
-}
-
-/* Input row: PIN | prompt | Send */
-.wp-claw-cc-input-area {
-	display: flex;
-	gap: 8px;
-	align-items: center;
-	margin-bottom: 8px;
-}
-
-.wp-claw-cc-pin-field {
-	flex-shrink: 0;
-}
-
-.wp-claw-cc-pin-input {
-	width: 80px !important;
-	text-align: center;
-	font-size: 16px;
-	letter-spacing: 4px;
-}
-
-.wp-claw-cc-prompt-field {
-	flex: 1;
-	min-width: 0;
-}
-
-.wp-claw-cc-prompt-input {
-	width: 100% !important;
-	font-size: 14px;
-}
-
-.wp-claw-cc-send-btn {
-	flex-shrink: 0;
-	height: 36px;
-	padding: 0 20px !important;
-}
-
-.wp-claw-cc-send-btn:disabled {
-	opacity: 0.5;
-	cursor: not-allowed;
-}
-
-/* Security status bar */
-.wp-claw-cc-security-bar {
-	display: flex;
-	align-items: center;
-	flex-wrap: wrap;
-	gap: 6px;
-	font-size: 12px;
-	color: #6b7280;
-	padding: 8px 0 2px;
-	border-top: 1px solid #e5e7eb;
-}
-
-.wp-claw-cc-lock {
-	font-size: 14px;
-	line-height: 1;
-}
-
-.wp-claw-cc-separator {
-	color: #d1d5db;
-}
-
-/* History card */
-.wp-claw-cc-history {
-	padding: 0;
-	overflow: hidden;
-}
-
-.wp-claw-cc-history-toggle {
-	width: 100%;
-	display: flex;
-	justify-content: space-between;
-	align-items: center;
-	padding: 14px 24px;
-	background: none;
-	border: none;
-	cursor: pointer;
-	font-size: 14px;
-	font-weight: 600;
-	color: #1d2327;
-	text-align: left;
-	transition: background 0.15s ease;
-}
-
-.wp-claw-cc-history-toggle:hover {
-	background: #f9f9f9;
-}
-
-.wp-claw-cc-history-toggle:focus {
-	outline: 2px solid var(--wp-claw-accent, #0073aa);
-	outline-offset: -2px;
-}
-
-.wp-claw-cc-toggle-icon {
-	font-size: 11px;
-	color: #9ca3af;
-	flex-shrink: 0;
-}
-
-.wp-claw-cc-history-body {
-	padding: 0 24px 16px;
-	border-top: 1px solid #f0f0f1;
-}
-
-/* History table */
-.wp-claw-cc-history-table {
-	width: 100%;
-	border-collapse: collapse;
-	font-size: 13px;
-}
-
-.wp-claw-cc-history-table th {
-	text-align: left;
-	padding: 8px 12px;
-	border-bottom: 2px solid #e5e7eb;
-	font-weight: 600;
-	color: #374151;
-	font-size: 11px;
-	text-transform: uppercase;
-	letter-spacing: 0.05em;
-	white-space: nowrap;
-}
-
-.wp-claw-cc-history-table td {
-	padding: 8px 12px;
-	border-bottom: 1px solid #f3f4f6;
-	color: #4b5563;
-	vertical-align: middle;
-}
-
-.wp-claw-cc-history-table tbody tr:last-child td {
-	border-bottom: none;
-}
-
-.wp-claw-cc-history-table tbody tr:hover td {
-	background: #f9f9f9;
-}
-
-.wp-claw-cc-status-ok {
-	color: #059669;
-	font-weight: 600;
-}
-
-.wp-claw-cc-status-blocked {
-	color: #dc2626;
-	font-weight: 600;
-}
-
-/* PIN setup form */
-.wp-claw-cc-setup {
-	max-width: 520px;
-}
-
-.wp-claw-cc-pin-setup {
-	display: flex;
-	flex-wrap: wrap;
-	gap: 8px;
-	align-items: center;
-	margin-top: 12px;
-}
-
-.wp-claw-cc-pin-setup input {
-	width: 190px !important;
-}
-
-/* Error message within PIN setup */
-.wp-claw-cc-error-msg {
-	margin-top: 10px;
-	padding: 8px 12px;
-	background: #fef2f2;
-	border: 1px solid #fca5a5;
-	border-radius: var(--wp-claw-radius);
-	color: #b91c1c;
-	font-size: 13px;
-}
-
-/* Responsive adjustments */
-@media (max-width: 782px) {
-	.wp-claw-cc-input-area {
-		flex-wrap: wrap;
+	.wpc-nav-tabs {
+		overflow-x: auto;
+		-webkit-overflow-scrolling: touch;
 	}
 
-	.wp-claw-cc-pin-field,
-	.wp-claw-cc-prompt-field {
-		flex: 0 0 100%;
+	.wpc-agent-table {
+		display: block;
+		overflow-x: auto;
+	}
+
+	.wpc-proposal-card__header {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
+	.wpc-proposal-card__actions {
 		width: 100%;
 	}
 
-	.wp-claw-cc-pin-input {
-		width: 100% !important;
-		letter-spacing: 2px;
+	.wpc-proposal-card__actions .wpc-btn {
+		flex: 1;
 	}
 
-	.wp-claw-cc-prompt-input {
-		width: 100% !important;
+	.wpc-kpi-value {
+		font-size: 1.5rem;
 	}
 
-	.wp-claw-cc-send-btn {
-		width: 100%;
-		padding: 0 16px !important;
+	.wpc-card__header {
+		flex-direction: column;
+		align-items: flex-start;
+		gap: 8px;
+	}
+}
+
+@media (max-width: 480px) {
+	.wpc-nav-tabs__item {
+		padding: 8px 12px;
+		font-size: 0.75rem;
 	}
 
-	.wp-claw-cc-user {
-		margin-left: 0;
+	.wpc-btn {
+		padding: 8px 12px;
+		font-size: 0.75rem;
+	}
+}
+
+/* ==========================================================================
+   Print
+   ========================================================================== */
+
+@media print {
+	.wpc-admin-wrap {
+		max-width: 100%;
+		background: #fff;
+		padding: 0;
 	}
 
-	.wp-claw-cc-agent,
-	.wp-claw-cc-error,
-	.wp-claw-cc-loading {
-		margin-right: 0;
+	.wpc-nav-tabs,
+	.wpc-btn,
+	.wpc-toggle-switch,
+	.wpc-connection-banner {
+		display: none;
+	}
+
+	.wpc-card {
+		border: 1px solid #ddd;
+		break-inside: avoid;
+	}
+
+	.wpc-agent-table {
+		font-size: 10pt;
 	}
 }

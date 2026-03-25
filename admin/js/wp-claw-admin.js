@@ -65,7 +65,7 @@
 
 		var notice       = document.createElement( 'div' );
 		notice.className =
-			'wp-claw-admin-notice wp-claw-admin-notice--' + noticeType + ' notice notice-' + noticeType;
+			'wpc-notice wpc-notice--' + noticeType + ' notice notice-' + noticeType;
 		notice.setAttribute( 'role', 'alert' );
 
 		var p         = document.createElement( 'p' );
@@ -86,7 +86,7 @@
 		notice.appendChild( dismiss );
 
 		// Remove any existing notice of the same type first.
-		var existing = container.querySelector( '.wp-claw-admin-notice' );
+		var existing = container.querySelector( '.wpc-notice' );
 		if ( existing ) {
 			existing.parentNode.removeChild( existing );
 		}
@@ -133,13 +133,13 @@
 		var classes = Array.from( pill.classList );
 		classes.forEach(
 			function ( cls ) {
-				if ( cls.indexOf( 'wp-claw-admin-status-' ) === 0 ) {
+				if ( cls.indexOf( 'wpc-status-' ) === 0 ) {
 						pill.classList.remove( cls );
 				}
 			}
 		);
-		pill.classList.add( 'wp-claw-admin-status-pill' );
-		pill.classList.add( 'wp-claw-admin-status-' + status );
+		pill.classList.add( 'wpc-status-pill' );
+		pill.classList.add( 'wpc-status-' + status );
 		pill.textContent = status.replace( '_', ' ' );
 	}
 
@@ -162,12 +162,12 @@
 		}
 
 		var row     = btn.closest( 'tr' );
-		var wrapEl  = document.querySelector( '.wp-claw-admin-wrap' ) || document.body;
+		var wrapEl  = document.querySelector( '.wpc-wrap' ) || document.body;
 		var restore = setButtonLoading( btn );
 
 		// Also disable sibling action buttons for this row.
 		if ( row ) {
-			var siblings = row.querySelectorAll( '.wp-claw-admin-btn-approve, .wp-claw-admin-btn-reject' );
+			var siblings = row.querySelectorAll( '.wpc-btn-approve, .wpc-btn-reject' );
 			siblings.forEach(
 				function ( sib ) {
 					sib.disabled = true;
@@ -195,12 +195,12 @@
 				function () {
 					// Update status pill in the row.
 					if ( row ) {
-							var pill = row.querySelector( '.wp-claw-admin-status-pill' );
+							var pill = row.querySelector( '.wpc-status-pill' );
 						if ( pill ) {
 							updateStatusPill( pill, action === 'approve' ? 'done' : 'failed' );
 						}
 						// Keep buttons disabled after success.
-						var allBtns = row.querySelectorAll( '.wp-claw-admin-btn' );
+						var allBtns = row.querySelectorAll( '.wpc-btn' );
 						allBtns.forEach(
 							function ( b ) {
 								b.disabled = true;
@@ -217,7 +217,7 @@
 					restore();
 					// Re-enable sibling buttons on failure.
 					if ( row ) {
-							var siblings = row.querySelectorAll( '.wp-claw-admin-btn-approve, .wp-claw-admin-btn-reject' );
+							var siblings = row.querySelectorAll( '.wpc-btn-approve, .wpc-btn-reject' );
 							siblings.forEach(
 								function ( sib ) {
 									sib.disabled = false;
@@ -234,7 +234,7 @@
 	 */
 	function initProposalActions() {
 		document.querySelectorAll(
-			'.wp-claw-admin-btn-approve, .wp-claw-admin-btn-reject'
+			'.wpc-btn-approve, .wpc-btn-reject'
 		).forEach(
 			function ( btn ) {
 				btn.addEventListener( 'click', handleProposalAction );
@@ -267,21 +267,21 @@
 					agents.forEach(
 						function ( agent ) {
 							var card = document.querySelector(
-								'.wp-claw-admin-agent-card[data-agent="' + agent.name + '"]'
+								'.wpc-agent-card[data-agent="' + agent.name + '"]'
 							);
 							if ( ! card ) {
 								return;
 							}
 
 							// Update status dot.
-							var dot = card.querySelector( '.wp-claw-admin-status-dot' );
+							var dot = card.querySelector( '.wpc-status-dot' );
 							if ( dot ) {
-								dot.className = 'wp-claw-admin-status-dot';
-								dot.classList.add( 'wp-claw-admin-status-dot--' + ( agent.health || 'offline' ) );
+								dot.className = 'wpc-status-dot';
+								dot.classList.add( 'wpc-status-dot--' + ( agent.health || 'offline' ) );
 							}
 
 							// Update current task.
-							var taskEl = card.querySelector( '.wp-claw-admin-agent-task' );
+							var taskEl = card.querySelector( '.wpc-agent-task' );
 							if ( taskEl ) {
 								taskEl.textContent = agent.currentTask || 'Idle';
 							}
@@ -298,10 +298,10 @@
 
 	/**
 	 * Start the dashboard auto-refresh loop.
-	 * Only runs if `.wp-claw-admin-dashboard` is present in the DOM.
+	 * Only runs if `.wpc-dashboard` is present in the DOM.
 	 */
 	function initDashboardRefresh() {
-		var dashboard = document.querySelector( '.wp-claw-admin-dashboard' );
+		var dashboard = document.querySelector( '.wpc-dashboard' );
 		if ( ! dashboard ) {
 			return;
 		}
@@ -316,7 +316,7 @@
 	 * Handle the "Test Connection" button click.
 	 */
 	function handleTestConnection() {
-		var btn = document.querySelector( '.wp-claw-admin-test-connection' );
+		var btn = document.querySelector( '.wpc-test-connection' );
 		if ( ! btn ) {
 			return;
 		}
@@ -324,7 +324,7 @@
 		btn.addEventListener(
 			'click',
 			function () {
-				var wrapEl  = document.querySelector( '.wp-claw-admin-wrap' ) || document.body;
+				var wrapEl  = document.querySelector( '.wpc-wrap' ) || document.body;
 				var restore = setButtonLoading( btn );
 
 				fetch( wpClaw.restUrl + 'health', buildFetchOptions( 'GET' ) )
@@ -346,13 +346,13 @@
 						showNotice( wrapEl, msg, type );
 
 						// Update connection status dot if present.
-						var dot = document.querySelector( '.wp-claw-admin-connection-status .wp-claw-admin-status-dot' );
+						var dot = document.querySelector( '.wpc-connection-status .wpc-status-dot' );
 						if ( dot ) {
-								dot.className = 'wp-claw-admin-status-dot';
+								dot.className = 'wpc-status-dot';
 								dot.classList.add(
 									data.status === 'ok'
-									? 'wp-claw-admin-status-dot--connected'
-									: 'wp-claw-admin-status-dot--warning'
+									? 'wpc-status-dot--connected'
+									: 'wpc-status-dot--warning'
 								);
 						}
 					}
@@ -363,9 +363,9 @@
 						showNotice( wrapEl, 'Connection error: ' + err.message, 'error' );
 
 						// Update dot to offline.
-						var dot = document.querySelector( '.wp-claw-admin-connection-status .wp-claw-admin-status-dot' );
+						var dot = document.querySelector( '.wpc-connection-status .wpc-status-dot' );
 						if ( dot ) {
-								dot.className = 'wp-claw-admin-status-dot wp-claw-admin-status-dot--offline';
+								dot.className = 'wpc-status-dot wpc-status-dot--offline';
 						}
 					}
 				);
@@ -383,7 +383,7 @@
 	function saveModuleSettings() {
 		var enabledModules = [];
 
-		document.querySelectorAll( '.wp-claw-admin-toggle input[type="checkbox"]' ).forEach(
+		document.querySelectorAll( '.wpc-toggle input[type="checkbox"]' ).forEach(
 			function ( checkbox ) {
 				if ( checkbox.checked ) {
 					enabledModules.push( checkbox.value );
@@ -391,7 +391,7 @@
 			}
 		);
 
-		var wrapEl = document.querySelector( '.wp-claw-admin-wrap' ) || document.body;
+		var wrapEl = document.querySelector( '.wpc-wrap' ) || document.body;
 
 		fetch(
 			wpClaw.restUrl + 'settings/modules',
@@ -425,7 +425,7 @@
 	 * Attach change handlers to module toggle checkboxes.
 	 */
 	function initModuleToggles() {
-		var toggles = document.querySelectorAll( '.wp-claw-admin-toggle input[type="checkbox"]' );
+		var toggles = document.querySelectorAll( '.wpc-toggle input[type="checkbox"]' );
 		if ( ! toggles.length ) {
 			return;
 		}
@@ -461,7 +461,7 @@
 				if ( ! dismissBtn ) {
 					return;
 				}
-				var notice = dismissBtn.closest( '.notice, .wp-claw-admin-notice' );
+				var notice = dismissBtn.closest( '.notice, .wpc-notice' );
 				if ( notice && notice.parentNode ) {
 					notice.parentNode.removeChild( notice );
 				}
@@ -480,7 +480,7 @@
 	 */
 	function activateTab( tabId ) {
 		// Update tab buttons.
-		document.querySelectorAll( '.wp-claw-admin-tab' ).forEach(
+		document.querySelectorAll( '.wpc-tab' ).forEach(
 			function ( tab ) {
 				var isActive = tab.getAttribute( 'data-tab' ) === tabId;
 				tab.classList.toggle( 'active', isActive );
@@ -489,7 +489,7 @@
 		);
 
 		// Update panels.
-		document.querySelectorAll( '.wp-claw-admin-tab-panel' ).forEach(
+		document.querySelectorAll( '.wpc-tab-panel' ).forEach(
 			function ( panel ) {
 				var isActive = panel.getAttribute( 'id' ) === 'wp-claw-tab-' + tabId;
 				panel.classList.toggle( 'active', isActive );
@@ -509,14 +509,14 @@
 	 * Initialise the tab navigation component.
 	 */
 	function initTabs() {
-		var tabContainer = document.querySelector( '.wp-claw-admin-tabs' );
+		var tabContainer = document.querySelector( '.wpc-tabs' );
 		if ( ! tabContainer ) {
 			return;
 		}
 
 		tabContainer.setAttribute( 'role', 'tablist' );
 
-		tabContainer.querySelectorAll( '.wp-claw-admin-tab' ).forEach(
+		tabContainer.querySelectorAll( '.wpc-tab' ).forEach(
 			function ( tab, index ) {
 				tab.setAttribute( 'role', 'tab' );
 				tab.setAttribute( 'tabindex', index === 0 ? '0' : '-1' );
@@ -533,7 +533,7 @@
 				tab.addEventListener(
 					'keydown',
 					function ( event ) {
-						var tabs    = Array.from( tabContainer.querySelectorAll( '.wp-claw-admin-tab' ) );
+						var tabs    = Array.from( tabContainer.querySelectorAll( '.wpc-tab' ) );
 						var current = tabs.indexOf( tab );
 						var next    = -1;
 
@@ -554,7 +554,7 @@
 		);
 
 		// Restore persisted tab or default to first.
-		var firstTab = tabContainer.querySelector( '.wp-claw-admin-tab' );
+		var firstTab = tabContainer.querySelector( '.wpc-tab' );
 		if ( ! firstTab ) {
 			return;
 		}
@@ -567,7 +567,7 @@
 		}
 
 		var targetTab = savedTab
-			? tabContainer.querySelector( '.wp-claw-admin-tab[data-tab="' + savedTab + '"]' )
+			? tabContainer.querySelector( '.wpc-tab[data-tab="' + savedTab + '"]' )
 			: null;
 
 		activateTab( ( targetTab || firstTab ).getAttribute( 'data-tab' ) );
@@ -583,7 +583,7 @@
 	 * @param {string} mode  'managed' or 'self_hosted'.
 	 */
 	function updateConnectionModeUI( mode ) {
-		var instanceUrlRow = document.querySelector( '.wp-claw-admin-instance-url-row' );
+		var instanceUrlRow = document.querySelector( '.wpc-instance-url-row' );
 		if ( ! instanceUrlRow ) {
 			return;
 		}
@@ -635,12 +635,12 @@
 	 * Attach show/hide handlers to all password toggle buttons.
 	 */
 	function initPasswordToggles() {
-		document.querySelectorAll( '.wp-claw-admin-toggle-password' ).forEach(
+		document.querySelectorAll( '.wpc-toggle-password' ).forEach(
 			function ( btn ) {
 				btn.addEventListener(
 					'click',
 					function () {
-						var wrap = btn.closest( '.wp-claw-admin-password-wrap' );
+						var wrap = btn.closest( '.wpc-password-wrap' );
 						if ( ! wrap ) {
 							return;
 						}

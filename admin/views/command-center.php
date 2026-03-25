@@ -23,66 +23,76 @@ if ( ! function_exists( 'wp_claw_current_user_can' ) || ! wp_claw_current_user_c
 
 $pin_set = \WPClaw\Command_Center::is_pin_set();
 ?>
-<div class="wrap wp-claw-admin-wrap">
+<div class="wpc-admin-wrap">
 
-	<h1 class="wp-claw-admin-title">
-		<?php esc_html_e( '🏗️ Command Center', 'claw-agent' ); ?>
-	</h1>
-	<p class="wp-claw-admin-subtitle">
-		<?php esc_html_e( 'Give instructions directly to your AI team. Commands are routed through Atlas (orchestrator).', 'claw-agent' ); ?>
-	</p>
+	<header>
+		<h1 class="wpc-section-heading">
+			<?php esc_html_e( 'Command Center', 'claw-agent' ); ?>
+		</h1>
+		<p class="wpc-kpi-label">
+			<?php esc_html_e( 'Give instructions directly to your AI team. Commands are routed through Atlas (orchestrator).', 'claw-agent' ); ?>
+		</p>
+	</header>
 
 	<?php if ( ! $pin_set ) : ?>
-		<!-- ------------------------------------------------------------------ -->
-		<!-- PIN Setup                                                            -->
-		<!-- ------------------------------------------------------------------ -->
-		<div class="wp-claw-admin-card wp-claw-cc-setup">
-			<h2><?php esc_html_e( 'Set Up Command Center PIN', 'claw-agent' ); ?></h2>
+		<!-- PIN Setup -->
+		<section class="wpc-card">
+			<h2 class="wpc-section-heading"><?php esc_html_e( 'Set Up Command Center PIN', 'claw-agent' ); ?></h2>
 			<p><?php esc_html_e( 'For security, every command requires a PIN. Choose a 4-8 digit PIN that only you know.', 'claw-agent' ); ?></p>
-			<div class="wp-claw-cc-pin-setup">
-				<input
-					type="password"
-					id="wp-claw-cc-new-pin"
-					maxlength="8"
-					minlength="4"
-					placeholder="<?php esc_attr_e( 'Enter PIN (4-8 digits)', 'claw-agent' ); ?>"
-					class="wp-claw-cc-input"
-					autocomplete="new-password"
-				/>
-				<input
-					type="password"
-					id="wp-claw-cc-confirm-pin"
-					maxlength="8"
-					minlength="4"
-					placeholder="<?php esc_attr_e( 'Confirm PIN', 'claw-agent' ); ?>"
-					class="wp-claw-cc-input"
-					autocomplete="new-password"
-				/>
-				<button type="button" id="wp-claw-cc-save-pin" class="button button-primary">
+
+			<div class="wpc-kpi-grid">
+				<div class="wpc-kpi-card">
+					<label for="wp-claw-cc-new-pin" class="wpc-kpi-label">
+						<?php esc_html_e( 'New PIN', 'claw-agent' ); ?>
+					</label>
+					<input
+						type="password"
+						id="wp-claw-cc-new-pin"
+						maxlength="8"
+						minlength="4"
+						placeholder="<?php esc_attr_e( '4-8 digits', 'claw-agent' ); ?>"
+						autocomplete="new-password"
+					>
+				</div>
+				<div class="wpc-kpi-card">
+					<label for="wp-claw-cc-confirm-pin" class="wpc-kpi-label">
+						<?php esc_html_e( 'Confirm PIN', 'claw-agent' ); ?>
+					</label>
+					<input
+						type="password"
+						id="wp-claw-cc-confirm-pin"
+						maxlength="8"
+						minlength="4"
+						placeholder="<?php esc_attr_e( 'Re-enter PIN', 'claw-agent' ); ?>"
+						autocomplete="new-password"
+					>
+				</div>
+			</div>
+
+			<p>
+				<button type="button" id="wp-claw-cc-save-pin" class="wpc-btn wpc-btn--primary">
 					<?php esc_html_e( 'Save PIN', 'claw-agent' ); ?>
 				</button>
-			</div>
-			<div id="wp-claw-cc-pin-error" class="wp-claw-cc-error-msg" style="display:none;"></div>
+			</p>
+			<div id="wp-claw-cc-pin-error" class="wpc-badge wpc-badge--failed" hidden></div>
 			<?php wp_nonce_field( 'wp_claw_setup_pin', 'wp_claw_pin_nonce' ); ?>
-		</div>
+		</section>
 
 	<?php else : ?>
-		<!-- ------------------------------------------------------------------ -->
-		<!-- Command Center Chat                                                  -->
-		<!-- ------------------------------------------------------------------ -->
-		<div class="wp-claw-admin-card wp-claw-cc-chat-container">
+		<!-- Command Center Chat -->
+		<section class="wpc-card wpc-cc-chat-container">
 
 			<!-- Messages area -->
-			<div id="wp-claw-cc-messages" class="wp-claw-cc-messages" role="log" aria-live="polite" aria-label="<?php esc_attr_e( 'Command Center messages', 'claw-agent' ); ?>">
-				<div class="wp-claw-cc-message wp-claw-cc-system">
-					<span class="wp-claw-cc-badge"><?php esc_html_e( 'System', 'claw-agent' ); ?></span>
-					<p><?php esc_html_e( 'Command Center active. 7 security layers verified. Type a command for your AI team.', 'claw-agent' ); ?></p>
+			<div id="wp-claw-cc-messages" class="wpc-activity-feed" role="log" aria-live="polite" aria-label="<?php esc_attr_e( 'Command Center messages', 'claw-agent' ); ?>">
+				<div class="wpc-activity-item">
+					<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'System', 'claw-agent' ); ?></span>
+					<span><?php esc_html_e( 'Command Center active. 7 security layers verified. Type a command for your AI team.', 'claw-agent' ); ?></span>
 				</div>
 			</div>
 
 			<!-- Input area -->
-			<div class="wp-claw-cc-input-area">
-				<div class="wp-claw-cc-pin-field">
+			<div class="wpc-cc-input-area">
+				<div>
 					<label for="wp-claw-cc-pin" class="screen-reader-text">
 						<?php esc_html_e( 'PIN', 'claw-agent' ); ?>
 					</label>
@@ -91,12 +101,11 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						id="wp-claw-cc-pin"
 						maxlength="8"
 						placeholder="<?php esc_attr_e( 'PIN', 'claw-agent' ); ?>"
-						class="wp-claw-cc-input wp-claw-cc-pin-input"
 						autocomplete="off"
 						inputmode="numeric"
-					/>
+					>
 				</div>
-				<div class="wp-claw-cc-prompt-field">
+				<div>
 					<label for="wp-claw-cc-prompt" class="screen-reader-text">
 						<?php esc_html_e( 'Command', 'claw-agent' ); ?>
 					</label>
@@ -105,14 +114,13 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						id="wp-claw-cc-prompt"
 						maxlength="2000"
 						placeholder="<?php esc_attr_e( 'Type a command for your AI team...', 'claw-agent' ); ?>"
-						class="wp-claw-cc-input wp-claw-cc-prompt-input"
 						autocomplete="off"
-					/>
+					>
 				</div>
 				<button
 					type="button"
 					id="wp-claw-cc-send"
-					class="button button-primary wp-claw-cc-send-btn"
+					class="wpc-btn wpc-btn--primary"
 					disabled
 					aria-disabled="true"
 				>
@@ -123,39 +131,36 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 			<?php wp_nonce_field( 'wp_claw_command_nonce', 'wp_claw_command_nonce_field' ); ?>
 
 			<!-- Security status bar -->
-			<div class="wp-claw-cc-security-bar" aria-label="<?php esc_attr_e( 'Security status', 'claw-agent' ); ?>">
-				<span class="wp-claw-cc-lock" aria-hidden="true">🔒</span>
+			<div class="wpc-connection-banner wpc-connection-banner--connected" aria-label="<?php esc_attr_e( 'Security status', 'claw-agent' ); ?>">
+				<span class="wpc-status-dot wpc-status-dot--green"></span>
 				<span><?php esc_html_e( '7-layer security active', 'claw-agent' ); ?></span>
-				<span class="wp-claw-cc-separator" aria-hidden="true">·</span>
-				<span id="wp-claw-cc-rate-status"><?php esc_html_e( 'Loading rate limits...', 'claw-agent' ); ?></span>
+				<span id="wp-claw-cc-rate-status">
+					<?php esc_html_e( 'Loading rate limits...', 'claw-agent' ); ?>
+				</span>
 			</div>
 
-		</div><!-- /.wp-claw-cc-chat-container -->
+		</section>
 
-		<!-- ------------------------------------------------------------------ -->
-		<!-- Command History (collapsible)                                        -->
-		<!-- ------------------------------------------------------------------ -->
-		<div class="wp-claw-admin-card wp-claw-cc-history">
+		<!-- Command History (collapsible) -->
+		<section class="wpc-card">
 
 			<button
 				type="button"
-				class="wp-claw-cc-history-toggle"
+				class="wpc-btn wpc-btn--ghost"
 				id="wp-claw-cc-history-toggle"
 				aria-expanded="false"
 				aria-controls="wp-claw-cc-history-body"
 			>
-				<span><?php esc_html_e( '📋 Recent Command History', 'claw-agent' ); ?></span>
-				<span class="wp-claw-cc-toggle-icon" aria-hidden="true">▼</span>
+				<?php esc_html_e( 'Recent Command History', 'claw-agent' ); ?>
 			</button>
 
 			<div
 				id="wp-claw-cc-history-body"
-				class="wp-claw-cc-history-body"
-				style="display:none;"
+				hidden
 				role="region"
 				aria-labelledby="wp-claw-cc-history-toggle"
 			>
-				<table class="wp-claw-cc-history-table">
+				<table class="wpc-agent-table">
 					<thead>
 						<tr>
 							<th scope="col"><?php esc_html_e( 'Time', 'claw-agent' ); ?></th>
@@ -170,10 +175,10 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						</tr>
 					</tbody>
 				</table>
-			</div><!-- /#wp-claw-cc-history-body -->
+			</div>
 
-		</div><!-- /.wp-claw-cc-history -->
+		</section>
 
 	<?php endif; ?>
 
-</div><!-- /.wrap -->
+</div>
