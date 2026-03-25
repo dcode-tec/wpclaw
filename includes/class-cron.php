@@ -77,7 +77,8 @@ class Cron {
 		// Core system events.
 		add_action( 'wp_claw_health_check', array( $this, 'run_health_check' ) );
 		add_action( 'wp_claw_sync_state', array( $this, 'run_sync_state' ) );
-		add_action( 'wp_claw_update_check', array( $this, 'run_update_check' ) );
+		// Update check disabled for wordpress.org hosted plugins.
+		// add_action( 'wp_claw_update_check', array( $this, 'run_update_check' ) );
 
 		// Module-specific scheduled events (closures capture slug cleanly).
 		add_action(
@@ -209,9 +210,8 @@ class Cron {
 	/**
 	 * Twice-daily: check the Klawty API for available plugin updates.
 	 *
-	 * The update data is cached in a transient and consumed by the
-	 * update checker integration (class-wp-claw.php hooks into
-	 * plugins_api and pre_set_site_transient_update_plugins).
+	 * Disabled for wordpress.org hosted plugins. WordPress.org handles
+	 * updates via SVN. This method is retained for self-hosted mode.
 	 *
 	 * @since 1.0.0
 	 *
