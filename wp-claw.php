@@ -8,7 +8,7 @@
  * @license    GPL-2.0-or-later
  *
  * @wordpress-plugin
- * Plugin Name:       WP-Claw
+ * Plugin Name:       Claw
  * Plugin URI:        https://wp-claw.ai
  * Description:       The AI Operating Layer for WordPress — replaces 10-15 plugins with one AI-powered system connected to Klawty.
  * Version:           1.0.3

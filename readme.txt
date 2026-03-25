@@ -1,4 +1,4 @@
-=== WP-Claw ===
+=== Claw ===
 Contributors: dcodetec
 Tags: ai, automation, seo, security, woocommerce
 Requires at least: 6.4
@@ -12,11 +12,11 @@ Replace 10+ WordPress plugins with 6 AI agents. SEO, security, content, commerce
 
 == Description ==
 
-WP-Claw connects your WordPress site to a managed team of AI agents that handle SEO, security, content, e-commerce, analytics, CRM, forms, backups, performance, social media, and live customer chat — autonomously, 24/7.
+Claw connects your WordPress site to a managed team of AI agents that handle SEO, security, content, e-commerce, analytics, CRM, forms, backups, performance, social media, and live customer chat — autonomously, 24/7.
 
 **This is not a chatbot plugin.** This is an operating layer — six specialized agents that work on your site the way a dev team would, but continuously and at a fraction of the cost.
 
-= What WP-Claw Replaces =
+= What Claw Replaces =
 
 * Yoast / RankMath / AIOSEO — SEO optimization
 * Wordfence / Sucuri — Security monitoring
@@ -68,7 +68,7 @@ High-impact actions require your approval before execution. Proposals appear in 
 
 = External Service =
 
-WP-Claw requires a connection to a Klawty AI agent instance to function. The plugin communicates with:
+Claw requires a connection to a Klawty AI agent instance to function. The plugin communicates with:
 
 * **wp-claw.ai** — Connection proxy and customer dashboard ([Terms of Service](https://wp-claw.ai/terms), [Privacy Policy](https://wp-claw.ai/privacy))
 * **Your Klawty instance** — AI agent runtime (managed at ai-agent-builder.ai or self-hosted)
@@ -82,7 +82,7 @@ Data transmitted: site URL, WordPress version, PHP version, plugin version, task
 
 = Built by dcode technologies =
 
-WP-Claw is built by [dcode technologies](https://d-code.lu), an agentic AI systems integrator based in Luxembourg. Powered by [Klawty OS](https://klawty.ai).
+Claw is built by [dcode technologies](https://d-code.lu), an agentic AI systems integrator based in Luxembourg. Powered by [Klawty OS](https://klawty.ai).
 
 == Installation ==
 
@@ -91,7 +91,7 @@ WP-Claw is built by [dcode technologies](https://d-code.lu), an agentic AI syste
 1. Subscribe at [wp-claw.ai](https://wp-claw.ai)
 2. Upload the `wp-claw` folder to `/wp-content/plugins/` or install from WordPress admin
 3. Activate the plugin via the Plugins menu
-4. Go to **WP-Claw > Settings** and paste your connection token
+4. Go to **Claw > Settings** and paste your connection token
 5. Click **Verify & Connect** — agents activate within 60 seconds
 6. Enable the modules you need from the Modules tab
 
@@ -100,7 +100,7 @@ WP-Claw is built by [dcode technologies](https://d-code.lu), an agentic AI syste
 1. Install [Klawty OS](https://klawty.ai) on your server
 2. Upload the `wp-claw` folder to `/wp-content/plugins/`
 3. Activate the plugin
-4. Go to **WP-Claw > Settings**, set connection mode to **Self-hosted**
+4. Go to **Claw > Settings**, set connection mode to **Self-hosted**
 5. Enter your Klawty instance URL (e.g., `http://localhost:2508`)
 
 = Requirements =
@@ -112,17 +112,17 @@ WP-Claw is built by [dcode technologies](https://d-code.lu), an agentic AI syste
 
 == Frequently Asked Questions ==
 
-= Does WP-Claw work without WooCommerce? =
+= Does Claw work without WooCommerce? =
 
-Yes. The Commerce module requires WooCommerce, but all other 10 modules work on any WordPress site. WP-Claw automatically detects whether WooCommerce is installed and hides the Commerce module if it is not.
+Yes. The Commerce module requires WooCommerce, but all other 10 modules work on any WordPress site. Claw automatically detects whether WooCommerce is installed and hides the Commerce module if it is not.
 
 = Where does the AI processing happen? =
 
-All AI processing happens on your Klawty instance — either the managed service hosted by dcode technologies in Luxembourg, or your own self-hosted server. The WP-Claw plugin is a lightweight bridge that sends tasks and receives results.
+All AI processing happens on your Klawty instance — either the managed service hosted by dcode technologies in Luxembourg, or your own self-hosted server. The Claw plugin is a lightweight bridge that sends tasks and receives results.
 
 = Is my data sent to third parties? =
 
-WP-Claw communicates only with wp-claw.ai (connection proxy) and your Klawty instance. No site data is sent to any other third party. For managed instances, data is processed on European servers in Luxembourg.
+Claw communicates only with wp-claw.ai (connection proxy) and your Klawty instance. No site data is sent to any other third party. For managed instances, data is processed on European servers in Luxembourg.
 
 = Can agents break my site? =
 
@@ -134,9 +134,9 @@ Yes. The chat widget does not set cookies or track visitors. Conversation data i
 
 = What happens if I deactivate the plugin? =
 
-Deactivating clears scheduled events and disconnects agents. Your WordPress site continues normally. All WP-Claw data is preserved in the database. Uninstalling removes all data (tables, options, cron events, transients, capabilities, backup directory).
+Deactivating clears scheduled events and disconnects agents. Your WordPress site continues normally. All Claw data is preserved in the database. Uninstalling removes all data (tables, options, cron events, transients, capabilities, backup directory).
 
-= Can I use WP-Claw without any AI subscription? =
+= Can I use Claw without any AI subscription? =
 
 You need a Klawty instance for the agents to function. You can self-host Klawty for free (open-source, MIT license) and provide your own LLM API keys, or subscribe to a managed instance at wp-claw.ai.
 
@@ -193,4 +193,4 @@ Email hello@wp-claw.ai or visit the [documentation](https://wp-claw.ai/docs) for
 Security fix: resolves SQL injection surface area in 9 plugin files. Update recommended.
 
 = 1.0.0 =
-Initial release of WP-Claw — the AI operating layer for WordPress.
+Initial release of Claw — the AI operating layer for WordPress.
