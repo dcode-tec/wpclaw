@@ -577,7 +577,7 @@ class Module_SEO extends Module_Base {
 					'post_status'    => 'publish',
 					'posts_per_page' => 5,
 					's'              => $keyword,
-					'post__not_in'   => array( $post_id ),
+					'post__not_in'   => array( $post_id ), // phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- max 5 results.
 					'fields'         => 'ids',
 				)
 			);
