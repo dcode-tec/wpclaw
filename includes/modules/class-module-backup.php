@@ -624,10 +624,8 @@ class Module_Backup extends Module_Base {
 			// DROP + CREATE TABLE.
 			$sql .= 'DROP TABLE IF EXISTS `' . esc_sql( $table ) . "`;\n";
 
-			$create_row = $wpdb->get_row( // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- backup export.
-				$wpdb->prepare( 'SHOW CREATE TABLE %i', $table ),
-				ARRAY_N
-			);
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange
+			$create_row = $wpdb->get_row( $wpdb->prepare( 'SHOW CREATE TABLE %i', $table ), ARRAY_N );
 
 			if ( $create_row ) {
 				$sql .= $create_row[1] . ";\n\n";
