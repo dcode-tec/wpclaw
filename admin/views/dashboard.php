@@ -106,24 +106,24 @@ $wp_claw_safe_status_class = function ( $status ) {
 
 		<div class="wp-claw-admin-kpi-card">
 			<span class="wp-claw-admin-kpi-value"><?php echo esc_html( number_format_i18n( $total_tasks ) ); ?></span>
-			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Total Tasks', 'wp-claw' ); ?></span>
+			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Total Tasks', 'claw-agent' ); ?></span>
 		</div>
 
 		<div class="wp-claw-admin-kpi-card <?php echo esc_attr( $pending_proposals > 0 ? 'wp-claw-admin-kpi-card--alert' : '' ); ?>">
 			<span class="wp-claw-admin-kpi-value"><?php echo esc_html( number_format_i18n( $pending_proposals ) ); ?></span>
 			<span class="wp-claw-admin-kpi-label">
-				<?php esc_html_e( 'Pending Proposals', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Pending Proposals', 'claw-agent' ); ?>
 			</span>
 			<?php if ( $pending_proposals > 0 ) : ?>
 				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals' ) ); ?>" class="wp-claw-admin-kpi-action">
-					<?php esc_html_e( 'Review', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Review', 'claw-agent' ); ?>
 				</a>
 			<?php endif; ?>
 		</div>
 
 		<div class="wp-claw-admin-kpi-card">
 			<span class="wp-claw-admin-kpi-value"><?php echo esc_html( number_format_i18n( count( $agents ) ) ); ?></span>
-			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Active Agents', 'wp-claw' ); ?></span>
+			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Active Agents', 'claw-agent' ); ?></span>
 		</div>
 
 		<div class="wp-claw-admin-kpi-card wp-claw-admin-kpi-card--health">
@@ -131,15 +131,15 @@ $wp_claw_safe_status_class = function ( $status ) {
 			<span class="wp-claw-admin-kpi-value wp-claw-admin-kpi-value--status">
 				<?php
 				if ( 'ok' === $health_status ) {
-					esc_html_e( 'Healthy', 'wp-claw' );
+					esc_html_e( 'Healthy', 'claw-agent' );
 				} elseif ( 'degraded' === $health_status ) {
-					esc_html_e( 'Degraded', 'wp-claw' );
+					esc_html_e( 'Degraded', 'claw-agent' );
 				} else {
-					esc_html_e( 'Disconnected', 'wp-claw' );
+					esc_html_e( 'Disconnected', 'claw-agent' );
 				}
 				?>
 			</span>
-			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Klawty Status', 'wp-claw' ); ?></span>
+			<span class="wp-claw-admin-kpi-label"><?php esc_html_e( 'Klawty Status', 'claw-agent' ); ?></span>
 		</div>
 
 	</div><!-- /.wp-claw-admin-kpi-grid -->
@@ -153,8 +153,8 @@ $wp_claw_safe_status_class = function ( $status ) {
 			<?php
 			printf(
 				/* translators: %s: Link to settings page */
-				esc_html__( 'WP-Claw is not connected to a Klawty instance. %s to configure the connection.', 'wp-claw' ),
-				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ) . '">' . esc_html__( 'Go to Settings', 'wp-claw' ) . '</a>'
+				esc_html__( 'WP-Claw is not connected to a Klawty instance. %s to configure the connection.', 'claw-agent' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ) . '">' . esc_html__( 'Go to Settings', 'claw-agent' ) . '</a>'
 			);
 			?>
 		</p>
@@ -166,10 +166,10 @@ $wp_claw_safe_status_class = function ( $status ) {
 	<!-- ------------------------------------------------------------------ -->
 	<div class="wp-claw-admin-section">
 
-		<h2><?php esc_html_e( 'Recent Tasks', 'wp-claw' ); ?></h2>
+		<h2><?php esc_html_e( 'Recent Tasks', 'claw-agent' ); ?></h2>
 
 		<?php if ( empty( $recent_tasks ) ) : ?>
-			<p class="wp-claw-admin-empty"><?php esc_html_e( 'No tasks recorded yet.', 'wp-claw' ); ?></p>
+			<p class="wp-claw-admin-empty"><?php esc_html_e( 'No tasks recorded yet.', 'claw-agent' ); ?></p>
 		<?php else : ?>
 		<ul class="wp-claw-admin-task-list">
 			<?php foreach ( $recent_tasks as $task ) : ?>
@@ -196,7 +196,7 @@ $wp_claw_safe_status_class = function ( $status ) {
 					echo esc_html(
 						sprintf(
 							/* translators: %s: human-readable time difference */
-							__( '%s ago', 'wp-claw' ),
+							__( '%s ago', 'claw-agent' ),
 							human_time_diff( strtotime( $task->created_at ) )
 						)
 					);
@@ -211,7 +211,7 @@ $wp_claw_safe_status_class = function ( $status ) {
 
 		<p class="wp-claw-admin-section-footer">
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-agents' ) ); ?>">
-				<?php esc_html_e( 'View agent team &rarr;', 'wp-claw' ); ?>
+				<?php esc_html_e( 'View agent team &rarr;', 'claw-agent' ); ?>
 			</a>
 		</p>
 
@@ -222,11 +222,11 @@ $wp_claw_safe_status_class = function ( $status ) {
 	<!-- ------------------------------------------------------------------ -->
 	<div class="wp-claw-admin-section wp-claw-admin-dashboard">
 
-		<h2><?php esc_html_e( 'Agent Team', 'wp-claw' ); ?></h2>
+		<h2><?php esc_html_e( 'Agent Team', 'claw-agent' ); ?></h2>
 
 		<?php if ( empty( $agents ) ) : ?>
 			<p class="wp-claw-admin-empty">
-				<?php esc_html_e( 'No agent data available. Check your Klawty connection.', 'wp-claw' ); ?>
+				<?php esc_html_e( 'No agent data available. Check your Klawty connection.', 'claw-agent' ); ?>
 			</p>
 		<?php else : ?>
 		<div class="wp-claw-admin-agent-grid">
@@ -262,13 +262,13 @@ $wp_claw_safe_status_class = function ( $status ) {
 						<?php if ( '' !== $agent_current_task ) : ?>
 							<?php echo esc_html( $agent_current_task ); ?>
 						<?php else : ?>
-							<em><?php esc_html_e( 'Idle', 'wp-claw' ); ?></em>
+							<em><?php esc_html_e( 'Idle', 'claw-agent' ); ?></em>
 						<?php endif; ?>
 					</p>
 					<dl class="wp-claw-admin-agent-meta">
-						<dt><?php esc_html_e( 'Tasks today', 'wp-claw' ); ?></dt>
+						<dt><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></dt>
 						<dd><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></dd>
-						<dt><?php esc_html_e( 'AI cost today', 'wp-claw' ); ?></dt>
+						<dt><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></dt>
 						<dd><?php echo esc_html( '€' . number_format( $agent_cost, 4 ) ); ?></dd>
 					</dl>
 				</div>

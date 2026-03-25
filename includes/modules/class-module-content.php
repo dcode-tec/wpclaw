@@ -113,7 +113,7 @@ class Module_Content extends Module_Base {
 					'wp_claw_content_unknown_action',
 					sprintf(
 						/* translators: %s: action name */
-						__( 'Unknown Content action: %s', 'wp-claw' ),
+						__( 'Unknown Content action: %s', 'claw-agent' ),
 						esc_html( $action )
 					),
 					array( 'status' => 400 )
@@ -221,7 +221,7 @@ class Module_Content extends Module_Base {
 		if ( '' === $title ) {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
-				__( 'title parameter is required.', 'wp-claw' ),
+				__( 'title parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -286,7 +286,7 @@ class Module_Content extends Module_Base {
 		if ( ! $post_id ) {
 			return new \WP_Error(
 				'wp_claw_content_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -295,7 +295,7 @@ class Module_Content extends Module_Base {
 		if ( ! $post ) {
 			return new \WP_Error(
 				'wp_claw_content_post_not_found',
-				__( 'Post not found.', 'wp-claw' ),
+				__( 'Post not found.', 'claw-agent' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -303,7 +303,7 @@ class Module_Content extends Module_Base {
 		if ( ! isset( $params['content'] ) ) {
 			return new \WP_Error(
 				'wp_claw_content_missing_content',
-				__( 'content parameter is required.', 'wp-claw' ),
+				__( 'content parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -359,7 +359,7 @@ class Module_Content extends Module_Base {
 		if ( '' === $title ) {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
-				__( 'title parameter is required.', 'wp-claw' ),
+				__( 'title parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -371,7 +371,7 @@ class Module_Content extends Module_Base {
 		if ( $parent_id && ! get_post( $parent_id ) ) {
 			return new \WP_Error(
 				'wp_claw_content_invalid_parent',
-				__( 'parent_id does not refer to an existing post.', 'wp-claw' ),
+				__( 'parent_id does not refer to an existing post.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -423,7 +423,7 @@ class Module_Content extends Module_Base {
 		if ( ! $source_post_id || ! get_post( $source_post_id ) ) {
 			return new \WP_Error(
 				'wp_claw_content_invalid_source',
-				__( 'Invalid or missing source_post_id.', 'wp-claw' ),
+				__( 'Invalid or missing source_post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -432,7 +432,7 @@ class Module_Content extends Module_Base {
 		if ( '' === $locale ) {
 			return new \WP_Error(
 				'wp_claw_content_missing_locale',
-				__( 'locale parameter is required (e.g. fr_FR).', 'wp-claw' ),
+				__( 'locale parameter is required (e.g. fr_FR).', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -441,7 +441,7 @@ class Module_Content extends Module_Base {
 		if ( '' === $title ) {
 			return new \WP_Error(
 				'wp_claw_content_missing_title',
-				__( 'title parameter is required.', 'wp-claw' ),
+				__( 'title parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -524,7 +524,7 @@ class Module_Content extends Module_Base {
 			if ( ! $post ) {
 				return new \WP_Error(
 					'wp_claw_content_post_not_found',
-					__( 'Post not found.', 'wp-claw' ),
+					__( 'Post not found.', 'claw-agent' ),
 					array( 'status' => 404 )
 				);
 			}
@@ -532,7 +532,7 @@ class Module_Content extends Module_Base {
 		} else {
 			return new \WP_Error(
 				'wp_claw_content_missing_source',
-				__( 'Either post_id or text parameter is required.', 'wp-claw' ),
+				__( 'Either post_id or text parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}

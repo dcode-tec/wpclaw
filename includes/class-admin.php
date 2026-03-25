@@ -89,10 +89,10 @@ class Admin {
 	public function register_menus(): void {
 		// Top-level menu entry. Renders the Dashboard view.
 		$this->page_hooks[] = add_menu_page(
-			__( 'WP-Claw', 'wp-claw' ),
-			__( 'WP-Claw', 'wp-claw' ),
+			__( 'WP-Claw', 'claw-agent' ),
+			__( 'WP-Claw', 'claw-agent' ),
 			'wp_claw_view_dashboard',
-			'wp-claw',
+			'claw-agent',
 			array( $this, 'render_dashboard' ),
 			'dashicons-superhero',
 			80
@@ -100,19 +100,19 @@ class Admin {
 
 		// Dashboard (first submenu mirrors the top-level item).
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Dashboard — WP-Claw', 'wp-claw' ),
-			__( 'Dashboard', 'wp-claw' ),
+			'claw-agent',
+			__( 'Dashboard — WP-Claw', 'claw-agent' ),
+			__( 'Dashboard', 'claw-agent' ),
 			'wp_claw_view_dashboard',
-			'wp-claw',
+			'claw-agent',
 			array( $this, 'render_dashboard' )
 		);
 
 		// Agents overview.
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Agents — WP-Claw', 'wp-claw' ),
-			__( 'Agents', 'wp-claw' ),
+			'claw-agent',
+			__( 'Agents — WP-Claw', 'claw-agent' ),
+			__( 'Agents', 'claw-agent' ),
 			'wp_claw_manage_agents',
 			'wp-claw-agents',
 			array( $this, 'render_agents' )
@@ -120,9 +120,9 @@ class Admin {
 
 		// Proposals queue.
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Proposals — WP-Claw', 'wp-claw' ),
-			__( 'Proposals', 'wp-claw' ),
+			'claw-agent',
+			__( 'Proposals — WP-Claw', 'claw-agent' ),
+			__( 'Proposals', 'claw-agent' ),
 			'wp_claw_approve_proposals',
 			'wp-claw-proposals',
 			array( $this, 'render_proposals' )
@@ -130,9 +130,9 @@ class Admin {
 
 		// Settings page.
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Settings — WP-Claw', 'wp-claw' ),
-			__( 'Settings', 'wp-claw' ),
+			'claw-agent',
+			__( 'Settings — WP-Claw', 'claw-agent' ),
+			__( 'Settings', 'claw-agent' ),
 			'wp_claw_manage_settings',
 			'wp-claw-settings',
 			array( $this, 'render_settings' )
@@ -140,9 +140,9 @@ class Admin {
 
 		// Modules management.
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Modules — WP-Claw', 'wp-claw' ),
-			__( 'Modules', 'wp-claw' ),
+			'claw-agent',
+			__( 'Modules — WP-Claw', 'claw-agent' ),
+			__( 'Modules', 'claw-agent' ),
 			'wp_claw_manage_modules',
 			'wp-claw-modules',
 			array( $this, 'render_modules' )
@@ -150,9 +150,9 @@ class Admin {
 
 		// Command Center.
 		$this->page_hooks[] = add_submenu_page(
-			'wp-claw',
-			__( 'Command Center — WP-Claw', 'wp-claw' ),
-			__( '🏗️ Command Center', 'wp-claw' ),
+			'claw-agent',
+			__( 'Command Center — WP-Claw', 'claw-agent' ),
+			__( '🏗️ Command Center', 'claw-agent' ),
 			'wp_claw_command_center',
 			'wp-claw-command-center',
 			array( $this, 'render_command_center_page' )
@@ -201,7 +201,7 @@ class Admin {
 		$raw_page = isset( $_GET['page'] ) ? sanitize_key( (string) $_GET['page'] ) : '';
 		if ( 'wp-claw-command-center' === $raw_page ) {
 			$current_page = 'command-center';
-		} elseif ( 'wp-claw' === $raw_page ) {
+		} elseif ( 'claw-agent' === $raw_page ) {
 			$current_page = 'dashboard';
 		} elseif ( '' !== $raw_page && 0 === strpos( $raw_page, 'wp-claw-' ) ) {
 			$current_page = substr( $raw_page, strlen( 'wp-claw-' ) );
@@ -216,16 +216,16 @@ class Admin {
 				'adminNonce' => wp_create_nonce( 'wp_claw_admin' ),
 				'page'       => $current_page,
 				'i18n'       => array(
-					'approve'        => __( 'Approve', 'wp-claw' ),
-					'reject'         => __( 'Reject', 'wp-claw' ),
-					'confirmReject'  => __( 'Are you sure you want to reject this proposal?', 'wp-claw' ),
-					'saving'         => __( 'Saving\u2026', 'wp-claw' ),
-					'saved'          => __( 'Saved.', 'wp-claw' ),
-					'error'          => __( 'An error occurred. Please try again.', 'wp-claw' ),
-					'connected'      => __( 'Connected', 'wp-claw' ),
-					'disconnected'   => __( 'Disconnected', 'wp-claw' ),
-					'testConnection' => __( 'Test connection', 'wp-claw' ),
-					'noCommands'     => __( 'No commands yet.', 'wp-claw' ),
+					'approve'        => __( 'Approve', 'claw-agent' ),
+					'reject'         => __( 'Reject', 'claw-agent' ),
+					'confirmReject'  => __( 'Are you sure you want to reject this proposal?', 'claw-agent' ),
+					'saving'         => __( 'Saving\u2026', 'claw-agent' ),
+					'saved'          => __( 'Saved.', 'claw-agent' ),
+					'error'          => __( 'An error occurred. Please try again.', 'claw-agent' ),
+					'connected'      => __( 'Connected', 'claw-agent' ),
+					'disconnected'   => __( 'Disconnected', 'claw-agent' ),
+					'testConnection' => __( 'Test connection', 'claw-agent' ),
+					'noCommands'     => __( 'No commands yet.', 'claw-agent' ),
 				),
 			)
 		);
@@ -315,7 +315,7 @@ class Admin {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => __( 'Hi! How can I help you today?', 'wp-claw' ),
+				'default'           => __( 'Hi! How can I help you today?', 'claw-agent' ),
 			)
 		);
 
@@ -325,7 +325,7 @@ class Admin {
 			array(
 				'type'              => 'string',
 				'sanitize_callback' => 'sanitize_text_field',
-				'default'           => __( 'Assistant', 'wp-claw' ),
+				'default'           => __( 'Assistant', 'claw-agent' ),
 			)
 		);
 
@@ -343,21 +343,21 @@ class Admin {
 		// ----- Settings sections -----
 		add_settings_section(
 			'wp_claw_connection',
-			__( 'Klawty Connection', 'wp-claw' ),
+			__( 'Klawty Connection', 'claw-agent' ),
 			array( $this, 'render_connection_section_description' ),
 			'wp-claw-settings'
 		);
 
 		add_settings_section(
 			'wp_claw_chat',
-			__( 'Chat Widget', 'wp-claw' ),
+			__( 'Chat Widget', 'claw-agent' ),
 			array( $this, 'render_chat_section_description' ),
 			'wp-claw-settings'
 		);
 
 		add_settings_section(
 			'wp_claw_analytics_section',
-			__( 'Analytics', 'wp-claw' ),
+			__( 'Analytics', 'claw-agent' ),
 			'__return_false',
 			'wp-claw-settings'
 		);
@@ -365,7 +365,7 @@ class Admin {
 		// ----- Settings fields — Connection -----
 		add_settings_field(
 			'wp_claw_api_key',
-			__( 'API Key', 'wp-claw' ),
+			__( 'API Key', 'claw-agent' ),
 			array( $this, 'render_field_api_key' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
@@ -373,7 +373,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_connection_mode',
-			__( 'Connection Mode', 'wp-claw' ),
+			__( 'Connection Mode', 'claw-agent' ),
 			array( $this, 'render_field_connection_mode' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
@@ -381,7 +381,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_instance_url',
-			__( 'Self-hosted Instance URL', 'wp-claw' ),
+			__( 'Self-hosted Instance URL', 'claw-agent' ),
 			array( $this, 'render_field_instance_url' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
@@ -390,7 +390,7 @@ class Admin {
 		// ----- Settings fields — Chat -----
 		add_settings_field(
 			'wp_claw_chat_enabled',
-			__( 'Enable Chat Widget', 'wp-claw' ),
+			__( 'Enable Chat Widget', 'claw-agent' ),
 			array( $this, 'render_field_chat_enabled' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
@@ -398,7 +398,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_chat_position',
-			__( 'Widget Position', 'wp-claw' ),
+			__( 'Widget Position', 'claw-agent' ),
 			array( $this, 'render_field_chat_position' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
@@ -406,7 +406,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_chat_welcome',
-			__( 'Welcome Message', 'wp-claw' ),
+			__( 'Welcome Message', 'claw-agent' ),
 			array( $this, 'render_field_chat_welcome' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
@@ -414,7 +414,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_chat_agent_name',
-			__( 'Agent Display Name', 'wp-claw' ),
+			__( 'Agent Display Name', 'claw-agent' ),
 			array( $this, 'render_field_chat_agent_name' ),
 			'wp-claw-settings',
 			'wp_claw_chat'
@@ -423,7 +423,7 @@ class Admin {
 		// ----- Settings fields — Analytics -----
 		add_settings_field(
 			'wp_claw_analytics_enabled',
-			__( 'Enable Analytics Tracking', 'wp-claw' ),
+			__( 'Enable Analytics Tracking', 'claw-agent' ),
 			array( $this, 'render_field_analytics_enabled' ),
 			'wp-claw-settings',
 			'wp_claw_analytics_section'
@@ -459,13 +459,13 @@ class Admin {
 
 		if ( $connected && ! empty( $health['status'] ) && 'degraded' === $health['status'] ) {
 			$dot_color = '#f59e0b'; // amber — degraded.
-			$label     = __( 'WP-Claw: Degraded', 'wp-claw' );
+			$label     = __( 'WP-Claw: Degraded', 'claw-agent' );
 		} elseif ( $connected ) {
 			$dot_color = '#10b981'; // green — healthy.
-			$label     = __( 'WP-Claw: Connected', 'wp-claw' );
+			$label     = __( 'WP-Claw: Connected', 'claw-agent' );
 		} else {
 			$dot_color = '#ef4444'; // red — disconnected.
-			$label     = __( 'WP-Claw: Disconnected', 'wp-claw' );
+			$label     = __( 'WP-Claw: Disconnected', 'claw-agent' );
 		}
 
 		$dot = sprintf(
@@ -537,7 +537,7 @@ class Admin {
 
 		// Verify capability.
 		if ( ! wp_claw_current_user_can( 'manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to perform this action.', 'wp-claw' ), 403 );
+			wp_die( esc_html__( 'You do not have permission to perform this action.', 'claw-agent' ), 403 );
 		}
 
 		global $wpdb;
@@ -575,7 +575,7 @@ class Admin {
 	 */
 	public function render_dashboard(): void {
 		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/dashboard.php';
 	}
@@ -589,7 +589,7 @@ class Admin {
 	 */
 	public function render_agents(): void {
 		if ( ! current_user_can( 'wp_claw_manage_agents' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/agents.php';
 	}
@@ -603,7 +603,7 @@ class Admin {
 	 */
 	public function render_proposals(): void {
 		if ( ! current_user_can( 'wp_claw_approve_proposals' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/proposals.php';
 	}
@@ -617,7 +617,7 @@ class Admin {
 	 */
 	public function render_settings(): void {
 		if ( ! current_user_can( 'wp_claw_manage_settings' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/settings.php';
 	}
@@ -631,7 +631,7 @@ class Admin {
 	 */
 	public function render_modules(): void {
 		if ( ! current_user_can( 'wp_claw_manage_modules' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/modules.php';
 	}
@@ -648,7 +648,7 @@ class Admin {
 	 */
 	public function render_command_center_page(): void {
 		if ( ! current_user_can( 'wp_claw_command_center' ) ) {
-			wp_die( esc_html__( 'You do not have permission to access the Command Center.', 'wp-claw' ) );
+			wp_die( esc_html__( 'You do not have permission to access the Command Center.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/command-center.php';
 	}
@@ -667,7 +667,7 @@ class Admin {
 	public function render_connection_section_description(): void {
 		echo '<p>' . esc_html__(
 			'Connect WP-Claw to your Klawty AI instance. Choose managed (recommended) to use a dcode-hosted instance, or self-hosted to connect to a local Klawty installation.',
-			'wp-claw'
+			'claw-agent'
 		) . '</p>';
 	}
 
@@ -681,7 +681,7 @@ class Admin {
 	public function render_chat_section_description(): void {
 		echo '<p>' . esc_html__(
 			'Configure the Concierge agent chat widget that appears on your site\'s frontend. Requires the Chat module to be enabled.',
-			'wp-claw'
+			'claw-agent'
 		) . '</p>';
 	}
 
@@ -709,10 +709,10 @@ class Admin {
 			value=""
 			class="regular-text"
 			autocomplete="new-password"
-			placeholder="<?php echo esc_attr( $has_key ? __( '(stored — enter new value to change)', 'wp-claw' ) : __( 'Enter your Klawty API key', 'wp-claw' ) ); ?>"
+			placeholder="<?php echo esc_attr( $has_key ? __( '(stored — enter new value to change)', 'claw-agent' ) : __( 'Enter your Klawty API key', 'claw-agent' ) ); ?>"
 		>
 		<p class="description">
-			<?php esc_html_e( 'Your Klawty API key. Stored encrypted. Never sent to any third party.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Your Klawty API key. Stored encrypted. Never sent to any third party.', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -729,14 +729,14 @@ class Admin {
 		?>
 		<select id="wp_claw_connection_mode" name="wp_claw_connection_mode">
 			<option value="managed" <?php selected( $mode, 'managed' ); ?>>
-				<?php esc_html_e( 'Managed (dcode-hosted)', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Managed (dcode-hosted)', 'claw-agent' ); ?>
 			</option>
 			<option value="self-hosted" <?php selected( $mode, 'self-hosted' ); ?>>
-				<?php esc_html_e( 'Self-hosted (local Klawty)', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Self-hosted (local Klawty)', 'claw-agent' ); ?>
 			</option>
 		</select>
 		<p class="description">
-			<?php esc_html_e( 'Managed connects to your dcode-hosted Klawty instance. Self-hosted connects to a local Klawty instance (e.g. localhost:2508).', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Managed connects to your dcode-hosted Klawty instance. Self-hosted connects to a local Klawty instance (e.g. localhost:2508).', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -760,7 +760,7 @@ class Admin {
 			placeholder="http://localhost:2508"
 		>
 		<p class="description">
-			<?php esc_html_e( 'Only used in Self-hosted mode. The base URL of your local Klawty instance.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Only used in Self-hosted mode. The base URL of your local Klawty instance.', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -783,10 +783,10 @@ class Admin {
 				value="1"
 				<?php checked( $enabled ); ?>
 			>
-			<?php esc_html_e( 'Show the AI chat widget on the frontend', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Show the AI chat widget on the frontend', 'claw-agent' ); ?>
 		</label>
 		<p class="description">
-			<?php esc_html_e( 'Requires the Chat module to be enabled and a connected Klawty instance.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Requires the Chat module to be enabled and a connected Klawty instance.', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -803,10 +803,10 @@ class Admin {
 		?>
 		<select id="wp_claw_chat_position" name="wp_claw_chat_position">
 			<option value="bottom-right" <?php selected( $position, 'bottom-right' ); ?>>
-				<?php esc_html_e( 'Bottom right', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Bottom right', 'claw-agent' ); ?>
 			</option>
 			<option value="bottom-left" <?php selected( $position, 'bottom-left' ); ?>>
-				<?php esc_html_e( 'Bottom left', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Bottom left', 'claw-agent' ); ?>
 			</option>
 		</select>
 		<?php
@@ -820,7 +820,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_field_chat_welcome(): void {
-		$welcome = sanitize_text_field( (string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'wp-claw' ) ) );
+		$welcome = sanitize_text_field( (string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'claw-agent' ) ) );
 		?>
 		<input
 			type="text"
@@ -830,7 +830,7 @@ class Admin {
 			class="regular-text"
 		>
 		<p class="description">
-			<?php esc_html_e( 'The opening message shown to visitors when the chat widget loads.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'The opening message shown to visitors when the chat widget loads.', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -843,7 +843,7 @@ class Admin {
 	 * @return void
 	 */
 	public function render_field_chat_agent_name(): void {
-		$name = sanitize_text_field( (string) get_option( 'wp_claw_chat_agent_name', __( 'Assistant', 'wp-claw' ) ) );
+		$name = sanitize_text_field( (string) get_option( 'wp_claw_chat_agent_name', __( 'Assistant', 'claw-agent' ) ) );
 		?>
 		<input
 			type="text"
@@ -854,7 +854,7 @@ class Admin {
 			maxlength="60"
 		>
 		<p class="description">
-			<?php esc_html_e( 'The name displayed in the chat widget header (e.g. "Emma", "Support Bot").', 'wp-claw' ); ?>
+			<?php esc_html_e( 'The name displayed in the chat widget header (e.g. "Emma", "Support Bot").', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -877,10 +877,10 @@ class Admin {
 				value="1"
 				<?php checked( $enabled ); ?>
 			>
-			<?php esc_html_e( 'Enable privacy-first pageview and event tracking', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Enable privacy-first pageview and event tracking', 'claw-agent' ); ?>
 		</label>
 		<p class="description">
-			<?php esc_html_e( 'Data is stored locally in your WordPress database. No data is sent to external analytics services.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Data is stored locally in your WordPress database. No data is sent to external analytics services.', 'claw-agent' ); ?>
 		</p>
 		<?php
 	}
@@ -916,7 +916,7 @@ class Admin {
 			add_settings_error(
 				'wp_claw_api_key',
 				'encrypt_failed',
-				__( 'API key could not be encrypted. Please check that libsodium or OpenSSL is available.', 'wp-claw' )
+				__( 'API key could not be encrypted. Please check that libsodium or OpenSSL is available.', 'claw-agent' )
 			);
 			return (string) get_option( 'wp_claw_api_key', '' );
 		}
@@ -1020,6 +1020,6 @@ class Admin {
 		}
 
 		// Fallback: hook suffixes for submenus contain the parent slug.
-		return false !== strpos( $hook_suffix, 'wp-claw' );
+		return false !== strpos( $hook_suffix, 'claw-agent' );
 	}
 }

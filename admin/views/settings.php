@@ -15,17 +15,17 @@ defined( 'ABSPATH' ) || exit;
 // Module slugs available for the enabled-modules checklist.
 // The sanitize_enabled_modules() callback in Admin validates against this same list.
 $all_modules = array(
-	'seo'         => __( 'SEO', 'wp-claw' ),
-	'security'    => __( 'Security', 'wp-claw' ),
-	'content'     => __( 'Content', 'wp-claw' ),
-	'crm'         => __( 'CRM & Leads', 'wp-claw' ),
-	'commerce'    => __( 'Commerce (WooCommerce)', 'wp-claw' ),
-	'performance' => __( 'Performance', 'wp-claw' ),
-	'forms'       => __( 'Forms', 'wp-claw' ),
-	'analytics'   => __( 'Analytics', 'wp-claw' ),
-	'backup'      => __( 'Backup', 'wp-claw' ),
-	'social'      => __( 'Social Media', 'wp-claw' ),
-	'chat'        => __( 'Chat Widget (Concierge)', 'wp-claw' ),
+	'seo'         => __( 'SEO', 'claw-agent' ),
+	'security'    => __( 'Security', 'claw-agent' ),
+	'content'     => __( 'Content', 'claw-agent' ),
+	'crm'         => __( 'CRM & Leads', 'claw-agent' ),
+	'commerce'    => __( 'Commerce (WooCommerce)', 'claw-agent' ),
+	'performance' => __( 'Performance', 'claw-agent' ),
+	'forms'       => __( 'Forms', 'claw-agent' ),
+	'analytics'   => __( 'Analytics', 'claw-agent' ),
+	'backup'      => __( 'Backup', 'claw-agent' ),
+	'social'      => __( 'Social Media', 'claw-agent' ),
+	'chat'        => __( 'Chat Widget (Concierge)', 'claw-agent' ),
 );
 
 $enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
@@ -46,19 +46,19 @@ $is_connected    = $api_client->is_connected();
 		<?php do_settings_sections( 'wp-claw-settings' ); ?>
 
 		<!-- Module toggles — outside the Settings API sections but inside the form -->
-		<h2 class="title"><?php esc_html_e( 'Modules', 'wp-claw' ); ?></h2>
+		<h2 class="title"><?php esc_html_e( 'Modules', 'claw-agent' ); ?></h2>
 		<p class="description">
-			<?php esc_html_e( 'Enable the modules you want WP-Claw to manage. Each module maps to a Klawty AI agent.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Enable the modules you want WP-Claw to manage. Each module maps to a Klawty AI agent.', 'claw-agent' ); ?>
 		</p>
 
 		<table class="form-table" role="presentation">
 			<tbody>
 				<tr>
-					<th scope="row"><?php esc_html_e( 'Enabled Modules', 'wp-claw' ); ?></th>
+					<th scope="row"><?php esc_html_e( 'Enabled Modules', 'claw-agent' ); ?></th>
 					<td>
 						<fieldset>
 							<legend class="screen-reader-text">
-								<?php esc_html_e( 'Enabled Modules', 'wp-claw' ); ?>
+								<?php esc_html_e( 'Enabled Modules', 'claw-agent' ); ?>
 							</legend>
 							<?php foreach ( $all_modules as $slug => $label ) : ?>
 							<label for="wp_claw_module_<?php echo esc_attr( $slug ); ?>">
@@ -86,19 +86,19 @@ $is_connected    = $api_client->is_connected();
 	<!-- ------------------------------------------------------------------ -->
 	<hr>
 
-	<h2><?php esc_html_e( 'Connection', 'wp-claw' ); ?></h2>
+	<h2><?php esc_html_e( 'Connection', 'claw-agent' ); ?></h2>
 
 	<p>
 		<?php if ( $is_connected ) : ?>
 			<span class="wp-claw-admin-status-dot wp-claw-admin-status-ok"></span>
-			<strong><?php esc_html_e( 'Connected', 'wp-claw' ); ?></strong>
+			<strong><?php esc_html_e( 'Connected', 'claw-agent' ); ?></strong>
 			&mdash;
-			<?php esc_html_e( 'WP-Claw is communicating with the Klawty instance.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'WP-Claw is communicating with the Klawty instance.', 'claw-agent' ); ?>
 		<?php else : ?>
 			<span class="wp-claw-admin-status-dot wp-claw-admin-status-disconnected"></span>
-			<strong><?php esc_html_e( 'Not connected', 'wp-claw' ); ?></strong>
+			<strong><?php esc_html_e( 'Not connected', 'claw-agent' ); ?></strong>
 			&mdash;
-			<?php esc_html_e( 'Enter your API key and instance URL above, then test the connection.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Enter your API key and instance URL above, then test the connection.', 'claw-agent' ); ?>
 		<?php endif; ?>
 	</p>
 
@@ -108,7 +108,7 @@ $is_connected    = $api_client->is_connected();
 			class="button button-secondary wp-claw-admin-test-connection"
 			id="wp-claw-test-connection"
 		>
-			<?php esc_html_e( 'Test Connection', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Test Connection', 'claw-agent' ); ?>
 		</button>
 		<span
 			class="wp-claw-admin-test-result"
@@ -123,19 +123,19 @@ $is_connected    = $api_client->is_connected();
 	<!-- ------------------------------------------------------------------ -->
 	<hr>
 
-	<h2><?php esc_html_e( 'Plugin Version', 'wp-claw' ); ?></h2>
+	<h2><?php esc_html_e( 'Plugin Version', 'claw-agent' ); ?></h2>
 
 	<p>
 		<?php
 		printf(
 			/* translators: %s: version number */
-			esc_html__( 'Current version: %s', 'wp-claw' ),
+			esc_html__( 'Current version: %s', 'claw-agent' ),
 			'<strong>' . esc_html( $current_version ) . '</strong>'
 		);
 		?>
 	</p>
 	<p class="description">
-		<?php esc_html_e( 'WP-Claw checks for updates automatically via the WordPress update system. Updates are delivered through the standard WordPress plugin updater.', 'wp-claw' ); ?>
+		<?php esc_html_e( 'WP-Claw checks for updates automatically via the WordPress update system. Updates are delivered through the standard WordPress plugin updater.', 'claw-agent' ); ?>
 	</p>
 
 	<!-- ------------------------------------------------------------------ -->
@@ -143,10 +143,10 @@ $is_connected    = $api_client->is_connected();
 	<!-- ------------------------------------------------------------------ -->
 	<hr>
 
-	<h2><?php esc_html_e( 'Data', 'wp-claw' ); ?></h2>
+	<h2><?php esc_html_e( 'Data', 'claw-agent' ); ?></h2>
 
 	<p class="description">
-		<?php esc_html_e( 'Use the button below to clear the local task log and proposal history. This does not affect your Klawty instance or any agent state.', 'wp-claw' ); ?>
+		<?php esc_html_e( 'Use the button below to clear the local task log and proposal history. This does not affect your Klawty instance or any agent state.', 'claw-agent' ); ?>
 	</p>
 
 	<form method="post" action="<?php echo esc_url( admin_url( 'admin-post.php' ) ); ?>">
@@ -154,11 +154,11 @@ $is_connected    = $api_client->is_connected();
 		<input type="hidden" name="action" value="wp_claw_clear_local_data">
 		<?php
 		submit_button(
-			__( 'Clear Local Task Log', 'wp-claw' ),
+			__( 'Clear Local Task Log', 'claw-agent' ),
 			'delete',
 			'wp-claw-clear-local-data',
 			false,
-			array( 'onclick' => 'return confirm(\'' . esc_js( __( 'Delete all locally logged tasks and proposals? This cannot be undone.', 'wp-claw' ) ) . '\');' )
+			array( 'onclick' => 'return confirm(\'' . esc_js( __( 'Delete all locally logged tasks and proposals? This cannot be undone.', 'claw-agent' ) ) . '\');' )
 		);
 		?>
 	</form>

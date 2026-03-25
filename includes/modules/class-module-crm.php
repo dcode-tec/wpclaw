@@ -50,7 +50,7 @@ class Module_CRM extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'CRM & Leads', 'wp-claw' );
+		return __( 'CRM & Leads', 'claw-agent' );
 	}
 
 	/**
@@ -116,7 +116,7 @@ class Module_CRM extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
-					sprintf( __( 'Unknown CRM action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( __( 'Unknown CRM action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -155,7 +155,7 @@ class Module_CRM extends Module_Base {
 		if ( empty( $email ) || ! is_email( $email ) ) {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
-				__( 'A valid email address is required to capture a lead.', 'wp-claw' ),
+				__( 'A valid email address is required to capture a lead.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -190,7 +190,7 @@ class Module_CRM extends Module_Base {
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to store lead in the database.', 'wp-claw' ),
+				__( 'Failed to store lead in the database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -198,7 +198,7 @@ class Module_CRM extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Lead captured successfully.', 'wp-claw' ),
+			'message' => __( 'Lead captured successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -227,7 +227,7 @@ class Module_CRM extends Module_Base {
 		if ( empty( $task_id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'task_id is required.', 'wp-claw' ),
+				__( 'task_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -237,7 +237,7 @@ class Module_CRM extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_invalid_status',
 				/* translators: %s: comma-separated list of valid statuses */
-				sprintf( __( 'Invalid status. Allowed values: %s', 'wp-claw' ), implode( ', ', $allowed_statuses ) ),
+				sprintf( __( 'Invalid status. Allowed values: %s', 'claw-agent' ), implode( ', ', $allowed_statuses ) ),
 				array( 'status' => 400 )
 			);
 		}
@@ -260,7 +260,7 @@ class Module_CRM extends Module_Base {
 		if ( false === $updated ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to update lead status.', 'wp-claw' ),
+				__( 'Failed to update lead status.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -299,7 +299,7 @@ class Module_CRM extends Module_Base {
 		if ( empty( $task_id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'task_id is required.', 'wp-claw' ),
+				__( 'task_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -318,7 +318,7 @@ class Module_CRM extends Module_Base {
 		if ( null === $row ) {
 			return new \WP_Error(
 				'wp_claw_not_found',
-				__( 'Lead not found.', 'wp-claw' ),
+				__( 'Lead not found.', 'claw-agent' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -345,7 +345,7 @@ class Module_CRM extends Module_Base {
 		if ( false === $updated ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to update lead score.', 'wp-claw' ),
+				__( 'Failed to update lead score.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -384,7 +384,7 @@ class Module_CRM extends Module_Base {
 		if ( empty( $lead_task_id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'lead_task_id is required.', 'wp-claw' ),
+				__( 'lead_task_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -417,7 +417,7 @@ class Module_CRM extends Module_Base {
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to create follow-up task.', 'wp-claw' ),
+				__( 'Failed to create follow-up task.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -425,7 +425,7 @@ class Module_CRM extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Follow-up task created.', 'wp-claw' ),
+			'message' => __( 'Follow-up task created.', 'claw-agent' ),
 		);
 	}
 

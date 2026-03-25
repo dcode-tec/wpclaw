@@ -46,8 +46,8 @@ class Activator {
 		// --- 1. PHP version check -------------------------------------------
 		if ( version_compare( PHP_VERSION, '7.4', '<' ) ) {
 			wp_die(
-				esc_html__( 'WP-Claw requires PHP 7.4 or higher.', 'wp-claw' ),
-				esc_html__( 'Plugin Activation Error', 'wp-claw' ),
+				esc_html__( 'WP-Claw requires PHP 7.4 or higher.', 'claw-agent' ),
+				esc_html__( 'Plugin Activation Error', 'claw-agent' ),
 				array( 'back_link' => true )
 			);
 		}
@@ -56,8 +56,8 @@ class Activator {
 		global $wp_version;
 		if ( version_compare( $wp_version, '6.4', '<' ) ) {
 			wp_die(
-				esc_html__( 'WP-Claw requires WordPress 6.4 or higher.', 'wp-claw' ),
-				esc_html__( 'Plugin Activation Error', 'wp-claw' ),
+				esc_html__( 'WP-Claw requires WordPress 6.4 or higher.', 'claw-agent' ),
+				esc_html__( 'Plugin Activation Error', 'claw-agent' ),
 				array( 'back_link' => true )
 			);
 		}

@@ -61,7 +61,7 @@ class Module_Forms extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Forms', 'wp-claw' );
+		return __( 'Forms', 'claw-agent' );
 	}
 
 	/**
@@ -124,7 +124,7 @@ class Module_Forms extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_forms_unknown_action',
 					/* translators: %s: action name */
-					sprintf( esc_html__( 'Unknown forms action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( esc_html__( 'Unknown forms action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -196,7 +196,7 @@ class Module_Forms extends Module_Base {
 		if ( empty( $params['definition'] ) || ! is_array( $params['definition'] ) ) {
 			return new \WP_Error(
 				'wp_claw_forms_missing_definition',
-				esc_html__( 'Form definition array is required.', 'wp-claw' ),
+				esc_html__( 'Form definition array is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -210,7 +210,7 @@ class Module_Forms extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_forms_duplicate_id',
 				/* translators: %s: form ID */
-				sprintf( esc_html__( 'A form with ID "%s" already exists.', 'wp-claw' ), esc_html( $form_id ) ),
+				sprintf( esc_html__( 'A form with ID "%s" already exists.', 'claw-agent' ), esc_html( $form_id ) ),
 				array( 'status' => 409 )
 			);
 		}
@@ -227,7 +227,7 @@ class Module_Forms extends Module_Base {
 		return array(
 			'success' => true,
 			'form_id' => $form_id,
-			'message' => __( 'Form created successfully.', 'wp-claw' ),
+			'message' => __( 'Form created successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -280,7 +280,7 @@ class Module_Forms extends Module_Base {
 		if ( null === $rows ) {
 			return new \WP_Error(
 				'wp_claw_forms_db_error',
-				esc_html__( 'Failed to retrieve submissions from database.', 'wp-claw' ),
+				esc_html__( 'Failed to retrieve submissions from database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -308,7 +308,7 @@ class Module_Forms extends Module_Base {
 		if ( empty( $params['form_id'] ) ) {
 			return new \WP_Error(
 				'wp_claw_forms_missing_form_id',
-				esc_html__( 'form_id parameter is required.', 'wp-claw' ),
+				esc_html__( 'form_id parameter is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -316,7 +316,7 @@ class Module_Forms extends Module_Base {
 		if ( empty( $params['definition'] ) || ! is_array( $params['definition'] ) ) {
 			return new \WP_Error(
 				'wp_claw_forms_missing_definition',
-				esc_html__( 'Form definition array is required.', 'wp-claw' ),
+				esc_html__( 'Form definition array is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -328,7 +328,7 @@ class Module_Forms extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_forms_not_found',
 				/* translators: %s: form ID */
-				sprintf( esc_html__( 'Form "%s" not found.', 'wp-claw' ), esc_html( $form_id ) ),
+				sprintf( esc_html__( 'Form "%s" not found.', 'claw-agent' ), esc_html( $form_id ) ),
 				array( 'status' => 404 )
 			);
 		}
@@ -345,7 +345,7 @@ class Module_Forms extends Module_Base {
 		return array(
 			'success' => true,
 			'form_id' => $form_id,
-			'message' => __( 'Form updated successfully.', 'wp-claw' ),
+			'message' => __( 'Form updated successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -365,7 +365,7 @@ class Module_Forms extends Module_Base {
 	private function action_delete_submission( array $params ) {
 		return new \WP_Error(
 			'wp_claw_forms_propose_required',
-			esc_html__( 'Deletion requires proposal approval', 'wp-claw' ),
+			esc_html__( 'Deletion requires proposal approval', 'claw-agent' ),
 			array( 'status' => 403 )
 		);
 	}

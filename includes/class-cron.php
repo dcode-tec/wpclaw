@@ -34,24 +34,6 @@ defined( 'ABSPATH' ) || exit;
 class Cron {
 
 	/**
-	 * Transient key for update check data (12-hour TTL).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @var string
-	 */
-	const TRANSIENT_UPDATE_DATA = 'wp_claw_update_data';
-
-	/**
-	 * Update data transient TTL in seconds (12 hours).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @var int
-	 */
-	const UPDATE_TTL = 43200;
-
-	/**
 	 * API client instance used to communicate with the Klawty instance.
 	 *
 	 * @since 1.0.0
@@ -207,41 +189,6 @@ class Cron {
 		update_option( 'wp_claw_last_sync', current_time( 'mysql' ), false );
 	}
 
-	/**
-	 * Twice-daily: check the Klawty API for available plugin updates.
-	 *
-	 * Disabled for wordpress.org hosted plugins. WordPress.org handles
-	 * updates via SVN. This method is retained for self-hosted mode.
-	 *
-	 * @since 1.0.0
-	 *
-	 * @return void
-	 */
-	public function run_update_check(): void {
-		$result = $this->api_client->check_for_updates();
-
-		if ( is_wp_error( $result ) ) {
-			wp_claw_log_warning(
-				'Update check failed.',
-				array(
-					'code'    => $result->get_error_code(),
-					'message' => $result->get_error_message(),
-				)
-			);
-			return;
-		}
-
-		set_transient( self::TRANSIENT_UPDATE_DATA, $result, self::UPDATE_TTL );
-
-		wp_claw_log_debug(
-			'Update check completed.',
-			array(
-				'latest_version'   => $result['latest_version'] ?? 'unknown',
-				'update_available' => ! empty( $result['update_available'] ),
-			)
-		);
-	}
-
 	// -------------------------------------------------------------------------
 	// Module cron handler
 	// -------------------------------------------------------------------------
@@ -287,7 +234,7 @@ class Cron {
 			'agent'  => $module->get_agent(),
 			'title'  => sprintf(
 				/* translators: %s: Human-readable module name. */
-				__( 'Scheduled %s run', 'wp-claw' ),
+				__( 'Scheduled %s run', 'claw-agent' ),
 				$module->get_name()
 			),
 			'module' => $module_slug,

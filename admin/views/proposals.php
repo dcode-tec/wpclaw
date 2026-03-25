@@ -80,7 +80,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 				href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals' ) ); ?>"
 				<?php echo ! $show_all ? 'class="current" aria-current="page"' : ''; ?>
 			>
-				<?php esc_html_e( 'Pending', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Pending', 'claw-agent' ); ?>
 			</a>
 			|
 		</li>
@@ -89,7 +89,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 				href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=all' ) ); ?>"
 				<?php echo $show_all ? 'class="current" aria-current="page"' : ''; ?>
 			>
-				<?php esc_html_e( 'All (last 50)', 'wp-claw' ); ?>
+				<?php esc_html_e( 'All (last 50)', 'claw-agent' ); ?>
 			</a>
 		</li>
 	</ul>
@@ -101,9 +101,9 @@ $wp_claw_proposal_status_class = function ( $status ) {
 	<p class="wp-claw-admin-empty">
 		<?php
 		if ( $show_all ) {
-			esc_html_e( 'No proposals recorded yet.', 'wp-claw' );
+			esc_html_e( 'No proposals recorded yet.', 'claw-agent' );
 		} else {
-			esc_html_e( 'No pending proposals. Your agents are operating autonomously.', 'wp-claw' );
+			esc_html_e( 'No pending proposals. Your agents are operating autonomously.', 'claw-agent' );
 		}
 		?>
 	</p>
@@ -117,22 +117,22 @@ $wp_claw_proposal_status_class = function ( $status ) {
 		<thead>
 			<tr>
 				<th scope="col" class="column-agent">
-					<?php esc_html_e( 'Agent', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Agent', 'claw-agent' ); ?>
 				</th>
 				<th scope="col" class="column-action">
-					<?php esc_html_e( 'Action', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Action', 'claw-agent' ); ?>
 				</th>
 				<th scope="col" class="column-details">
-					<?php esc_html_e( 'Details', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Details', 'claw-agent' ); ?>
 				</th>
 				<th scope="col" class="column-created">
-					<?php esc_html_e( 'Requested', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Requested', 'claw-agent' ); ?>
 				</th>
 				<th scope="col" class="column-status">
-					<?php esc_html_e( 'Status', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Status', 'claw-agent' ); ?>
 				</th>
 				<th scope="col" class="column-actions">
-					<?php esc_html_e( 'Actions', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Actions', 'claw-agent' ); ?>
 				</th>
 			</tr>
 		</thead>
@@ -178,7 +178,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 						echo esc_html(
 							sprintf(
 								/* translators: %s: human-readable time difference */
-								__( '%s ago', 'wp-claw' ),
+								__( '%s ago', 'claw-agent' ),
 								human_time_diff( $proposal_age )
 							)
 						);
@@ -203,7 +203,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 					data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"
 					data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_claw_proposal_' . $proposal_id ) ); ?>"
 				>
-					<?php esc_html_e( 'Approve', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Approve', 'claw-agent' ); ?>
 				</button>
 				<button
 					type="button"
@@ -211,7 +211,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 					data-proposal-id="<?php echo esc_attr( $proposal_id ); ?>"
 					data-nonce="<?php echo esc_attr( wp_create_nonce( 'wp_claw_proposal_' . $proposal_id ) ); ?>"
 				>
-					<?php esc_html_e( 'Reject', 'wp-claw' ); ?>
+					<?php esc_html_e( 'Reject', 'claw-agent' ); ?>
 				</button>
 				<?php else : ?>
 				<span class="wp-claw-admin-muted">&mdash;</span>
@@ -224,12 +224,12 @@ $wp_claw_proposal_status_class = function ( $status ) {
 
 		<tfoot>
 			<tr>
-				<th scope="col"><?php esc_html_e( 'Agent', 'wp-claw' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Action', 'wp-claw' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Details', 'wp-claw' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Requested', 'wp-claw' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Status', 'wp-claw' ); ?></th>
-				<th scope="col"><?php esc_html_e( 'Actions', 'wp-claw' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Agent', 'claw-agent' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Action', 'claw-agent' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Details', 'claw-agent' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Requested', 'claw-agent' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
+				<th scope="col"><?php esc_html_e( 'Actions', 'claw-agent' ); ?></th>
 			</tr>
 		</tfoot>
 
@@ -237,7 +237,7 @@ $wp_claw_proposal_status_class = function ( $status ) {
 
 	<p class="wp-claw-admin-section-footer">
 		<em class="wp-claw-admin-muted">
-			<?php esc_html_e( 'Approving or rejecting a proposal sends the decision to the Klawty instance via the REST API.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Approving or rejecting a proposal sends the decision to the Klawty instance via the REST API.', 'claw-agent' ); ?>
 		</em>
 	</p>
 

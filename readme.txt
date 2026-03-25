@@ -3,7 +3,7 @@ Contributors: dcodetechnologies
 Donate link: https://wp-claw.ai
 Tags: ai, automation, seo, security, woocommerce
 Requires at least: 6.4
-Tested up to: 6.8
+Tested up to: 6.9
 Stable tag: 1.0.3
 Requires PHP: 7.4
 License: GPLv2 or later

@@ -29,17 +29,17 @@ if ( '' === $active_tab && ! empty( $enabled_slugs ) ) {
 // Build the ordered list of all known modules (enabled + available = in $enabled_modules;
 // enabled + unavailable = in $enabled_slugs but not in $enabled_modules).
 $all_known_modules = array(
-	'seo'         => __( 'SEO', 'wp-claw' ),
-	'security'    => __( 'Security', 'wp-claw' ),
-	'content'     => __( 'Content', 'wp-claw' ),
-	'crm'         => __( 'CRM & Leads', 'wp-claw' ),
-	'commerce'    => __( 'Commerce', 'wp-claw' ),
-	'performance' => __( 'Performance', 'wp-claw' ),
-	'forms'       => __( 'Forms', 'wp-claw' ),
-	'analytics'   => __( 'Analytics', 'wp-claw' ),
-	'backup'      => __( 'Backup', 'wp-claw' ),
-	'social'      => __( 'Social Media', 'wp-claw' ),
-	'chat'        => __( 'Chat Widget', 'wp-claw' ),
+	'seo'         => __( 'SEO', 'claw-agent' ),
+	'security'    => __( 'Security', 'claw-agent' ),
+	'content'     => __( 'Content', 'claw-agent' ),
+	'crm'         => __( 'CRM & Leads', 'claw-agent' ),
+	'commerce'    => __( 'Commerce', 'claw-agent' ),
+	'performance' => __( 'Performance', 'claw-agent' ),
+	'forms'       => __( 'Forms', 'claw-agent' ),
+	'analytics'   => __( 'Analytics', 'claw-agent' ),
+	'backup'      => __( 'Backup', 'claw-agent' ),
+	'social'      => __( 'Social Media', 'claw-agent' ),
+	'chat'        => __( 'Chat Widget', 'claw-agent' ),
 );
 
 // Only show tabs for modules that are enabled in settings (even if unavailable).
@@ -157,8 +157,8 @@ $wp_claw_render_module_field = function ( array $field ) {
 			<?php
 			printf(
 				/* translators: %s: Link to settings page */
-				esc_html__( 'No modules are enabled. %s to enable modules.', 'wp-claw' ),
-				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ) . '">' . esc_html__( 'Go to Settings', 'wp-claw' ) . '</a>'
+				esc_html__( 'No modules are enabled. %s to enable modules.', 'claw-agent' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ) . '">' . esc_html__( 'Go to Settings', 'claw-agent' ) . '</a>'
 			);
 			?>
 		</p>
@@ -169,7 +169,7 @@ $wp_claw_render_module_field = function ( array $field ) {
 	<!-- ------------------------------------------------------------------ -->
 	<!-- Tab navigation                                                       -->
 	<!-- ------------------------------------------------------------------ -->
-	<nav class="nav-tab-wrapper wp-claw-admin-tabs" aria-label="<?php esc_attr_e( 'Modules', 'wp-claw' ); ?>">
+	<nav class="nav-tab-wrapper wp-claw-admin-tabs" aria-label="<?php esc_attr_e( 'Modules', 'claw-agent' ); ?>">
 		<?php foreach ( $display_modules as $slug => $label ) : ?>
 		<a
 			href="
@@ -190,8 +190,8 @@ $wp_claw_render_module_field = function ( array $field ) {
 		>
 			<?php echo esc_html( $label ); ?>
 			<?php if ( ! isset( $enabled_modules[ $slug ] ) ) : ?>
-				<span class="wp-claw-admin-tab-badge wp-claw-admin-tab-badge--unavailable" title="<?php esc_attr_e( 'Module is enabled but unavailable on this install', 'wp-claw' ); ?>">
-					<?php esc_html_e( '!', 'wp-claw' ); ?>
+				<span class="wp-claw-admin-tab-badge wp-claw-admin-tab-badge--unavailable" title="<?php esc_attr_e( 'Module is enabled but unavailable on this install', 'claw-agent' ); ?>">
+					<?php esc_html_e( '!', 'claw-agent' ); ?>
 				</span>
 			<?php endif; ?>
 		</a>
@@ -227,10 +227,10 @@ $wp_claw_render_module_field = function ( array $field ) {
 			<div class="notice notice-warning inline wp-claw-admin-notice">
 				<p>
 					<?php
-					esc_html_e( 'This module is enabled in settings but is not available on this WordPress installation.', 'wp-claw' );
+					esc_html_e( 'This module is enabled in settings but is not available on this WordPress installation.', 'claw-agent' );
 					if ( 'commerce' === $slug ) {
 						echo ' ';
-						esc_html_e( 'The Commerce module requires WooCommerce to be installed and active.', 'wp-claw' );
+						esc_html_e( 'The Commerce module requires WooCommerce to be installed and active.', 'claw-agent' );
 					}
 					?>
 				</p>
@@ -240,21 +240,21 @@ $wp_claw_render_module_field = function ( array $field ) {
 			<table class="form-table wp-claw-admin-module-info" role="presentation">
 				<tbody>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Status', 'wp-claw' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
 						<td>
 							<span class="wp-claw-admin-status-pill wp-claw-admin-status-ok">
-								<?php esc_html_e( 'Active', 'wp-claw' ); ?>
+								<?php esc_html_e( 'Active', 'claw-agent' ); ?>
 							</span>
 						</td>
 					</tr>
 					<?php if ( '' !== $module_agent ) : ?>
 					<tr>
-						<th scope="row"><?php esc_html_e( 'Managed by', 'wp-claw' ); ?></th>
+						<th scope="row"><?php esc_html_e( 'Managed by', 'claw-agent' ); ?></th>
 						<td>
 							<span class="wp-claw-admin-agent-badge wp-claw-admin-agent-badge--<?php echo esc_attr( sanitize_key( $module_agent ) ); ?>">
 								<?php echo esc_html( ucfirst( $module_agent ) ); ?>
 							</span>
-							<?php esc_html_e( 'agent', 'wp-claw' ); ?>
+							<?php esc_html_e( 'agent', 'claw-agent' ); ?>
 						</td>
 					</tr>
 					<?php endif; ?>
@@ -266,7 +266,7 @@ $wp_claw_render_module_field = function ( array $field ) {
 			<!-- Module-specific settings fields -->
 			<?php if ( $is_available && ! empty( $settings_fields ) ) : ?>
 
-			<h3><?php esc_html_e( 'Settings', 'wp-claw' ); ?></h3>
+			<h3><?php esc_html_e( 'Settings', 'claw-agent' ); ?></h3>
 
 			<form method="post" action="options.php">
 				<?php settings_fields( 'wp_claw_module_' . $slug . '_settings' ); ?>
@@ -285,13 +285,13 @@ $wp_claw_render_module_field = function ( array $field ) {
 					</tbody>
 				</table>
 
-				<?php submit_button( __( 'Save Module Settings', 'wp-claw' ) ); ?>
+				<?php submit_button( __( 'Save Module Settings', 'claw-agent' ) ); ?>
 			</form>
 
 			<?php elseif ( $is_available && empty( $settings_fields ) ) : ?>
 
 			<p class="wp-claw-admin-muted">
-				<?php esc_html_e( 'This module has no configurable settings. It runs automatically according to its schedule.', 'wp-claw' ); ?>
+				<?php esc_html_e( 'This module has no configurable settings. It runs automatically according to its schedule.', 'claw-agent' ); ?>
 			</p>
 
 			<?php endif; ?>
@@ -300,9 +300,9 @@ $wp_claw_render_module_field = function ( array $field ) {
 			<?php if ( $is_available && null !== $module ) : ?>
 				<?php $allowed_actions = $module->get_allowed_actions(); ?>
 				<?php if ( ! empty( $allowed_actions ) ) : ?>
-			<h3><?php esc_html_e( 'Allowed Agent Actions', 'wp-claw' ); ?></h3>
+			<h3><?php esc_html_e( 'Allowed Agent Actions', 'claw-agent' ); ?></h3>
 			<p class="description">
-					<?php esc_html_e( 'These are the WordPress actions the agent is permitted to execute on your site. Agents cannot perform any action outside this list.', 'wp-claw' ); ?>
+					<?php esc_html_e( 'These are the WordPress actions the agent is permitted to execute on your site. Agents cannot perform any action outside this list.', 'claw-agent' ); ?>
 			</p>
 			<ul class="wp-claw-admin-action-list">
 					<?php foreach ( $allowed_actions as $action_name ) : ?>

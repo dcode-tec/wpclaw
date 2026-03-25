@@ -284,7 +284,7 @@ class REST_API {
 			);
 			return new \WP_Error(
 				'wp_claw_missing_signature',
-				__( 'Request signature headers are missing.', 'wp-claw' ),
+				__( 'Request signature headers are missing.', 'claw-agent' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -298,7 +298,7 @@ class REST_API {
 			);
 			return new \WP_Error(
 				'wp_claw_invalid_timestamp',
-				__( 'Request timestamp is invalid.', 'wp-claw' ),
+				__( 'Request timestamp is invalid.', 'claw-agent' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -316,7 +316,7 @@ class REST_API {
 			);
 			return new \WP_Error(
 				'wp_claw_signature_expired',
-				__( 'Request timestamp is outside the allowed window.', 'wp-claw' ),
+				__( 'Request timestamp is outside the allowed window.', 'claw-agent' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -330,7 +330,7 @@ class REST_API {
 			);
 			return new \WP_Error(
 				'wp_claw_not_configured',
-				__( 'WP-Claw is not connected to a Klawty instance.', 'wp-claw' ),
+				__( 'WP-Claw is not connected to a Klawty instance.', 'claw-agent' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -347,7 +347,7 @@ class REST_API {
 			);
 			return new \WP_Error(
 				'wp_claw_invalid_signature',
-				__( 'Request signature is invalid.', 'wp-claw' ),
+				__( 'Request signature is invalid.', 'claw-agent' ),
 				array( 'status' => 403 )
 			);
 		}
@@ -384,7 +384,7 @@ class REST_API {
 		if ( empty( $module ) || empty( $action ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_params',
-				__( 'Both "module" and "action" are required.', 'wp-claw' ),
+				__( 'Both "module" and "action" are required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -405,7 +405,7 @@ class REST_API {
 				'wp_claw_module_not_found',
 				sprintf(
 					/* translators: %s: module slug */
-					__( 'Module "%s" is not registered or not enabled.', 'wp-claw' ),
+					__( 'Module "%s" is not registered or not enabled.', 'claw-agent' ),
 					$module
 				),
 				array( 'status' => 404 )
@@ -426,7 +426,7 @@ class REST_API {
 				'wp_claw_action_not_allowed',
 				sprintf(
 					/* translators: 1: action name, 2: module slug */
-					__( 'Action "%1$s" is not allowed for module "%2$s".', 'wp-claw' ),
+					__( 'Action "%1$s" is not allowed for module "%2$s".', 'claw-agent' ),
 					$action,
 					$module
 				),
@@ -616,7 +616,7 @@ class REST_API {
 		if ( empty( $session_id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_session',
-				__( 'A session_id is required.', 'wp-claw' ),
+				__( 'A session_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -624,7 +624,7 @@ class REST_API {
 		if ( empty( $message ) ) {
 			return new \WP_Error(
 				'wp_claw_empty_message',
-				__( 'Message cannot be empty.', 'wp-claw' ),
+				__( 'Message cannot be empty.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -636,7 +636,7 @@ class REST_API {
 		if ( $rl_count >= self::CHAT_RATE_LIMIT ) {
 			return new \WP_Error(
 				'wp_claw_chat_rate_limited',
-				__( 'Too many messages. Please wait before sending another.', 'wp-claw' ),
+				__( 'Too many messages. Please wait before sending another.', 'claw-agent' ),
 				array(
 					'status'      => 429,
 					'retry_after' => 60,
@@ -691,7 +691,7 @@ class REST_API {
 		if ( empty( $session_id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_session',
-				__( 'A session_id query parameter is required.', 'wp-claw' ),
+				__( 'A session_id query parameter is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -726,7 +726,7 @@ class REST_API {
 		if ( strlen( $request->get_body() ) > self::ANALYTICS_MAX_BODY ) {
 			return new \WP_Error(
 				'wp_claw_payload_too_large',
-				__( 'Analytics payload exceeds the maximum allowed size.', 'wp-claw' ),
+				__( 'Analytics payload exceeds the maximum allowed size.', 'claw-agent' ),
 				array( 'status' => 413 )
 			);
 		}
@@ -740,7 +740,7 @@ class REST_API {
 		if ( false !== get_transient( $rl_key ) ) {
 			return new \WP_Error(
 				'wp_claw_analytics_rate_limited',
-				__( 'Analytics rate limit reached. Please wait before tracking another event.', 'wp-claw' ),
+				__( 'Analytics rate limit reached. Please wait before tracking another event.', 'claw-agent' ),
 				array(
 					'status'      => 429,
 					'retry_after' => 1,
@@ -760,7 +760,7 @@ class REST_API {
 		if ( empty( $raw_url ) || mb_strlen( $raw_url ) > 512 ) {
 			return new \WP_Error(
 				'wp_claw_invalid_page_url',
-				__( 'page_url is required and must not exceed 512 characters.', 'wp-claw' ),
+				__( 'page_url is required and must not exceed 512 characters.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -769,7 +769,7 @@ class REST_API {
 		if ( empty( $page_url ) ) {
 			return new \WP_Error(
 				'wp_claw_invalid_page_url',
-				__( 'page_url is not a valid URL.', 'wp-claw' ),
+				__( 'page_url is not a valid URL.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -927,7 +927,7 @@ class REST_API {
 			get_current_user_id(),
 			$prompt,
 			$result['success'] ? 'sent' : 'error',
-			$result['success'] ? '' : ( isset( $result['error'] ) ? $result['error'] : __( 'Unknown error', 'wp-claw' ) ),
+			$result['success'] ? '' : ( isset( $result['error'] ) ? $result['error'] : __( 'Unknown error', 'claw-agent' ) ),
 			isset( $result['task_id'] ) ? $result['task_id'] : null
 		);
 
@@ -988,7 +988,7 @@ class REST_API {
 		if ( empty( $id ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_proposal_id',
-				__( 'Proposal ID is required.', 'wp-claw' ),
+				__( 'Proposal ID is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}

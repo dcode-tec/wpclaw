@@ -266,7 +266,7 @@ class Hooks {
 					array(
 						'title'     => sprintf(
 							/* translators: 1: Hook name. 2: Post title. */
-							__( '%1$s event: %2$s', 'wp-claw' ),
+							__( '%1$s event: %2$s', 'claw-agent' ),
 							$hook_name,
 							$post->post_title
 						),
@@ -282,7 +282,7 @@ class Hooks {
 				return array_merge(
 					$base,
 					array(
-						'title'    => __( 'Failed login attempt detected', 'wp-claw' ),
+						'title'    => __( 'Failed login attempt detected', 'claw-agent' ),
 						'username' => $username,
 						// Never log the password — it's the second argument.
 					)
@@ -295,7 +295,7 @@ class Hooks {
 				return array_merge(
 					$base,
 					array(
-						'title'      => __( 'User login event', 'wp-claw' ),
+						'title'      => __( 'User login event', 'claw-agent' ),
 						'user_login' => $user_login,
 						'user_roles' => $user ? (array) $user->roles : array(),
 					)
@@ -311,7 +311,7 @@ class Hooks {
 				return array_merge(
 					$base,
 					array(
-						'title'      => __( 'New comment submitted', 'wp-claw' ),
+						'title'      => __( 'New comment submitted', 'claw-agent' ),
 						'comment_id' => $comment_id,
 					)
 				);
@@ -330,7 +330,7 @@ class Hooks {
 					array(
 						'title'      => sprintf(
 							/* translators: 1: Order ID. 2: New status. */
-							__( 'Order #%1$d status changed to %2$s', 'wp-claw' ),
+							__( 'Order #%1$d status changed to %2$s', 'claw-agent' ),
 							$order_id,
 							$new_status
 						),
@@ -349,7 +349,7 @@ class Hooks {
 				return array_merge(
 					$base,
 					array(
-						'title'      => __( 'Low stock alert', 'wp-claw' ),
+						'title'      => __( 'Low stock alert', 'claw-agent' ),
 						'product_id' => $product_id,
 					)
 				);
@@ -366,7 +366,7 @@ class Hooks {
 					array(
 						'title'    => sprintf(
 							/* translators: %d: Order ID. */
-							__( 'New order received: #%d', 'wp-claw' ),
+							__( 'New order received: #%d', 'claw-agent' ),
 							$order_id
 						),
 						'order_id' => $order_id,
@@ -384,7 +384,7 @@ class Hooks {
 					array(
 						'title' => sprintf(
 							/* translators: %s: Hook name. */
-							__( 'Form submission received (%s)', 'wp-claw' ),
+							__( 'Form submission received (%s)', 'claw-agent' ),
 							$hook_name
 						),
 					)
@@ -396,7 +396,7 @@ class Hooks {
 					array(
 						'title' => sprintf(
 							/* translators: %s: Hook name. */
-							__( 'WordPress event: %s', 'wp-claw' ),
+							__( 'WordPress event: %s', 'claw-agent' ),
 							$hook_name
 						),
 					)

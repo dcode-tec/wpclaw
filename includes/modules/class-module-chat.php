@@ -57,7 +57,7 @@ class Module_Chat extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Live Chat', 'wp-claw' );
+		return __( 'Live Chat', 'claw-agent' );
 	}
 
 	/**
@@ -123,7 +123,7 @@ class Module_Chat extends Module_Base {
 					'wp_claw_unknown_action',
 					sprintf(
 						/* translators: %s: Action name. */
-						__( 'Unknown chat action: %s', 'wp-claw' ),
+						__( 'Unknown chat action: %s', 'claw-agent' ),
 						esc_html( $action )
 					),
 					array( 'status' => 400 )
@@ -374,7 +374,7 @@ class Module_Chat extends Module_Base {
 		if ( ! class_exists( 'WooCommerce' ) || ! function_exists( 'wc_get_order' ) ) {
 			return new \WP_Error(
 				'wp_claw_woocommerce_inactive',
-				__( 'WooCommerce is not active. Order status is unavailable.', 'wp-claw' ),
+				__( 'WooCommerce is not active. Order status is unavailable.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -384,7 +384,7 @@ class Module_Chat extends Module_Base {
 		if ( $order_id <= 0 ) {
 			return new \WP_Error(
 				'wp_claw_missing_order_id',
-				__( 'order_id is required and must be a positive integer.', 'wp-claw' ),
+				__( 'order_id is required and must be a positive integer.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -396,7 +396,7 @@ class Module_Chat extends Module_Base {
 				'wp_claw_order_not_found',
 				sprintf(
 					/* translators: %d: Order ID. */
-					__( 'Order #%d was not found.', 'wp-claw' ),
+					__( 'Order #%d was not found.', 'claw-agent' ),
 					$order_id
 				),
 				array( 'status' => 404 )
@@ -453,7 +453,7 @@ class Module_Chat extends Module_Base {
 		if ( '' === $query ) {
 			return new \WP_Error(
 				'wp_claw_missing_query',
-				__( 'A search query is required.', 'wp-claw' ),
+				__( 'A search query is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -525,7 +525,7 @@ class Module_Chat extends Module_Base {
 		if ( '' === $name ) {
 			return new \WP_Error(
 				'wp_claw_missing_name',
-				__( 'Visitor name is required to capture a lead.', 'wp-claw' ),
+				__( 'Visitor name is required to capture a lead.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -533,7 +533,7 @@ class Module_Chat extends Module_Base {
 		if ( '' === $email || ! is_email( $email ) ) {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
-				__( 'A valid email address is required to capture a lead.', 'wp-claw' ),
+				__( 'A valid email address is required to capture a lead.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -584,7 +584,7 @@ class Module_Chat extends Module_Base {
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
-				__( 'Failed to save chat lead to the database.', 'wp-claw' ),
+				__( 'Failed to save chat lead to the database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -601,7 +601,7 @@ class Module_Chat extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Lead captured successfully.', 'wp-claw' ),
+			'message' => __( 'Lead captured successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -679,7 +679,7 @@ class Module_Chat extends Module_Base {
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
-				__( 'Failed to record escalation request.', 'wp-claw' ),
+				__( 'Failed to record escalation request.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -696,7 +696,7 @@ class Module_Chat extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Your conversation has been flagged for human follow-up. The team will contact you shortly.', 'wp-claw' ),
+			'message' => __( 'Your conversation has been flagged for human follow-up. The team will contact you shortly.', 'claw-agent' ),
 		);
 	}
 
@@ -734,7 +734,7 @@ class Module_Chat extends Module_Base {
 		}
 
 		$welcome = sanitize_text_field(
-			(string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'wp-claw' ) )
+			(string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'claw-agent' ) )
 		);
 
 		$agent_name = sanitize_text_field(

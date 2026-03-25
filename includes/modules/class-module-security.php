@@ -167,7 +167,7 @@ class Module_Security extends Module_Base {
 					'wp_claw_security_unknown_action',
 					sprintf(
 						/* translators: %s: action name */
-						__( 'Unknown Security action: %s', 'wp-claw' ),
+						__( 'Unknown Security action: %s', 'claw-agent' ),
 						esc_html( $action )
 					),
 					array( 'status' => 400 )
@@ -308,7 +308,7 @@ class Module_Security extends Module_Base {
 		if ( '' === $ip || ! filter_var( $ip, FILTER_VALIDATE_IP ) ) {
 			return new \WP_Error(
 				'wp_claw_security_invalid_ip',
-				__( 'A valid IP address is required.', 'wp-claw' ),
+				__( 'A valid IP address is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -355,7 +355,7 @@ class Module_Security extends Module_Base {
 		if ( empty( $params['headers'] ) || ! is_array( $params['headers'] ) ) {
 			return new \WP_Error(
 				'wp_claw_security_missing_headers',
-				__( 'headers must be a non-empty associative array.', 'wp-claw' ),
+				__( 'headers must be a non-empty associative array.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -372,7 +372,7 @@ class Module_Security extends Module_Base {
 		if ( empty( $sanitized ) ) {
 			return new \WP_Error(
 				'wp_claw_security_invalid_headers',
-				__( 'No valid header entries after sanitization.', 'wp-claw' ),
+				__( 'No valid header entries after sanitization.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -403,7 +403,7 @@ class Module_Security extends Module_Base {
 		if ( '' === $message ) {
 			return new \WP_Error(
 				'wp_claw_security_missing_message',
-				__( 'message parameter is required.', 'wp-claw' ),
+				__( 'message parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -512,7 +512,7 @@ class Module_Security extends Module_Base {
 		if ( ! isset( $params['rules'] ) || '' === $params['rules'] ) {
 			return new \WP_Error(
 				'wp_claw_security_missing_rules',
-				__( 'rules parameter is required.', 'wp-claw' ),
+				__( 'rules parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}

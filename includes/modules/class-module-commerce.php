@@ -53,7 +53,7 @@ class Module_Commerce extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Commerce', 'wp-claw' );
+		return __( 'Commerce', 'claw-agent' );
 	}
 
 	/**
@@ -119,7 +119,7 @@ class Module_Commerce extends Module_Base {
 		if ( ! $this->is_available() ) {
 			return new \WP_Error(
 				'wp_claw_woocommerce_unavailable',
-				__( 'WooCommerce is not active. The Commerce module requires WooCommerce.', 'wp-claw' ),
+				__( 'WooCommerce is not active. The Commerce module requires WooCommerce.', 'claw-agent' ),
 				array( 'status' => 503 )
 			);
 		}
@@ -150,7 +150,7 @@ class Module_Commerce extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
-					sprintf( __( 'Unknown Commerce action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( __( 'Unknown Commerce action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -185,7 +185,7 @@ class Module_Commerce extends Module_Base {
 		if ( ! $product_id ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'product_id is required.', 'wp-claw' ),
+				__( 'product_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -195,7 +195,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
-				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
+				sprintf( __( 'Product #%d not found.', 'claw-agent' ), $product_id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -232,7 +232,7 @@ class Module_Commerce extends Module_Base {
 		if ( ! $product_id ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'product_id is required.', 'wp-claw' ),
+				__( 'product_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -241,7 +241,7 @@ class Module_Commerce extends Module_Base {
 		if ( '' === $price || ! is_numeric( $price ) || (float) $price < 0 ) {
 			return new \WP_Error(
 				'wp_claw_invalid_price',
-				__( 'price must be a non-negative numeric value.', 'wp-claw' ),
+				__( 'price must be a non-negative numeric value.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -251,7 +251,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
-				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
+				sprintf( __( 'Product #%d not found.', 'claw-agent' ), $product_id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -293,7 +293,7 @@ class Module_Commerce extends Module_Base {
 		if ( empty( $code ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'Coupon code is required.', 'wp-claw' ),
+				__( 'Coupon code is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -321,7 +321,7 @@ class Module_Commerce extends Module_Base {
 		if ( ! $coupon_id ) {
 			return new \WP_Error(
 				'wp_claw_coupon_save_failed',
-				__( 'Failed to save coupon.', 'wp-claw' ),
+				__( 'Failed to save coupon.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -463,7 +463,7 @@ class Module_Commerce extends Module_Base {
 		if ( empty( $customer_email ) || ! is_email( $customer_email ) ) {
 			return new \WP_Error(
 				'wp_claw_invalid_email',
-				__( 'A valid customer_email is required.', 'wp-claw' ),
+				__( 'A valid customer_email is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -496,7 +496,7 @@ class Module_Commerce extends Module_Base {
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to queue abandoned cart reminder.', 'wp-claw' ),
+				__( 'Failed to queue abandoned cart reminder.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -504,7 +504,7 @@ class Module_Commerce extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Abandoned cart reminder queued for agent review.', 'wp-claw' ),
+			'message' => __( 'Abandoned cart reminder queued for agent review.', 'claw-agent' ),
 		);
 	}
 
@@ -529,7 +529,7 @@ class Module_Commerce extends Module_Base {
 		if ( ! $product_id ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'product_id is required.', 'wp-claw' ),
+				__( 'product_id is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -537,7 +537,7 @@ class Module_Commerce extends Module_Base {
 		if ( empty( $description ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_param',
-				__( 'description is required.', 'wp-claw' ),
+				__( 'description is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -547,7 +547,7 @@ class Module_Commerce extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_product_not_found',
 				/* translators: %d: product ID */
-				sprintf( __( 'Product #%d not found.', 'wp-claw' ), $product_id ),
+				sprintf( __( 'Product #%d not found.', 'claw-agent' ), $product_id ),
 				array( 'status' => 404 )
 			);
 		}
@@ -558,7 +558,7 @@ class Module_Commerce extends Module_Base {
 		return array(
 			'success'    => true,
 			'product_id' => $product_id,
-			'message'    => __( 'Product description updated.', 'wp-claw' ),
+			'message'    => __( 'Product description updated.', 'claw-agent' ),
 		);
 	}
 
@@ -749,7 +749,7 @@ class Module_Commerce extends Module_Base {
 			return array(
 				'module'       => $this->get_slug(),
 				'available'    => false,
-				'message'      => __( 'WooCommerce is not active.', 'wp-claw' ),
+				'message'      => __( 'WooCommerce is not active.', 'claw-agent' ),
 				'generated_at' => current_time( 'c' ),
 			);
 		}

@@ -77,7 +77,7 @@ class Module_Performance extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Performance', 'wp-claw' );
+		return __( 'Performance', 'claw-agent' );
 	}
 
 	/**
@@ -143,7 +143,7 @@ class Module_Performance extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_unknown_action',
 					/* translators: %s: action name */
-					sprintf( __( 'Unknown Performance action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( __( 'Unknown Performance action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -171,7 +171,7 @@ class Module_Performance extends Module_Base {
 			return array(
 				'success'   => true,
 				'available' => false,
-				'message'   => __( 'No Core Web Vitals data available yet. Run the performance check cron to populate.', 'wp-claw' ),
+				'message'   => __( 'No Core Web Vitals data available yet. Run the performance check cron to populate.', 'claw-agent' ),
 			);
 		}
 
@@ -255,7 +255,7 @@ class Module_Performance extends Module_Base {
 			'revisions_deleted'  => $revisions_deleted,
 			'spam_deleted'       => $spam_deleted,
 			'transients_deleted' => $transients_deleted,
-			'message'            => __( 'Database cleanup completed.', 'wp-claw' ),
+			'message'            => __( 'Database cleanup completed.', 'claw-agent' ),
 		);
 	}
 
@@ -318,7 +318,7 @@ class Module_Performance extends Module_Base {
 		if ( false === $inserted ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Failed to queue image optimization task.', 'wp-claw' ),
+				__( 'Failed to queue image optimization task.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -326,7 +326,7 @@ class Module_Performance extends Module_Base {
 		return array(
 			'success' => true,
 			'task_id' => $task_id,
-			'message' => __( 'Image optimization task queued.', 'wp-claw' ),
+			'message' => __( 'Image optimization task queued.', 'claw-agent' ),
 		);
 	}
 
@@ -367,28 +367,28 @@ class Module_Performance extends Module_Base {
 		}
 
 		if ( empty( $detected_cache_plugin ) ) {
-			$recommendations[] = __( 'No caching plugin detected. Recommend installing WP Rocket or LiteSpeed Cache.', 'wp-claw' );
-			$recommendations[] = __( 'Enable browser caching via .htaccess Expires headers.', 'wp-claw' );
-			$recommendations[] = __( 'Serve static assets from a CDN (Cloudflare is free).', 'wp-claw' );
+			$recommendations[] = __( 'No caching plugin detected. Recommend installing WP Rocket or LiteSpeed Cache.', 'claw-agent' );
+			$recommendations[] = __( 'Enable browser caching via .htaccess Expires headers.', 'claw-agent' );
+			$recommendations[] = __( 'Serve static assets from a CDN (Cloudflare is free).', 'claw-agent' );
 		} else {
 			$recommendations[] = sprintf(
 				/* translators: %s: detected caching plugin name */
-				__( '%s detected. Verify page caching is enabled for all anonymous visitors.', 'wp-claw' ),
+				__( '%s detected. Verify page caching is enabled for all anonymous visitors.', 'claw-agent' ),
 				$detected_cache_plugin
 			);
-			$recommendations[] = __( 'Enable GZIP or Brotli compression at the server level.', 'wp-claw' );
-			$recommendations[] = __( 'Combine and minify CSS and JavaScript assets.', 'wp-claw' );
-			$recommendations[] = __( 'Enable lazy loading for images below the fold.', 'wp-claw' );
+			$recommendations[] = __( 'Enable GZIP or Brotli compression at the server level.', 'claw-agent' );
+			$recommendations[] = __( 'Combine and minify CSS and JavaScript assets.', 'claw-agent' );
+			$recommendations[] = __( 'Enable lazy loading for images below the fold.', 'claw-agent' );
 		}
 
 		// Check if WooCommerce is active — carts/checkouts must not be cached.
 		if ( class_exists( 'WooCommerce' ) ) {
-			$recommendations[] = __( 'WooCommerce detected: exclude /cart/, /checkout/, and /my-account/ from page cache.', 'wp-claw' );
+			$recommendations[] = __( 'WooCommerce detected: exclude /cart/, /checkout/, and /my-account/ from page cache.', 'claw-agent' );
 		}
 
 		return array(
 			'success'               => true,
-			'detected_cache_plugin' => $detected_cache_plugin ?: __( 'None', 'wp-claw' ),
+			'detected_cache_plugin' => $detected_cache_plugin ?: __( 'None', 'claw-agent' ),
 			'recommendations'       => $recommendations,
 		);
 	}
@@ -407,7 +407,7 @@ class Module_Performance extends Module_Base {
 			return array(
 				'success'   => true,
 				'available' => false,
-				'message'   => __( 'No PageSpeed data available. Run the performance cron or trigger a manual check.', 'wp-claw' ),
+				'message'   => __( 'No PageSpeed data available. Run the performance cron or trigger a manual check.', 'claw-agent' ),
 			);
 		}
 

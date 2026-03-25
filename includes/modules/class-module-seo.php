@@ -152,7 +152,7 @@ class Module_SEO extends Module_Base {
 					'wp_claw_seo_unknown_action',
 					sprintf(
 						/* translators: %s: action name */
-						__( 'Unknown SEO action: %s', 'wp-claw' ),
+						__( 'Unknown SEO action: %s', 'claw-agent' ),
 						esc_html( $action )
 					),
 					array( 'status' => 400 )
@@ -318,7 +318,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -327,7 +327,7 @@ class Module_SEO extends Module_Base {
 		if ( '' === $title ) {
 			return new \WP_Error(
 				'wp_claw_seo_missing_title',
-				__( 'title parameter is required.', 'wp-claw' ),
+				__( 'title parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -359,7 +359,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -368,7 +368,7 @@ class Module_SEO extends Module_Base {
 		if ( '' === $description ) {
 			return new \WP_Error(
 				'wp_claw_seo_missing_description',
-				__( 'description parameter is required.', 'wp-claw' ),
+				__( 'description parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -404,7 +404,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -412,7 +412,7 @@ class Module_SEO extends Module_Base {
 		if ( empty( $params['schema'] ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_missing_schema',
-				__( 'schema parameter is required.', 'wp-claw' ),
+				__( 'schema parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -427,7 +427,7 @@ class Module_SEO extends Module_Base {
 		if ( false === $schema_json || null === json_decode( $schema_json ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_schema',
-				__( 'schema must be valid JSON.', 'wp-claw' ),
+				__( 'schema must be valid JSON.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -488,7 +488,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post_id ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -497,7 +497,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post ) {
 			return new \WP_Error(
 				'wp_claw_seo_post_not_found',
-				__( 'Post not found.', 'wp-claw' ),
+				__( 'Post not found.', 'claw-agent' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -547,7 +547,7 @@ class Module_SEO extends Module_Base {
 		if ( ! $post_id || ! get_post( $post_id ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_invalid_post',
-				__( 'Invalid or missing post_id.', 'wp-claw' ),
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -562,7 +562,7 @@ class Module_SEO extends Module_Base {
 		if ( empty( $keywords ) ) {
 			return new \WP_Error(
 				'wp_claw_seo_missing_keywords',
-				__( 'At least one keyword is required.', 'wp-claw' ),
+				__( 'At least one keyword is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -624,7 +624,7 @@ class Module_SEO extends Module_Base {
 		if ( ! isset( $params['rules'] ) || '' === $params['rules'] ) {
 			return new \WP_Error(
 				'wp_claw_seo_missing_rules',
-				__( 'rules parameter is required.', 'wp-claw' ),
+				__( 'rules parameter is required.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}

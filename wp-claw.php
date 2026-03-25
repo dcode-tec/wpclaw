@@ -18,7 +18,7 @@
  * Author URI:        https://d-code.lu
  * License:           GPL-2.0-or-later
  * License URI:       https://www.gnu.org/licenses/gpl-2.0.html
- * Text Domain:       wp-claw
+ * Text Domain:       claw-agent
  * Domain Path:       /languages
  */
 

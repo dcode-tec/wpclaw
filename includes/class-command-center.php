@@ -130,7 +130,7 @@ class Command_Center {
 		if ( strlen( $pin ) < 4 || strlen( $pin ) > 8 ) {
 			return array(
 				'success' => false,
-				'error'   => __( 'PIN must be 4-8 characters.', 'wp-claw' ),
+				'error'   => __( 'PIN must be 4-8 characters.', 'claw-agent' ),
 			);
 		}
 
@@ -138,7 +138,7 @@ class Command_Center {
 		if ( ! ctype_alnum( $pin ) ) {
 			return array(
 				'success' => false,
-				'error'   => __( 'PIN must be alphanumeric only.', 'wp-claw' ),
+				'error'   => __( 'PIN must be alphanumeric only.', 'claw-agent' ),
 			);
 		}
 
@@ -198,12 +198,12 @@ class Command_Center {
 
 		// Layer 1: Capability.
 		if ( ! current_user_can( 'wp_claw_command_center' ) ) {
-			$reasons[] = __( 'Missing wp_claw_command_center capability', 'wp-claw' );
+			$reasons[] = __( 'Missing wp_claw_command_center capability', 'claw-agent' );
 		}
 
 		// Layer 2: PIN.
 		if ( ! $this->verify_pin( $pin ) ) {
-			$reasons[] = __( 'Invalid PIN', 'wp-claw' );
+			$reasons[] = __( 'Invalid PIN', 'claw-agent' );
 			$this->log_command( $user_id, $prompt, 'blocked', 'Invalid PIN', null );
 		}
 
@@ -213,7 +213,7 @@ class Command_Center {
 			$allowed_ips = array_map( 'trim', explode( ',', $allowlist ) );
 			if ( ! in_array( $ip, $allowed_ips, true ) ) {
 				/* translators: %s: client IP address */
-				$reasons[] = sprintf( __( 'IP not in allowlist: %s', 'wp-claw' ), $ip );
+				$reasons[] = sprintf( __( 'IP not in allowlist: %s', 'claw-agent' ), $ip );
 			}
 		}
 
@@ -222,7 +222,7 @@ class Command_Center {
 		if ( $rate['limited'] ) {
 			$reasons[] = sprintf(
 				/* translators: 1: hourly count, 2: hourly limit, 3: daily count, 4: daily limit */
-				__( 'Rate limit exceeded (%1$d/%2$d hourly, %3$d/%4$d daily)', 'wp-claw' ),
+				__( 'Rate limit exceeded (%1$d/%2$d hourly, %3$d/%4$d daily)', 'claw-agent' ),
 				$rate['hourly'],
 				self::HOURLY_LIMIT,
 				$rate['daily'],
@@ -233,11 +233,11 @@ class Command_Center {
 		// Layer 5: Input validation.
 		$prompt = trim( $prompt );
 		if ( strlen( $prompt ) < self::MIN_PROMPT_LENGTH ) {
-			$reasons[] = __( 'Command too short', 'wp-claw' );
+			$reasons[] = __( 'Command too short', 'claw-agent' );
 		}
 		if ( strlen( $prompt ) > self::MAX_PROMPT_LENGTH ) {
 			/* translators: %d: maximum character count */
-			$reasons[] = sprintf( __( 'Command too long (max %d chars)', 'wp-claw' ), self::MAX_PROMPT_LENGTH );
+			$reasons[] = sprintf( __( 'Command too long (max %d chars)', 'claw-agent' ), self::MAX_PROMPT_LENGTH );
 		}
 
 		// If any layer failed, log a combined failure (unless PIN failure already logged).
@@ -363,7 +363,7 @@ class Command_Center {
 		$task_id        = isset( $response['task_id'] ) ? $response['task_id'] : null;
 		$agent_response = isset( $response['response'] )
 			? $response['response']
-			: __( 'Command received. Atlas will delegate to the appropriate agent.', 'wp-claw' );
+			: __( 'Command received. Atlas will delegate to the appropriate agent.', 'claw-agent' );
 
 		return array(
 			'success'  => true,

@@ -195,9 +195,9 @@ abstract class Module_Base {
 	 * Expected array structure per field:
 	 * [
 	 *   'id'          => 'wp_claw_{slug}_{field}',
-	 *   'title'       => __( 'Field Label', 'wp-claw' ),
+	 *   'title'       => __( 'Field Label', 'claw-agent' ),
 	 *   'type'        => 'text'|'checkbox'|'select'|'textarea',
-	 *   'description' => __( 'Helpful description.', 'wp-claw' ),
+	 *   'description' => __( 'Helpful description.', 'claw-agent' ),
 	 *   'default'     => '',
 	 *   'options'     => [],  // only for 'select' type
 	 * ]

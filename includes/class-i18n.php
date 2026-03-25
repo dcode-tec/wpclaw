@@ -55,7 +55,7 @@ class I18n {
 	 */
 	public function load_textdomain(): void {
 		load_plugin_textdomain(
-			'wp-claw',
+			'claw-agent',
 			false,
 			dirname( plugin_basename( WP_CLAW_PLUGIN_FILE ) ) . '/languages'
 		);

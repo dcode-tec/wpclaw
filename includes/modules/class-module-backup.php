@@ -81,7 +81,7 @@ class Module_Backup extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Backup', 'wp-claw' );
+		return __( 'Backup', 'claw-agent' );
 	}
 
 	/**
@@ -143,7 +143,7 @@ class Module_Backup extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_backup_unknown_action',
 					/* translators: %s: action name */
-					sprintf( esc_html__( 'Unknown backup action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( esc_html__( 'Unknown backup action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -229,7 +229,7 @@ class Module_Backup extends Module_Base {
 			if ( ! wp_mkdir_p( $backup_root ) ) {
 				return new \WP_Error(
 					'wp_claw_backup_mkdir_failed',
-					esc_html__( 'Failed to create backup root directory.', 'wp-claw' ),
+					esc_html__( 'Failed to create backup root directory.', 'claw-agent' ),
 					array( 'status' => 500 )
 				);
 			}
@@ -242,7 +242,7 @@ class Module_Backup extends Module_Base {
 		if ( ! wp_mkdir_p( $backup_dir ) ) {
 			return new \WP_Error(
 				'wp_claw_backup_mkdir_failed',
-				esc_html__( 'Failed to create backup subdirectory.', 'wp-claw' ),
+				esc_html__( 'Failed to create backup subdirectory.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -260,7 +260,7 @@ class Module_Backup extends Module_Base {
 		if ( false === $gz_data ) {
 			return new \WP_Error(
 				'wp_claw_backup_gzencode_failed',
-				esc_html__( 'Failed to gzip-compress the database dump.', 'wp-claw' ),
+				esc_html__( 'Failed to gzip-compress the database dump.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -269,7 +269,7 @@ class Module_Backup extends Module_Base {
 		if ( ! $wp_filesystem->put_contents( $gz_file, $gz_data, FS_CHMOD_FILE ) ) {
 			return new \WP_Error(
 				'wp_claw_backup_write_failed',
-				esc_html__( 'Failed to write backup file.', 'wp-claw' ),
+				esc_html__( 'Failed to write backup file.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -291,7 +291,7 @@ class Module_Backup extends Module_Base {
 			'backup_dir' => $backup_dir,
 			'gz_file'    => $gz_file,
 			'size_bytes' => $meta['size_bytes'],
-			'message'    => __( 'Backup created successfully.', 'wp-claw' ),
+			'message'    => __( 'Backup created successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -334,7 +334,7 @@ class Module_Backup extends Module_Base {
 	private function action_restore_backup( array $params ) {
 		return new \WP_Error(
 			'wp_claw_backup_confirm_required',
-			esc_html__( 'Restore requires CONFIRM approval', 'wp-claw' ),
+			esc_html__( 'Restore requires CONFIRM approval', 'claw-agent' ),
 			array( 'status' => 403 )
 		);
 	}
@@ -434,7 +434,7 @@ class Module_Backup extends Module_Base {
 		if ( empty( $params['timestamp'] ) ) {
 			return new \WP_Error(
 				'wp_claw_backup_missing_timestamp',
-				esc_html__( 'timestamp parameter is required.', 'wp-claw' ),
+				esc_html__( 'timestamp parameter is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -453,7 +453,7 @@ class Module_Backup extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_backup_not_found',
 				/* translators: %s: timestamp */
-				sprintf( esc_html__( 'Backup directory not found for timestamp: %s', 'wp-claw' ), esc_html( $timestamp ) ),
+				sprintf( esc_html__( 'Backup directory not found for timestamp: %s', 'claw-agent' ), esc_html( $timestamp ) ),
 				array( 'status' => 404 )
 			);
 		}
@@ -461,7 +461,7 @@ class Module_Backup extends Module_Base {
 		if ( ! $wp_filesystem->exists( $gz_file ) ) {
 			return new \WP_Error(
 				'wp_claw_backup_file_missing',
-				esc_html__( 'Backup database.sql.gz file not found.', 'wp-claw' ),
+				esc_html__( 'Backup database.sql.gz file not found.', 'claw-agent' ),
 				array( 'status' => 404 )
 			);
 		}
@@ -470,7 +470,7 @@ class Module_Backup extends Module_Base {
 		if ( ! $file_size || $file_size < 20 ) {
 			return new \WP_Error(
 				'wp_claw_backup_file_empty',
-				esc_html__( 'Backup file is empty or too small to be valid.', 'wp-claw' ),
+				esc_html__( 'Backup file is empty or too small to be valid.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -480,7 +480,7 @@ class Module_Backup extends Module_Base {
 		if ( false === $raw_sample ) {
 			return new \WP_Error(
 				'wp_claw_backup_read_failed',
-				esc_html__( 'Failed to read backup file for verification.', 'wp-claw' ),
+				esc_html__( 'Failed to read backup file for verification.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -489,7 +489,7 @@ class Module_Backup extends Module_Base {
 		if ( false === $decoded ) {
 			return new \WP_Error(
 				'wp_claw_backup_corrupt',
-				esc_html__( 'Backup file failed gzip decode check — file may be corrupt.', 'wp-claw' ),
+				esc_html__( 'Backup file failed gzip decode check — file may be corrupt.', 'claw-agent' ),
 				array( 'status' => 422 )
 			);
 		}
@@ -499,7 +499,7 @@ class Module_Backup extends Module_Base {
 			'timestamp'  => $timestamp,
 			'size_bytes' => $file_size,
 			'valid'      => true,
-			'message'    => __( 'Backup verified successfully.', 'wp-claw' ),
+			'message'    => __( 'Backup verified successfully.', 'claw-agent' ),
 		);
 	}
 
@@ -530,7 +530,7 @@ class Module_Backup extends Module_Base {
 		if ( ! $initialized || ! $wp_filesystem instanceof \WP_Filesystem_Base ) {
 			return new \WP_Error(
 				'wp_claw_backup_filesystem_init_failed',
-				esc_html__( 'WP_Filesystem could not be initialized.', 'wp-claw' ),
+				esc_html__( 'WP_Filesystem could not be initialized.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -597,7 +597,7 @@ class Module_Backup extends Module_Base {
 		if ( empty( $tables ) ) {
 			return new \WP_Error(
 				'wp_claw_backup_no_tables',
-				esc_html__( 'No tables found in database.', 'wp-claw' ),
+				esc_html__( 'No tables found in database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -606,7 +606,7 @@ class Module_Backup extends Module_Base {
 			return new \WP_Error(
 				'wp_claw_backup_too_many_tables',
 				/* translators: %d: table count */
-				sprintf( esc_html__( 'Database has %1$d tables — exceeds maximum of %2$d for backup.', 'wp-claw' ), count( $tables ), self::MAX_TABLES ),
+				sprintf( esc_html__( 'Database has %1$d tables — exceeds maximum of %2$d for backup.', 'claw-agent' ), count( $tables ), self::MAX_TABLES ),
 				array( 'status' => 500 )
 			);
 		}

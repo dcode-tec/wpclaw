@@ -64,14 +64,14 @@ $wp_claw_agent_status_class = function ( $status ) {
 			<?php
 			printf(
 				/* translators: %s: error message from the API */
-				esc_html__( 'Cannot connect to Klawty instance: %s', 'wp-claw' ),
+				esc_html__( 'Cannot connect to Klawty instance: %s', 'claw-agent' ),
 				'<strong>' . esc_html( $api_error ) . '</strong>'
 			);
 			?>
 		</p>
 		<p>
 			<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-settings' ) ); ?>">
-				<?php esc_html_e( 'Check connection settings &rarr;', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Check connection settings &rarr;', 'claw-agent' ); ?>
 			</a>
 		</p>
 	</div>
@@ -79,7 +79,7 @@ $wp_claw_agent_status_class = function ( $status ) {
 
 	<?php if ( empty( $agents ) && ! $api_error ) : ?>
 	<div class="notice notice-info wp-claw-admin-notice">
-		<p><?php esc_html_e( 'No agents are currently reporting status. The Klawty instance may still be starting up.', 'wp-claw' ); ?></p>
+		<p><?php esc_html_e( 'No agents are currently reporting status. The Klawty instance may still be starting up.', 'claw-agent' ); ?></p>
 	</div>
 	<?php endif; ?>
 
@@ -120,7 +120,7 @@ $wp_claw_agent_status_class = function ( $status ) {
 
 				<div class="wp-claw-admin-agent-identity">
 					<strong class="wp-claw-admin-agent-name">
-						<?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'wp-claw' ) ); ?>
+						<?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'claw-agent' ) ); ?>
 					</strong>
 					<?php if ( '' !== $agent_role ) : ?>
 					<span class="wp-claw-admin-agent-role">
@@ -142,13 +142,13 @@ $wp_claw_agent_status_class = function ( $status ) {
 					<?php if ( '' !== $agent_current_task ) : ?>
 						<?php echo esc_html( $agent_current_task ); ?>
 					<?php else : ?>
-						<em class="wp-claw-admin-muted"><?php esc_html_e( 'Idle', 'wp-claw' ); ?></em>
+						<em class="wp-claw-admin-muted"><?php esc_html_e( 'Idle', 'claw-agent' ); ?></em>
 					<?php endif; ?>
 				</p>
 
 				<dl class="wp-claw-admin-agent-meta">
 
-					<dt><?php esc_html_e( 'Status', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'Status', 'claw-agent' ); ?></dt>
 					<dd>
 						<span class="wp-claw-admin-status-pill wp-claw-admin-status-<?php echo esc_attr( $status_class ); ?>">
 							<?php echo esc_html( ucfirst( $agent_health ) ); ?>
@@ -156,27 +156,27 @@ $wp_claw_agent_status_class = function ( $status ) {
 					</dd>
 
 					<?php if ( $agent_task_count > 0 ) : ?>
-					<dt><?php esc_html_e( 'Tasks today', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></dt>
 					<dd><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></dd>
 					<?php endif; ?>
 
 					<?php if ( $agent_cost_today > 0 ) : ?>
-					<dt><?php esc_html_e( 'AI cost today', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></dt>
 					<dd><?php echo esc_html( '€' . number_format( $agent_cost_today, 4 ) ); ?></dd>
 					<?php endif; ?>
 
 					<?php if ( '' !== $agent_uptime ) : ?>
-					<dt><?php esc_html_e( 'Uptime', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'Uptime', 'claw-agent' ); ?></dt>
 					<dd><?php echo esc_html( $agent_uptime ); ?></dd>
 					<?php endif; ?>
 
 					<?php if ( '' !== $agent_model ) : ?>
-					<dt><?php esc_html_e( 'Model', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'Model', 'claw-agent' ); ?></dt>
 					<dd><?php echo esc_html( $agent_model ); ?></dd>
 					<?php endif; ?>
 
 					<?php if ( '' !== $agent_last_seen ) : ?>
-					<dt><?php esc_html_e( 'Last seen', 'wp-claw' ); ?></dt>
+					<dt><?php esc_html_e( 'Last seen', 'claw-agent' ); ?></dt>
 					<dd>
 						<?php
 						$ts = strtotime( $agent_last_seen );
@@ -184,7 +184,7 @@ $wp_claw_agent_status_class = function ( $status ) {
 							echo esc_html(
 								sprintf(
 									/* translators: %s: human-readable time difference */
-									__( '%s ago', 'wp-claw' ),
+									__( '%s ago', 'claw-agent' ),
 									human_time_diff( $ts )
 								)
 							);
@@ -206,9 +206,9 @@ $wp_claw_agent_status_class = function ( $status ) {
 
 	<p class="wp-claw-admin-section-footer">
 		<em class="wp-claw-admin-muted">
-			<?php esc_html_e( 'Agent data is cached for 5 minutes.', 'wp-claw' ); ?>
+			<?php esc_html_e( 'Agent data is cached for 5 minutes.', 'claw-agent' ); ?>
 			<a href="<?php echo esc_url( add_query_arg( 'page', 'wp-claw-agents', admin_url( 'admin.php' ) ) ); ?>">
-				<?php esc_html_e( 'Refresh', 'wp-claw' ); ?>
+				<?php esc_html_e( 'Refresh', 'claw-agent' ); ?>
 			</a>
 		</em>
 	</p>

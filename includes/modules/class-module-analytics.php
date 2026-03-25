@@ -59,7 +59,7 @@ class Module_Analytics extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Analytics', 'wp-claw' );
+		return __( 'Analytics', 'claw-agent' );
 	}
 
 	/**
@@ -121,7 +121,7 @@ class Module_Analytics extends Module_Base {
 				return new \WP_Error(
 					'wp_claw_analytics_unknown_action',
 					/* translators: %s: action name */
-					sprintf( esc_html__( 'Unknown analytics action: %s', 'wp-claw' ), esc_html( $action ) ),
+					sprintf( esc_html__( 'Unknown analytics action: %s', 'claw-agent' ), esc_html( $action ) ),
 					array( 'status' => 400 )
 				);
 		}
@@ -265,7 +265,7 @@ class Module_Analytics extends Module_Base {
 		if ( ! $date_from || ! $date_to ) {
 			return new \WP_Error(
 				'wp_claw_analytics_invalid_date',
-				esc_html__( 'date_from and date_to must be valid Y-m-d dates.', 'wp-claw' ),
+				esc_html__( 'date_from and date_to must be valid Y-m-d dates.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -316,7 +316,7 @@ class Module_Analytics extends Module_Base {
 		if ( null === $rows ) {
 			return new \WP_Error(
 				'wp_claw_analytics_db_error',
-				esc_html__( 'Failed to retrieve top pages from database.', 'wp-claw' ),
+				esc_html__( 'Failed to retrieve top pages from database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -359,7 +359,7 @@ class Module_Analytics extends Module_Base {
 		if ( null === $rows ) {
 			return new \WP_Error(
 				'wp_claw_analytics_db_error',
-				esc_html__( 'Failed to retrieve referrers from database.', 'wp-claw' ),
+				esc_html__( 'Failed to retrieve referrers from database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -401,7 +401,7 @@ class Module_Analytics extends Module_Base {
 		if ( null === $rows ) {
 			return new \WP_Error(
 				'wp_claw_analytics_db_error',
-				esc_html__( 'Failed to retrieve device breakdown from database.', 'wp-claw' ),
+				esc_html__( 'Failed to retrieve device breakdown from database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}

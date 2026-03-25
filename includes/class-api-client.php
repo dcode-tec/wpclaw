@@ -435,7 +435,7 @@ class API_Client {
 			);
 			return new \WP_Error(
 				'wp_claw_circuit_open',
-				__( 'Circuit breaker is open — Klawty instance temporarily unreachable.', 'wp-claw' )
+				__( 'Circuit breaker is open — Klawty instance temporarily unreachable.', 'claw-agent' )
 			);
 		}
 
@@ -443,7 +443,7 @@ class API_Client {
 		if ( empty( $this->base_url ) ) {
 			return new \WP_Error(
 				'wp_claw_no_base_url',
-				__( 'Klawty instance URL is not configured.', 'wp-claw' )
+				__( 'Klawty instance URL is not configured.', 'claw-agent' )
 			);
 		}
 
@@ -541,7 +541,7 @@ class API_Client {
 					'wp_claw_rate_limited',
 					sprintf(
 						/* translators: %d: retry delay in seconds */
-						__( 'Klawty rate limit reached. Retry after %d seconds.', 'wp-claw' ),
+						__( 'Klawty rate limit reached. Retry after %d seconds.', 'claw-agent' ),
 						$retry_after
 					),
 					array( 'retry_after' => $retry_after )
@@ -566,7 +566,7 @@ class API_Client {
 						'wp_claw_server_error',
 						sprintf(
 							/* translators: %d: HTTP status code */
-							__( 'Klawty returned server error %1$d after %2$d attempts.', 'wp-claw' ),
+							__( 'Klawty returned server error %1$d after %2$d attempts.', 'claw-agent' ),
 							$code,
 							$max_attempts
 						),
@@ -591,7 +591,7 @@ class API_Client {
 				'wp_claw_api_error',
 				sprintf(
 					/* translators: %d: HTTP status code */
-					__( 'Unexpected status: %d', 'wp-claw' ),
+					__( 'Unexpected status: %d', 'claw-agent' ),
 					$code
 				),
 				array( 'http_code' => $code )
@@ -601,7 +601,7 @@ class API_Client {
 
 		// Should never be reached — the loop always returns.
 		$this->record_failure();
-		return new \WP_Error( 'wp_claw_unknown', __( 'Unknown error during Klawty request.', 'wp-claw' ) );
+		return new \WP_Error( 'wp_claw_unknown', __( 'Unknown error during Klawty request.', 'claw-agent' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -641,7 +641,7 @@ class API_Client {
 
 			return new \WP_Error(
 				'wp_claw_invalid_json',
-				__( 'Klawty returned an invalid JSON response.', 'wp-claw' )
+				__( 'Klawty returned an invalid JSON response.', 'claw-agent' )
 			);
 		}
 
@@ -653,7 +653,7 @@ class API_Client {
 
 			return new \WP_Error(
 				'wp_claw_unexpected_response',
-				__( 'Klawty returned an unexpected response format.', 'wp-claw' )
+				__( 'Klawty returned an unexpected response format.', 'claw-agent' )
 			);
 		}
 

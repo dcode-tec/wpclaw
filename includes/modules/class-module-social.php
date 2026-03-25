@@ -79,7 +79,7 @@ class Module_Social extends Module_Base {
 	 * @return string
 	 */
 	public function get_name(): string {
-		return __( 'Social Media', 'wp-claw' );
+		return __( 'Social Media', 'claw-agent' );
 	}
 
 	/**
@@ -137,7 +137,7 @@ class Module_Social extends Module_Base {
 					'wp_claw_unknown_action',
 					sprintf(
 						/* translators: %s: Action name. */
-						__( 'Unknown social action: %s', 'wp-claw' ),
+						__( 'Unknown social action: %s', 'claw-agent' ),
 						esc_html( $action )
 					),
 					array( 'status' => 400 )
@@ -241,7 +241,7 @@ class Module_Social extends Module_Base {
 			'hook'    => 'publish_post',
 			'title'   => sprintf(
 				/* translators: %s: Post title. */
-				__( 'Generate social posts for: %s', 'wp-claw' ),
+				__( 'Generate social posts for: %s', 'claw-agent' ),
 				$post->post_title
 			),
 			'details' => array(
@@ -296,7 +296,7 @@ class Module_Social extends Module_Base {
 				'wp_claw_invalid_platform',
 				sprintf(
 					/* translators: 1: Supplied platform. 2: Comma-separated list of allowed platforms. */
-					__( 'Invalid platform "%1$s". Allowed values: %2$s.', 'wp-claw' ),
+					__( 'Invalid platform "%1$s". Allowed values: %2$s.', 'claw-agent' ),
 					esc_html( $platform ),
 					implode( ', ', self::$allowed_platforms )
 				),
@@ -310,7 +310,7 @@ class Module_Social extends Module_Base {
 		if ( '' === $text ) {
 			return new \WP_Error(
 				'wp_claw_missing_text',
-				__( 'Social post text is required.', 'wp-claw' ),
+				__( 'Social post text is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -356,7 +356,7 @@ class Module_Social extends Module_Base {
 			'task_id' => $task_id,
 			'message' => sprintf(
 				/* translators: %s: Platform name. */
-				__( 'Social post queued for %s.', 'wp-claw' ),
+				__( 'Social post queued for %s.', 'claw-agent' ),
 				$platform
 			),
 		);
@@ -388,7 +388,7 @@ class Module_Social extends Module_Base {
 				'wp_claw_invalid_platform',
 				sprintf(
 					/* translators: 1: Supplied platform. 2: Comma-separated list of allowed platforms. */
-					__( 'Invalid platform "%1$s". Allowed values: %2$s.', 'wp-claw' ),
+					__( 'Invalid platform "%1$s". Allowed values: %2$s.', 'claw-agent' ),
 					esc_html( $platform ),
 					implode( ', ', self::$allowed_platforms )
 				),
@@ -402,7 +402,7 @@ class Module_Social extends Module_Base {
 		if ( '' === $text ) {
 			return new \WP_Error(
 				'wp_claw_missing_text',
-				__( 'Social post text is required.', 'wp-claw' ),
+				__( 'Social post text is required.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -419,7 +419,7 @@ class Module_Social extends Module_Base {
 		if ( '' === $scheduled_time ) {
 			return new \WP_Error(
 				'wp_claw_missing_scheduled_time',
-				__( 'scheduled_time is required for schedule_post.', 'wp-claw' ),
+				__( 'scheduled_time is required for schedule_post.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -430,7 +430,7 @@ class Module_Social extends Module_Base {
 		if ( false === $timestamp || $timestamp <= 0 ) {
 			return new \WP_Error(
 				'wp_claw_invalid_scheduled_time',
-				__( 'scheduled_time must be a valid ISO 8601 datetime string.', 'wp-claw' ),
+				__( 'scheduled_time must be a valid ISO 8601 datetime string.', 'claw-agent' ),
 				array( 'status' => 400 )
 			);
 		}
@@ -483,7 +483,7 @@ class Module_Social extends Module_Base {
 			'scheduled_time' => $scheduled_time,
 			'message'        => sprintf(
 				/* translators: 1: Platform name. 2: Scheduled time. */
-				__( 'Post scheduled for %1$s at %2$s.', 'wp-claw' ),
+				__( 'Post scheduled for %1$s at %2$s.', 'claw-agent' ),
 				$platform,
 				$scheduled_time
 			),
@@ -521,7 +521,7 @@ class Module_Social extends Module_Base {
 				'wp_claw_invalid_platform',
 				sprintf(
 					/* translators: %s: Supplied platform value. */
-					__( 'Invalid platform filter: %s', 'wp-claw' ),
+					__( 'Invalid platform filter: %s', 'claw-agent' ),
 					esc_html( $platform )
 				),
 				array( 'status' => 400 )
@@ -559,7 +559,7 @@ class Module_Social extends Module_Base {
 		if ( null === $rows ) {
 			return new \WP_Error(
 				'wp_claw_db_error',
-				__( 'Database error fetching scheduled posts.', 'wp-claw' ),
+				__( 'Database error fetching scheduled posts.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}
@@ -656,7 +656,7 @@ class Module_Social extends Module_Base {
 
 			return new \WP_Error(
 				'wp_claw_db_insert_failed',
-				__( 'Failed to save social post task to the database.', 'wp-claw' ),
+				__( 'Failed to save social post task to the database.', 'claw-agent' ),
 				array( 'status' => 500 )
 			);
 		}

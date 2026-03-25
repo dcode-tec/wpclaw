@@ -149,28 +149,6 @@ class WP_Claw {
 	);
 
 	// -------------------------------------------------------------------------
-	// Transient key constants
-	// -------------------------------------------------------------------------
-
-	/**
-	 * Transient key for cached update check data (12-hour TTL).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @var string
-	 */
-	const TRANSIENT_UPDATE_DATA = 'wp_claw_update_data';
-
-	/**
-	 * TTL for the update data transient in seconds (12 hours).
-	 *
-	 * @since 1.0.0
-	 *
-	 * @var int
-	 */
-	const UPDATE_CACHE_TTL = 43200;
-
-	// -------------------------------------------------------------------------
 	// Singleton pattern
 	// -------------------------------------------------------------------------
 
@@ -392,7 +370,7 @@ class WP_Claw {
 					'restUrl'   => esc_url_raw( rest_url( 'wp-claw/v1/chat' ) ),
 					'nonce'     => wp_create_nonce( 'wp_rest' ),
 					'agentName' => esc_html( (string) get_option( 'wp_claw_chat_agent_name', 'Concierge' ) ),
-					'welcome'   => esc_html( (string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'wp-claw' ) ) ),
+					'welcome'   => esc_html( (string) get_option( 'wp_claw_chat_welcome', __( 'Hi! How can I help you today?', 'claw-agent' ) ) ),
 					'position'  => sanitize_text_field( (string) get_option( 'wp_claw_chat_position', 'bottom-right' ) ),
 				)
 			);
