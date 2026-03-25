@@ -1,4 +1,4 @@
-=== Claw ===
+=== Claw Agent ===
 Contributors: dcodetechnologies
 Donate link: https://wp-claw.ai
 Tags: ai, automation, seo, security, woocommerce
