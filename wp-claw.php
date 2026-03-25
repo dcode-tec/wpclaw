@@ -72,11 +72,16 @@ register_deactivation_hook( __FILE__, array( 'WPClaw\\Deactivator', 'deactivate'
 add_action(
 	'plugins_loaded',
 	function () {
-		// Ensure capabilities exist (recovers from failed activation).
-		if ( is_admin() && current_user_can( 'manage_options' ) && ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+		WPClaw\WP_Claw::get_instance()->init();
+	}
+);
+
+// Recover capabilities if activation failed (runs after user is authenticated).
+add_action(
+	'admin_init',
+	function () {
+		if ( current_user_can( 'manage_options' ) && ! current_user_can( 'wp_claw_view_dashboard' ) ) {
 			wp_claw_add_capabilities();
 		}
-
-		WPClaw\WP_Claw::get_instance()->init();
 	}
 );
