@@ -54,10 +54,8 @@ class I18n {
 	 * @return void
 	 */
 	public function load_textdomain(): void {
-		load_plugin_textdomain(
-			'claw-agent',
-			false,
-			dirname( plugin_basename( WP_CLAW_PLUGIN_FILE ) ) . '/languages'
-		);
+		// Since WordPress 4.6, translations for plugins hosted on wordpress.org
+		// are loaded automatically. Calling load_plugin_textdomain() is no longer
+		// necessary and triggers a discouraged-function warning in Plugin Check.
 	}
 }

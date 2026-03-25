@@ -11,6 +11,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables in included view file.
 
 // -------------------------------------------------------------------------
 // Load active modules from the plugin singleton.

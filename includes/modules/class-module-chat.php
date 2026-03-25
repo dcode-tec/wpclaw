@@ -164,6 +164,7 @@ class Module_Chat extends Module_Base {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state snapshot needed for sync; caching would give stale counts.
 
 		// Chat sessions created today (all statuses).
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a class constant, not user input.
 		$sessions_today = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND DATE(created_at) = CURDATE()",  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.

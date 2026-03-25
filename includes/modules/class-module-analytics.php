@@ -139,6 +139,7 @@ class Module_Analytics extends Module_Base {
 
 		$table = $wpdb->prefix . self::TABLE;
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$today = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE DATE(created_at) = %s',
@@ -147,6 +148,7 @@ class Module_Analytics extends Module_Base {
 			)
 		);
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$week = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE created_at >= %s',
@@ -155,6 +157,7 @@ class Module_Analytics extends Module_Base {
 			)
 		);
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$month = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE created_at >= %s',
@@ -270,6 +273,7 @@ class Module_Analytics extends Module_Base {
 			);
 		}
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE DATE(created_at) BETWEEN %s AND %s',
@@ -303,6 +307,7 @@ class Module_Analytics extends Module_Base {
 		$date_from = $this->sanitize_date( $params['date_from'] ?? gmdate( 'Y-m-d', strtotime( '-30 days' ) ) );
 		$date_to   = $this->sanitize_date( $params['date_to'] ?? gmdate( 'Y-m-d' ) );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT page_url, COUNT(*) as views FROM %i WHERE DATE(created_at) BETWEEN %s AND %s GROUP BY page_url ORDER BY views DESC LIMIT 10',
@@ -345,6 +350,7 @@ class Module_Analytics extends Module_Base {
 		$date_from = $this->sanitize_date( $params['date_from'] ?? gmdate( 'Y-m-d', strtotime( '-30 days' ) ) );
 		$date_to   = $this->sanitize_date( $params['date_to'] ?? gmdate( 'Y-m-d' ) );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT referrer, COUNT(*) as visits FROM %i WHERE DATE(created_at) BETWEEN %s AND %s AND referrer IS NOT NULL AND referrer <> %s GROUP BY referrer ORDER BY visits DESC LIMIT 10',
@@ -388,6 +394,7 @@ class Module_Analytics extends Module_Base {
 		$date_from = $this->sanitize_date( $params['date_from'] ?? gmdate( 'Y-m-d', strtotime( '-30 days' ) ) );
 		$date_to   = $this->sanitize_date( $params['date_to'] ?? gmdate( 'Y-m-d' ) );
 
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
 				'SELECT device_type, COUNT(*) as views FROM %i WHERE DATE(created_at) BETWEEN %s AND %s GROUP BY device_type ORDER BY views DESC',

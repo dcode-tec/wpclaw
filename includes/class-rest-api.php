@@ -733,7 +733,7 @@ class REST_API {
 
 		// --- IP-based rate limit: 1 event per second -------------------------
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- hashed immediately, never stored raw.
-		$raw_ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? $_SERVER['REMOTE_ADDR'] : 'unknown';
+		$raw_ip  = isset( $_SERVER['REMOTE_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['REMOTE_ADDR'] ) ) : 'unknown';
 		$ip_hash = md5( $raw_ip );
 		$rl_key  = 'wp_claw_analytics_rl_' . $ip_hash;
 
@@ -790,7 +790,7 @@ class REST_API {
 
 		// --- Compute session hash (server-side — no raw IP stored) -----------
 		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- hashed, never stored or output.
-		$user_agent   = isset( $_SERVER['HTTP_USER_AGENT'] ) ? $_SERVER['HTTP_USER_AGENT'] : '';
+		$user_agent   = isset( $_SERVER['HTTP_USER_AGENT'] ) ? sanitize_text_field( wp_unslash( $_SERVER['HTTP_USER_AGENT'] ) ) : '';
 		$session_hash = hash(
 			'sha256',
 			$raw_ip . $user_agent . gmdate( 'Y-m-d' )

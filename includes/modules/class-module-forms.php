@@ -148,6 +148,7 @@ class Module_Forms extends Module_Base {
 
 		// Count submissions stored as tasks with module='forms'.
 		$table_name       = $wpdb->prefix . 'wp_claw_tasks';
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 		$submission_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				'SELECT COUNT(*) FROM %i WHERE module = %s',
@@ -253,6 +254,7 @@ class Module_Forms extends Module_Base {
 
 		if ( ! empty( $params['form_id'] ) ) {
 			$form_id = sanitize_key( $params['form_id'] );
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 			$rows    = $wpdb->get_results(
 				$wpdb->prepare(
 					"SELECT * FROM %i WHERE module = %s AND JSON_EXTRACT(details, '$.form_id') = %s ORDER BY created_at DESC LIMIT %d OFFSET %d",
@@ -265,6 +267,7 @@ class Module_Forms extends Module_Base {
 				ARRAY_A
 			);
 		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
 					'SELECT * FROM %i WHERE module = %s ORDER BY created_at DESC LIMIT %d OFFSET %d',

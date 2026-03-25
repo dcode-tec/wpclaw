@@ -14,6 +14,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables in included view file.
 
 // Security: check capability.
 if ( ! function_exists( 'wp_claw_current_user_can' ) || ! wp_claw_current_user_can( 'command_center' ) ) {

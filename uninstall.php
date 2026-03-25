@@ -14,6 +14,7 @@
  */
 
 defined( 'WP_UNINSTALL_PLUGIN' ) || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- uninstall script, not loaded in global scope.
 
 // The main plugin file is NOT loaded during uninstall — require helpers manually.
 require_once plugin_dir_path( __FILE__ ) . 'includes/helpers/capabilities.php';

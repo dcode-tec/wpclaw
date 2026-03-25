@@ -11,6 +11,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables in included view file.
 
 // Module slugs available for the enabled-modules checklist.
 // The sanitize_enabled_modules() callback in Admin validates against this same list.

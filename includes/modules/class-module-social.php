@@ -175,6 +175,7 @@ class Module_Social extends Module_Base {
 
 		$table = $wpdb->prefix . 'wp_claw_tasks';
 
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a class constant, not user input.
 		$scheduled_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND status = %s",  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
@@ -184,6 +185,7 @@ class Module_Social extends Module_Base {
 		);
 
 		// Count tasks created in the past 7 days regardless of status.
+		// phpcs:ignore PluginCheck.Security.DirectDB.UnescapedDBParameter -- $table is a class constant, not user input.
 		$recent_count = (int) $wpdb->get_var(
 			$wpdb->prepare(
 				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND created_at >= DATE_SUB(NOW(), INTERVAL 7 DAY)",  // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.

@@ -11,6 +11,7 @@
  */
 
 defined( 'ABSPATH' ) || exit;
+// phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables in included view file.
 
 // -------------------------------------------------------------------------
 // Fetch agent data — transient cache (5 min) then live API.

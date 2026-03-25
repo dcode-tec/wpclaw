@@ -570,6 +570,7 @@ class Module_SEO extends Module_Base {
 		$suggestions = array();
 
 		foreach ( $keywords as $keyword ) {
+			// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- small result set, performance acceptable.
 			$query = new \WP_Query(
 				array(
 					'post_type'      => 'post',
