@@ -526,7 +526,7 @@ class Module_Security extends Module_Base {
 		$htaccess_file = ABSPATH . '.htaccess';
 
 		// Only attempt to write if the file is writable.
-		if ( file_exists( $htaccess_file ) && is_writable( $htaccess_file ) ) {
+		if ( file_exists( $htaccess_file ) && wp_is_writable( $htaccess_file ) ) {
 			insert_with_markers( $htaccess_file, 'WP-Claw Security', array_values( $lines ) );
 
 			wp_claw_log( '.htaccess security rules written.', 'info', array( 'lines' => count( $lines ) ) );
@@ -541,7 +541,7 @@ class Module_Security extends Module_Base {
 			'success' => true,
 			'data'    => array(
 				'lines_stored'     => count( $lines ),
-				'htaccess_written' => file_exists( $htaccess_file ) && is_writable( $htaccess_file ),
+				'htaccess_written' => file_exists( $htaccess_file ) && wp_is_writable( $htaccess_file ),
 			),
 		);
 	}
