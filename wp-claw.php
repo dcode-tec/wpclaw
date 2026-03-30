@@ -11,7 +11,7 @@
  * Plugin Name:       Claw Agent
  * Plugin URI:        https://wp-claw.ai
  * Description:       The AI Operating Layer for WordPress — replaces 10-15 plugins with one AI-powered system connected to Klawty.
- * Version:           1.0.3
+ * Version:           1.1.0
  * Requires at least: 6.4
  * Requires PHP:      7.4
  * Author:            dcode technologies
@@ -25,8 +25,8 @@
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
-define( 'WP_CLAW_VERSION', '1.0.3' );
-define( 'WP_CLAW_DB_VERSION', '1.0.0' );
+define( 'WP_CLAW_VERSION', '1.1.0' );
+define( 'WP_CLAW_DB_VERSION', '1.1.0' );
 define( 'WP_CLAW_PLUGIN_FILE', __FILE__ );
 define( 'WP_CLAW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_CLAW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
