@@ -638,11 +638,13 @@ class REST_API {
 	 * @return \WP_REST_Response|\WP_Error REST response on success, WP_Error on failure.
 	 */
 	public function handle_chat_send( \WP_REST_Request $request ) {
-		$body       = $request->get_json_params();
-		$body       = is_array( $body ) ? $body : array();
-		$session_id = isset( $body['session_id'] ) ? sanitize_text_field( (string) $body['session_id'] ) : '';
-		$message    = isset( $body['message'] ) ? (string) $body['message'] : '';
-		$page_url   = isset( $body['page_url'] ) ? esc_url_raw( (string) $body['page_url'] ) : '';
+		$body         = $request->get_json_params();
+		$body         = is_array( $body ) ? $body : array();
+		$session_id   = isset( $body['session_id'] ) ? sanitize_text_field( (string) $body['session_id'] ) : '';
+		$message      = isset( $body['message'] ) ? (string) $body['message'] : '';
+		$page_url     = isset( $body['page_url'] ) ? esc_url_raw( (string) $body['page_url'] ) : '';
+		$page_context = isset( $body['page_context'] ) ? sanitize_textarea_field( wp_unslash( (string) $body['page_context'] ) ) : '';
+		$page_context = mb_substr( $page_context, 0, 500 );
 
 		if ( empty( $session_id ) ) {
 			return new \WP_Error(
@@ -687,9 +689,10 @@ class REST_API {
 
 		$response = $this->api_client->send_chat_message(
 			array(
-				'session_id' => $session_id,
-				'message'    => $sanitized_message,
-				'page_url'   => $page_url,
+				'session_id'   => $session_id,
+				'message'      => $sanitized_message,
+				'page_url'     => $page_url,
+				'page_context' => $page_context,
 			)
 		);
 

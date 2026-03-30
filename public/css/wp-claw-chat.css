@@ -564,6 +564,97 @@
 }
 
 /* =============================================================================
+	GDPR Consent Overlay
+	Shown inside the chat window before the user accepts.
+	============================================================================= */
+
+.wp-claw-chat-consent {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	padding: 24px 20px;
+	text-align: center;
+	height: 100%;
+}
+
+.wp-claw-chat-consent__icon {
+	font-size: 32px;
+	margin-bottom: 12px;
+}
+
+.wp-claw-chat-consent__title {
+	font-size: 16px;
+	font-weight: 600;
+	margin: 0 0 8px;
+	color: #111827;
+}
+
+.wp-claw-chat-consent__text {
+	font-size: 13px;
+	color: #6b7280;
+	line-height: 1.5;
+	margin: 0 0 12px;
+}
+
+.wp-claw-chat-consent__text a {
+	color: var(--wp-claw-accent);
+	text-decoration: underline;
+}
+
+.wp-claw-chat-consent__actions {
+	display: flex;
+	gap: 8px;
+	width: 100%;
+}
+
+.wp-claw-chat-consent__accept {
+	flex: 1;
+	padding: 10px;
+	border: none;
+	border-radius: 6px;
+	background: var(--wp-claw-accent);
+	color: #fff;
+	font-weight: 600;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.wp-claw-chat-consent__accept:hover {
+	background: var(--wp-claw-accent-dark);
+}
+
+.wp-claw-chat-consent__decline {
+	flex: 1;
+	padding: 10px;
+	border: 1px solid #d1d5db;
+	border-radius: 6px;
+	background: #fff;
+	color: #6b7280;
+	cursor: pointer;
+	font-size: 13px;
+}
+
+.wp-claw-chat-consent__decline:hover {
+	background: #f3f4f6;
+}
+
+/* =============================================================================
+	Escalation SLA Notice
+	============================================================================= */
+
+.wp-claw-chat-sla-notice {
+	background: #fffbeb;
+	border: 1px solid #fbbf24;
+	border-radius: 8px;
+	padding: 8px 12px;
+	font-size: 12px;
+	color: #92400e;
+	text-align: center;
+	margin: 4px 0;
+}
+
+/* =============================================================================
 	Position Variant — Left
 	Override default right positioning.
 	============================================================================= */
