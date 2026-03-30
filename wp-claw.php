@@ -37,6 +37,8 @@ require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/logger.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/encryption.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/sanitization.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/capabilities.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/file-scanner.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/malware-patterns.php';
 
 // Core classes — load in dependency order.
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-module-base.php';
