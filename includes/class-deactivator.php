@@ -59,6 +59,13 @@ class Deactivator {
 		'wp_claw_analytics_report',
 		'wp_claw_performance_check',
 		'wp_claw_analytics_cleanup',
+		'wp_claw_file_integrity',
+		'wp_claw_malware_scan',
+		'wp_claw_ssl_check',
+		'wp_claw_abandoned_cart',
+		'wp_claw_ab_test_eval',
+		'wp_claw_cwv_cleanup',
+		'wp_claw_segmentation',
 	);
 
 	/**
@@ -77,6 +84,8 @@ class Deactivator {
 		'wp_claw_circuit_failures',
 		'wp_claw_update_data',
 		'wp_claw_queue_lock',
+		'wp_claw_consecutive_health_fails',
+		'wp_claw_t3_daily_count',
 	);
 
 	/**
