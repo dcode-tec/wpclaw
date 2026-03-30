@@ -105,6 +105,9 @@ class Module_Performance extends Module_Base {
 			'optimize_images',
 			'suggest_cache_strategy',
 			'get_page_speed_data',
+			'optimize_tables',
+			'get_autoload_analysis',
+			'store_pagespeed_data',
 		);
 	}
 
@@ -138,6 +141,15 @@ class Module_Performance extends Module_Base {
 
 			case 'get_page_speed_data':
 				return $this->handle_get_page_speed_data();
+
+			case 'optimize_tables':
+				return $this->handle_optimize_tables( $params );
+
+			case 'get_autoload_analysis':
+				return $this->handle_get_autoload_analysis( $params );
+
+			case 'store_pagespeed_data':
+				return $this->handle_store_pagespeed_data( $params );
 
 			default:
 				return new \WP_Error(
@@ -418,6 +430,219 @@ class Module_Performance extends Module_Base {
 		);
 	}
 
+	/**
+	 * Optimize fragmented database tables.
+	 *
+	 * Queries SHOW TABLE STATUS to find tables with significant fragmentation
+	 * (Data_free / Data_length > 20%). Runs OPTIMIZE TABLE on qualifying
+	 * tables. InnoDB tables are logged but skipped since OPTIMIZE is a no-op
+	 * for most InnoDB configurations.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array
+	 */
+	private function handle_optimize_tables( array $params ): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional SHOW TABLE STATUS for maintenance analysis.
+		$tables = $wpdb->get_results( 'SHOW TABLE STATUS', ARRAY_A );
+
+		if ( empty( $tables ) ) {
+			return array(
+				'success' => true,
+				'message' => __( 'No tables found to optimize.', 'claw-agent' ),
+				'results' => array(),
+			);
+		}
+
+		$results = array();
+
+		foreach ( $tables as $table ) {
+			$name        = sanitize_text_field( $table['Name'] );
+			$engine      = isset( $table['Engine'] ) ? sanitize_text_field( $table['Engine'] ) : '';
+			$data_length = isset( $table['Data_length'] ) ? (int) $table['Data_length'] : 0;
+			$data_free   = isset( $table['Data_free'] ) ? (int) $table['Data_free'] : 0;
+
+			// Calculate fragmentation ratio.
+			$denominator      = $data_length + 1;
+			$fragmentation    = $data_free / $denominator;
+
+			if ( $fragmentation <= 0.2 ) {
+				continue;
+			}
+
+			// Skip InnoDB — OPTIMIZE is largely a no-op.
+			if ( 'InnoDB' === $engine ) {
+				$results[] = array(
+					'table'         => $name,
+					'engine'        => $engine,
+					'fragmentation' => round( $fragmentation * 100, 1 ),
+					'skipped'       => true,
+					'reason'        => __( 'InnoDB: OPTIMIZE TABLE is a no-op for this engine.', 'claw-agent' ),
+				);
+				continue;
+			}
+
+			$before_free = $data_free;
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching,WordPress.DB.DirectDatabaseQuery.SchemaChange -- intentional OPTIMIZE TABLE for maintenance.
+			$wpdb->query(
+				$wpdb->prepare( 'OPTIMIZE TABLE %i', $name )
+			);
+
+			// Re-check after optimize.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- re-read after optimize.
+			$after = $wpdb->get_row(
+				$wpdb->prepare(
+					'SELECT Data_free FROM information_schema.tables WHERE table_schema = %s AND table_name = %s',
+					DB_NAME,
+					$name
+				),
+				ARRAY_A
+			);
+
+			$after_free = $after ? (int) $after['Data_free'] : 0;
+
+			$results[] = array(
+				'table'         => $name,
+				'engine'        => $engine,
+				'fragmentation' => round( $fragmentation * 100, 1 ),
+				'before_free'   => $before_free,
+				'after_free'    => $after_free,
+				'reclaimed'     => max( 0, $before_free - $after_free ),
+				'skipped'       => false,
+			);
+		}
+
+		return array(
+			'success'         => true,
+			'tables_analyzed' => count( $tables ),
+			'tables_optimized' => count( array_filter( $results, static function ( $r ) { return ! $r['skipped']; } ) ),
+			'results'         => $results,
+			'message'         => __( 'Table optimization completed.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Analyze autoloaded options for bloat.
+	 *
+	 * Returns the total size of autoloaded options and the top 10 largest
+	 * entries by byte size. Helps agents identify plugins or themes that
+	 * store excessive data in autoloaded options.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array
+	 */
+	private function handle_get_autoload_analysis( array $params ): array {
+		global $wpdb;
+
+		// Total autoloaded size.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional aggregate for performance analysis.
+		$total_bytes = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT SUM(LENGTH(option_value)) FROM %i WHERE autoload = %s',
+				$wpdb->options,
+				'yes'
+			)
+		);
+
+		// Top 10 largest autoloaded options.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional analysis query; not cacheable.
+		$top_10 = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT option_name, LENGTH(option_value) as size FROM %i WHERE autoload = %s ORDER BY size DESC LIMIT 10',
+				$wpdb->options,
+				'yes'
+			),
+			ARRAY_A
+		);
+
+		$top_entries = array();
+		if ( is_array( $top_10 ) ) {
+			foreach ( $top_10 as $row ) {
+				$top_entries[] = array(
+					'option_name' => sanitize_text_field( $row['option_name'] ),
+					'size_bytes'  => (int) $row['size'],
+				);
+			}
+		}
+
+		return array(
+			'success'     => true,
+			'total_bytes' => $total_bytes,
+			'total_kb'    => round( $total_bytes / 1024, 1 ),
+			'top_10'      => $top_entries,
+		);
+	}
+
+	/**
+	 * Store PageSpeed data for a specific page URL.
+	 *
+	 * Stores scores (performance, accessibility, best_practices, seo) as a
+	 * transient with a 7-day TTL. The transient key is derived from an MD5
+	 * hash of the URL for uniqueness.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type string $page_url Required. The URL that was measured.
+	 *   @type array  $scores   Required. Object with performance, accessibility, best_practices, seo (each 0-100).
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_store_pagespeed_data( array $params ) {
+		$page_url = isset( $params['page_url'] ) ? esc_url_raw( wp_unslash( (string) $params['page_url'] ) ) : '';
+		if ( '' === $page_url ) {
+			return new \WP_Error(
+				'wp_claw_missing_page_url',
+				__( 'page_url parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		if ( ! isset( $params['scores'] ) || ! is_array( $params['scores'] ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_scores',
+				__( 'scores parameter is required and must be an object.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$scores = array(
+			'performance'    => min( 100, max( 0, absint( $params['scores']['performance'] ?? 0 ) ) ),
+			'accessibility'  => min( 100, max( 0, absint( $params['scores']['accessibility'] ?? 0 ) ) ),
+			'best_practices' => min( 100, max( 0, absint( $params['scores']['best_practices'] ?? 0 ) ) ),
+			'seo'            => min( 100, max( 0, absint( $params['scores']['seo'] ?? 0 ) ) ),
+		);
+
+		$transient_key = 'wp_claw_pagespeed_' . md5( $page_url );
+		$data          = array(
+			'page_url'   => $page_url,
+			'scores'     => $scores,
+			'checked_at' => current_time( 'c' ),
+		);
+
+		set_transient( $transient_key, $data, 7 * DAY_IN_SECONDS );
+
+		return array(
+			'success'  => true,
+			'page_url' => $page_url,
+			'scores'   => $scores,
+			'message'  => __( 'PageSpeed data stored successfully.', 'claw-agent' ),
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Hook registration
 	// -------------------------------------------------------------------------
@@ -498,16 +723,44 @@ class Module_Performance extends Module_Base {
 		// Core Web Vitals snapshot (from transient, may be empty).
 		$cwv = get_transient( self::CWV_TRANSIENT );
 
+		// Table fragmentation percentage (average across all tables).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional aggregate for state sync.
+		$frag_data = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT AVG(Data_free / (Data_length + 1)) as avg_frag FROM information_schema.tables WHERE table_schema = %s AND Data_length > 0',
+				DB_NAME
+			),
+			ARRAY_A
+		);
+
+		$table_fragmentation_pct = $frag_data ? round( (float) $frag_data['avg_frag'] * 100, 1 ) : 0.0;
+
+		// Determine if autoload is top-heavy (largest option > 50% of total).
+		$autoload_top_heavy = false;
+		if ( $autoloaded_bytes > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional single-value query for state.
+			$largest_autoload = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT MAX(LENGTH(option_value)) FROM %i WHERE autoload = %s',
+					$wpdb->options,
+					'yes'
+				)
+			);
+			$autoload_top_heavy = ( $largest_autoload > ( $autoloaded_bytes * 0.5 ) );
+		}
+
 		return array(
-			'module'           => $this->get_slug(),
-			'db_size_bytes'    => $db_size_bytes,
-			'db_size_mb'       => round( $db_size_bytes / 1048576, 2 ),
-			'autoloaded_bytes' => $autoloaded_bytes,
-			'autoloaded_kb'    => round( $autoloaded_bytes / 1024, 1 ),
-			'revision_count'   => $revision_count,
-			'spam_count'       => $spam_count,
-			'core_web_vitals'  => is_array( $cwv ) ? $cwv : null,
-			'generated_at'     => current_time( 'c' ),
+			'module'                  => $this->get_slug(),
+			'db_size_bytes'           => $db_size_bytes,
+			'db_size_mb'              => round( $db_size_bytes / 1048576, 2 ),
+			'autoloaded_bytes'        => $autoloaded_bytes,
+			'autoloaded_kb'           => round( $autoloaded_bytes / 1024, 1 ),
+			'revision_count'          => $revision_count,
+			'spam_count'              => $spam_count,
+			'core_web_vitals'         => is_array( $cwv ) ? $cwv : null,
+			'table_fragmentation_pct' => $table_fragmentation_pct,
+			'autoload_top_heavy'      => $autoload_top_heavy,
+			'generated_at'            => current_time( 'c' ),
 		);
 	}
 }
