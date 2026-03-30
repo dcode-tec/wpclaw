@@ -98,6 +98,12 @@ class Hooks {
 		'wpforms_process_complete'         => array( 'crm' ),
 		'gform_after_submission'           => array( 'crm' ),
 		'wpcf7_mail_sent'                  => array( 'crm' ),
+		'woocommerce_add_to_cart'              => array( 'commerce' ),
+		'woocommerce_cart_updated'             => array( 'commerce' ),
+		'woocommerce_checkout_order_processed' => array( 'commerce' ),
+		'woocommerce_after_cart'               => array( 'analytics' ),
+		'woocommerce_after_checkout_form'      => array( 'analytics' ),
+		'woocommerce_thankyou'                 => array( 'analytics' ),
 	);
 
 	/**
@@ -152,6 +158,12 @@ class Hooks {
 			'woocommerce_order_status_changed',
 			'woocommerce_low_stock',
 			'woocommerce_new_order',
+			'woocommerce_add_to_cart',
+			'woocommerce_cart_updated',
+			'woocommerce_checkout_order_processed',
+			'woocommerce_after_cart',
+			'woocommerce_after_checkout_form',
+			'woocommerce_thankyou',
 		);
 
 		foreach ( self::$hook_map as $hook_name => $module_slugs ) {
@@ -178,8 +190,9 @@ class Hooks {
 					$this->handle_hook( $captured_hook, $captured_modules, $args );
 				},
 				10,
-				// Accept up to 3 arguments so we can extract context from rich hooks.
-				3
+				// Accept up to 6 arguments so we can extract context from rich hooks
+				// (e.g. woocommerce_add_to_cart passes 6 args).
+				6
 			);
 		}
 	}
@@ -387,6 +400,82 @@ class Hooks {
 							__( 'Form submission received (%s)', 'claw-agent' ),
 							$hook_name
 						),
+					)
+				);
+
+			case 'woocommerce_add_to_cart':
+				$product_id = isset( $args[1] ) ? (int) $args[1] : 0;
+				$quantity   = isset( $args[2] ) ? (int) $args[2] : 1;
+				if ( $product_id <= 0 ) {
+					return null;
+				}
+				$product_name = '';
+				$product      = wc_get_product( $product_id );
+				if ( $product ) {
+					$product_name = $product->get_name();
+				}
+				return array_merge(
+					$base,
+					array(
+						'title'        => sprintf(
+							__( 'Item added to cart: %s', 'claw-agent' ),
+							$product_name
+						),
+						'product_id'   => $product_id,
+						'quantity'     => $quantity,
+					)
+				);
+
+			case 'woocommerce_cart_updated':
+				return array_merge(
+					$base,
+					array(
+						'title' => __( 'Cart updated', 'claw-agent' ),
+					)
+				);
+
+			case 'woocommerce_checkout_order_processed':
+				$order_id = isset( $args[0] ) ? (int) $args[0] : 0;
+				if ( $order_id <= 0 ) {
+					return null;
+				}
+				return array_merge(
+					$base,
+					array(
+						'title'    => sprintf(
+							__( 'Checkout completed: Order #%d', 'claw-agent' ),
+							$order_id
+						),
+						'order_id' => $order_id,
+					)
+				);
+
+			case 'woocommerce_after_cart':
+				return array_merge(
+					$base,
+					array(
+						'title' => __( 'Cart page viewed', 'claw-agent' ),
+					)
+				);
+
+			case 'woocommerce_after_checkout_form':
+				return array_merge(
+					$base,
+					array(
+						'title' => __( 'Checkout page viewed', 'claw-agent' ),
+					)
+				);
+
+			case 'woocommerce_thankyou':
+				$order_id = isset( $args[0] ) ? (int) $args[0] : 0;
+				return array_merge(
+					$base,
+					array(
+						'title'    => sprintf(
+							__( 'Order confirmed: #%d', 'claw-agent' ),
+							$order_id
+						),
+						'order_id' => $order_id,
 					)
 				);
 
