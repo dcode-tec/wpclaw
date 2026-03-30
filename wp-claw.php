@@ -65,6 +65,7 @@ require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-analytics.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-backup.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-social.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-chat.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-audit.php';
 
 // Activation and deactivation hooks.
 register_activation_hook( __FILE__, array( 'WPClaw\\Activator', 'activate' ) );

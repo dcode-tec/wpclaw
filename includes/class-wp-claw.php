@@ -146,6 +146,7 @@ class WP_Claw {
 		'backup'      => 'WPClaw\\Modules\\Module_Backup',
 		'social'      => 'WPClaw\\Modules\\Module_Social',
 		'chat'        => 'WPClaw\\Modules\\Module_Chat',
+		'audit'       => 'WPClaw\\Modules\\Module_Audit',
 	);
 
 	// -------------------------------------------------------------------------
