@@ -740,13 +740,17 @@ class Module_SEO extends Module_Base {
 			return;
 		}
 
-		// Determine variant: 0 = A, 1 = B.
-		if ( function_exists( 'session_id' ) && '' !== session_id() ) {
-			$seed = session_id();
-		} else {
-			$seed = wp_generate_uuid4();
+		// Determine variant via cookie for deterministic bucketing (survives page caches).
+		// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- cookie value is only used as hash seed.
+		$ab_id = isset( $_COOKIE['wp_claw_ab_id'] ) ? sanitize_text_field( wp_unslash( $_COOKIE['wp_claw_ab_id'] ) ) : '';
+		if ( '' === $ab_id ) {
+			$ab_id = wp_generate_uuid4();
+			// Set cookie for 30 days, httponly, samesite=Lax. Cannot use setcookie() after headers sent.
+			if ( ! headers_sent() ) {
+				setcookie( 'wp_claw_ab_id', $ab_id, time() + ( 30 * DAY_IN_SECONDS ), COOKIEPATH, COOKIE_DOMAIN, is_ssl(), true );
+			}
 		}
-		$variant = abs( crc32( $seed ) ) % 2;
+		$variant = abs( crc32( $ab_id ) ) % 2;
 
 		if ( 0 === $variant ) {
 			$desc  = $test->variant_a_desc;

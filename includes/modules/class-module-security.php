@@ -730,16 +730,19 @@ class Module_Security extends Module_Base {
 
 		foreach ( $hashes as $file_path => $hash ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
-			$wpdb->replace(
+			$abs_path  = ABSPATH . $file_path;
+				$file_size = file_exists( $abs_path ) ? (int) filesize( $abs_path ) : 0;
+				$wpdb->replace(
 				$table_name,
 				array(
-					'file_path' => sanitize_text_field( $file_path ),
-					'file_hash' => sanitize_text_field( $hash ),
-					'scope'     => $scope,
-					'status'    => 'clean',
-					'scanned_at' => current_time( 'mysql', true ),
+					'file_path'  => sanitize_text_field( $file_path ),
+					'file_hash'  => sanitize_text_field( $hash ),
+					'file_size'  => $file_size,
+					'scope'      => $scope,
+					'status'     => 'clean',
+					'checked_at' => current_time( 'mysql', true ),
 				),
-				array( '%s', '%s', '%s', '%s', '%s' )
+				array( '%s', '%s', '%d', '%s', '%s', '%s' )
 			);
 			++$count;
 		}
@@ -892,7 +895,7 @@ class Module_Security extends Module_Base {
 			$table_name,
 			array(
 				'status'    => 'quarantined',
-				'scanned_at' => current_time( 'mysql', true ),
+				'checked_at' => current_time( 'mysql', true ),
 			),
 			array( 'file_path' => $rel_path ),
 			array( '%s', '%s' ),
@@ -972,7 +975,7 @@ class Module_Security extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
 			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
-			"SELECT file_path, file_hash, scope, status, scanned_at FROM {$table_name} WHERE status = 'quarantined'",
+			"SELECT file_path, file_hash, scope, status, checked_at FROM {$table_name} WHERE status = 'quarantined'",
 			ARRAY_A
 		);
 

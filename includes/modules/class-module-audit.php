@@ -436,7 +436,7 @@ class Module_Audit extends Module_Base {
 		}
 
 		// Query tasks completed this week.
-		$tasks_table = $wpdb->prefix . 'claw_tasks';
+		$tasks_table = $wpdb->prefix . 'wp_claw_tasks';
 		$week_ago    = gmdate( 'Y-m-d H:i:s', time() - WEEK_IN_SECONDS );
 
 		$tasks_completed = 0;
@@ -453,7 +453,7 @@ class Module_Audit extends Module_Base {
 		}
 
 		// Query proposals resolved this week.
-		$proposals_table    = $wpdb->prefix . 'claw_proposals';
+		$proposals_table    = $wpdb->prefix . 'wp_claw_proposals';
 		$proposals_approved = 0;
 		$proposals_rejected = 0;
 
