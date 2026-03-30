@@ -381,6 +381,18 @@ class REST_API {
 		$module = isset( $body['module'] ) ? sanitize_key( (string) $body['module'] ) : '';
 		$action = isset( $body['action'] ) ? sanitize_text_field( (string) $body['action'] ) : '';
 
+		// Constitutional constraint: halt non-auto operations when health checks fail.
+		if ( get_option( 'wp_claw_operations_halted' ) ) {
+			$req_tier = isset( $body['tier'] ) ? sanitize_key( (string) $body['tier'] ) : 'auto';
+			if ( 'auto' !== $req_tier ) {
+				return new \WP_Error(
+					'wp_claw_operations_halted',
+					__( 'Operations halted due to consecutive health check failures. Resolve health issues first.', 'claw-agent' ),
+					array( 'status' => 503 )
+				);
+			}
+		}
+
 		if ( empty( $module ) || empty( $action ) ) {
 			return new \WP_Error(
 				'wp_claw_missing_params',
@@ -438,6 +450,19 @@ class REST_API {
 		$params = $body;
 		unset( $params['module'], $params['action'] );
 
+		// Constitutional constraint: limit T3 (propose/confirm) actions to 5 per day.
+		$tier = isset( $params['tier'] ) ? sanitize_key( (string) $params['tier'] ) : 'auto';
+		if ( in_array( $tier, array( 'propose', 'confirm' ), true ) ) {
+			$daily_count = (int) get_transient( 'wp_claw_t3_daily_count' );
+			if ( $daily_count >= 5 ) {
+				return new \WP_Error(
+					'wp_claw_t3_limit',
+					__( 'Daily T3 action limit reached (5/day). Requires human override.', 'claw-agent' ),
+					array( 'status' => 429 )
+				);
+			}
+		}
+
 		// Dispatch the action to the module.
 		$result = $module_object->handle_action( $action, $params );
 
@@ -482,6 +507,12 @@ class REST_API {
 					'task_id'  => $task_id,
 				)
 			);
+		}
+
+		// Increment T3 daily counter on successful completion.
+		if ( in_array( $tier, array( 'propose', 'confirm' ), true ) && 'done' === $task_status ) {
+			$dc = (int) get_transient( 'wp_claw_t3_daily_count' );
+			set_transient( 'wp_claw_t3_daily_count', $dc + 1, DAY_IN_SECONDS );
 		}
 
 		if ( is_wp_error( $result ) ) {

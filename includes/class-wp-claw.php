@@ -217,6 +217,14 @@ class WP_Claw {
 					'to'   => WP_CLAW_DB_VERSION,
 				)
 			);
+
+			// Schedule any missing cron events (ensures new events are registered on plugin update).
+			$required_crons = Activator::get_cron_events();
+			foreach ( $required_crons as $hook => $recurrence ) {
+				if ( ! wp_next_scheduled( $hook ) ) {
+					wp_schedule_event( time(), $recurrence, $hook );
+				}
+			}
 		}
 
 		// --- Step 2: Internationalization ------------------------------------
