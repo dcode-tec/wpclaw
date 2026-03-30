@@ -146,6 +146,7 @@ class WP_Claw {
 		'backup'      => 'WPClaw\\Modules\\Module_Backup',
 		'social'      => 'WPClaw\\Modules\\Module_Social',
 		'chat'        => 'WPClaw\\Modules\\Module_Chat',
+		'audit'       => 'WPClaw\\Modules\\Module_Audit',
 	);
 
 	// -------------------------------------------------------------------------
@@ -216,6 +217,14 @@ class WP_Claw {
 					'to'   => WP_CLAW_DB_VERSION,
 				)
 			);
+
+			// Schedule any missing cron events (ensures new events are registered on plugin update).
+			$required_crons = Activator::get_cron_events();
+			foreach ( $required_crons as $hook => $recurrence ) {
+				if ( ! wp_next_scheduled( $hook ) ) {
+					wp_schedule_event( time(), $recurrence, $hook );
+				}
+			}
 		}
 
 		// --- Step 2: Internationalization ------------------------------------

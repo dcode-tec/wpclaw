@@ -109,6 +109,12 @@ class Module_Backup extends Module_Base {
 			'restore_backup',
 			'delete_old_backups',
 			'verify_backup',
+			'create_targeted_snapshot',
+			'restore_snapshot',
+			'list_snapshots',
+			'cleanup_expired_snapshots',
+			'create_file_backup',
+			'get_backup_retention',
 		);
 	}
 
@@ -139,6 +145,24 @@ class Module_Backup extends Module_Base {
 			case 'verify_backup':
 				return $this->action_verify_backup( $params );
 
+			case 'create_targeted_snapshot':
+				return $this->action_create_targeted_snapshot( $params );
+
+			case 'restore_snapshot':
+				return $this->action_restore_snapshot( $params );
+
+			case 'list_snapshots':
+				return $this->action_list_snapshots( $params );
+
+			case 'cleanup_expired_snapshots':
+				return $this->action_cleanup_expired_snapshots( $params );
+
+			case 'create_file_backup':
+				return $this->action_create_file_backup( $params );
+
+			case 'get_backup_retention':
+				return $this->action_get_backup_retention( $params );
+
 			default:
 				return new \WP_Error(
 					'wp_claw_backup_unknown_action',
@@ -160,6 +184,8 @@ class Module_Backup extends Module_Base {
 	 * @return array
 	 */
 	public function get_state(): array {
+		global $wpdb;
+
 		$backups    = $this->get_backup_list();
 		$count      = count( $backups );
 		$total_size = 0;
@@ -173,10 +199,53 @@ class Module_Backup extends Module_Base {
 			}
 		}
 
+		// Snapshot state.
+		$snapshots_table = $wpdb->prefix . 'wp_claw_snapshots';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state snapshot needed for sync.
+		$active_snapshots = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'active'
+			)
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state snapshot needed for sync.
+		$oldest_snapshot_time = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT MIN(created_at) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'active'
+			)
+		);
+
+		$oldest_snapshot_hours = 0;
+		if ( $oldest_snapshot_time ) {
+			$oldest_snapshot_hours = round( ( time() - strtotime( $oldest_snapshot_time ) ) / 3600, 1 );
+		}
+
+		// File backup state.
+		$wp_filesystem     = $this->get_wp_filesystem();
+		$file_backup_exists = false;
+		$last_file_backup   = '';
+
+		if ( ! is_wp_error( $wp_filesystem ) ) {
+			$backup_root = $this->get_backup_root();
+			$file_backup = trailingslashit( $backup_root ) . 'wp-content-backup.zip';
+
+			if ( $wp_filesystem->exists( $file_backup ) ) {
+				$file_backup_exists = true;
+				$last_file_backup   = gmdate( 'Y-m-d H:i:s', $wp_filesystem->mtime( $file_backup ) );
+			}
+		}
+
 		return array(
-			'last_backup_at'   => $last_time,
-			'backup_count'     => $count,
-			'total_size_bytes' => $total_size,
+			'last_backup_at'       => $last_time,
+			'backup_count'         => $count,
+			'total_size_bytes'     => $total_size,
+			'active_snapshots'     => $active_snapshots,
+			'oldest_snapshot_hours' => $oldest_snapshot_hours,
+			'file_backup_exists'   => $file_backup_exists,
+			'last_file_backup_at'  => $last_file_backup,
 		);
 	}
 
@@ -500,6 +569,490 @@ class Module_Backup extends Module_Base {
 			'size_bytes' => $file_size,
 			'valid'      => true,
 			'message'    => __( 'Backup verified successfully.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Create a targeted snapshot of specific tables and files.
+	 *
+	 * Snapshots are lightweight, time-limited backups tied to a specific agent
+	 * action. Each snapshot has a unique ID, stores only the requested tables
+	 * and files, and expires after 72 hours for automatic cleanup.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type string   $snapshot_id         Required. UUID string identifying the snapshot.
+	 *   @type string   $agent               Required. Agent name requesting the snapshot.
+	 *   @type string   $action_description  Required. Description of the action being snapshotted.
+	 *   @type string[] $tables              Optional. Array of table names to export.
+	 *   @type string[] $file_paths          Optional. Array of file paths to copy.
+	 * }
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_create_targeted_snapshot( array $params ) {
+		global $wpdb;
+
+		$snapshot_id = isset( $params['snapshot_id'] ) ? sanitize_text_field( wp_unslash( $params['snapshot_id'] ) ) : '';
+		if ( '' === $snapshot_id ) {
+			return new \WP_Error(
+				'wp_claw_backup_missing_snapshot_id',
+				esc_html__( 'snapshot_id parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$agent = isset( $params['agent'] ) ? sanitize_text_field( wp_unslash( $params['agent'] ) ) : '';
+		if ( '' === $agent ) {
+			return new \WP_Error(
+				'wp_claw_backup_missing_agent',
+				esc_html__( 'agent parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$action_description = isset( $params['action_description'] ) ? sanitize_text_field( wp_unslash( $params['action_description'] ) ) : '';
+		if ( '' === $action_description ) {
+			return new \WP_Error(
+				'wp_claw_backup_missing_action_description',
+				esc_html__( 'action_description parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$tables    = isset( $params['tables'] ) && is_array( $params['tables'] ) ? array_map( 'sanitize_text_field', $params['tables'] ) : array();
+		$file_paths = isset( $params['file_paths'] ) && is_array( $params['file_paths'] ) ? array_map( 'sanitize_text_field', $params['file_paths'] ) : array();
+
+		$wp_filesystem = $this->get_wp_filesystem();
+		if ( is_wp_error( $wp_filesystem ) ) {
+			return $wp_filesystem;
+		}
+
+		$backup_root  = $this->get_backup_root();
+		$snapshot_dir = trailingslashit( $backup_root ) . 'snapshots/' . $snapshot_id;
+
+		// Ensure parent directories exist.
+		$snapshots_root = trailingslashit( $backup_root ) . 'snapshots';
+		if ( ! $wp_filesystem->is_dir( $snapshots_root ) ) {
+			if ( ! wp_mkdir_p( $snapshots_root ) ) {
+				return new \WP_Error(
+					'wp_claw_backup_mkdir_failed',
+					esc_html__( 'Failed to create snapshots directory.', 'claw-agent' ),
+					array( 'status' => 500 )
+				);
+			}
+			$this->write_protection_files( $wp_filesystem, $snapshots_root );
+		}
+
+		if ( ! wp_mkdir_p( $snapshot_dir ) ) {
+			return new \WP_Error(
+				'wp_claw_backup_mkdir_failed',
+				esc_html__( 'Failed to create snapshot directory.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$this->write_protection_files( $wp_filesystem, $snapshot_dir );
+
+		// Export requested tables.
+		$tables_count = 0;
+		foreach ( $tables as $table_name ) {
+			$table_name = sanitize_key( $table_name );
+			if ( '' === $table_name ) {
+				continue;
+			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- targeted table export for snapshot.
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( 'SELECT * FROM %i', $table_name ),
+				ARRAY_A
+			);
+
+			if ( null === $rows ) {
+				continue;
+			}
+
+			$sql = '-- Snapshot of table: ' . esc_sql( $table_name ) . "\n";
+			$sql .= '-- Created: ' . gmdate( 'Y-m-d H:i:s' ) . " UTC\n\n";
+
+			foreach ( $rows as $row ) {
+				$values = array_map(
+					static function ( $value ): string {
+						if ( null === $value ) {
+							return 'NULL';
+						}
+						return "'" . str_replace( array( '\\', "'" ), array( '\\\\', "\\'" ), (string) $value ) . "'";
+					},
+					$row
+				);
+				$sql .= 'INSERT INTO `' . esc_sql( $table_name ) . '` VALUES (' . implode( ', ', $values ) . ");\n";
+			}
+
+			$gz_data = gzencode( $sql, 6 );
+			if ( false !== $gz_data ) {
+				$gz_file = trailingslashit( $snapshot_dir ) . $table_name . '.sql.gz';
+				$wp_filesystem->put_contents( $gz_file, $gz_data, FS_CHMOD_FILE );
+				++$tables_count;
+			}
+		}
+
+		// Copy requested files.
+		$files_count = 0;
+		foreach ( $file_paths as $file_path ) {
+			$file_path = wp_normalize_path( $file_path );
+
+			// Security: only allow files within ABSPATH.
+			if ( 0 !== strpos( $file_path, wp_normalize_path( ABSPATH ) ) ) {
+				continue;
+			}
+
+			if ( ! $wp_filesystem->exists( $file_path ) || $wp_filesystem->is_dir( $file_path ) ) {
+				continue;
+			}
+
+			$dest = trailingslashit( $snapshot_dir ) . basename( $file_path );
+			if ( $wp_filesystem->copy( $file_path, $dest ) ) {
+				++$files_count;
+			}
+		}
+
+		// Record metadata in the snapshots table.
+		$snapshots_table = $wpdb->prefix . 'wp_claw_snapshots';
+		$now             = current_time( 'mysql', true );
+		$expires_at      = gmdate( 'Y-m-d H:i:s', time() + ( 72 * HOUR_IN_SECONDS ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
+		$wpdb->insert(
+			$snapshots_table,
+			array(
+				'snapshot_id'        => $snapshot_id,
+				'agent'              => $agent,
+				'action_description' => $action_description,
+				'path'               => $snapshot_dir,
+				'tables_count'       => $tables_count,
+				'files_count'        => $files_count,
+				'status'             => 'active',
+				'created_at'         => $now,
+				'expires_at'         => $expires_at,
+			),
+			array( '%s', '%s', '%s', '%s', '%d', '%d', '%s', '%s', '%s' )
+		);
+
+		wp_claw_log(
+			'Backup: targeted snapshot created.',
+			'info',
+			array(
+				'snapshot_id'  => $snapshot_id,
+				'agent'        => $agent,
+				'tables_count' => $tables_count,
+				'files_count'  => $files_count,
+			)
+		);
+
+		return array(
+			'success'      => true,
+			'snapshot_id'  => $snapshot_id,
+			'path'         => $snapshot_dir,
+			'tables_count' => $tables_count,
+			'files_count'  => $files_count,
+			'expires_at'   => $expires_at,
+			'message'      => __( 'Targeted snapshot created successfully.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Restore a snapshot — always blocked; requires CONFIRM proposal approval.
+	 *
+	 * Snapshot restoration is a high-risk destructive operation. The 403
+	 * WP_Error signals that this action must be routed through the CONFIRM
+	 * proposal tier, identical to restore_backup.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters from the agent.
+	 *
+	 * @return \WP_Error Always returns a 403.
+	 */
+	private function action_restore_snapshot( array $params ) {
+		return new \WP_Error(
+			'wp_claw_backup_confirm_required',
+			esc_html__( 'Snapshot restore requires CONFIRM approval', 'claw-agent' ),
+			array( 'status' => 403 )
+		);
+	}
+
+	/**
+	 * List all active snapshots from the database.
+	 *
+	 * Queries the wp_claw_snapshots table for entries with status 'active'
+	 * and returns them ordered newest first.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters from the agent. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_list_snapshots( array $params ) {
+		global $wpdb;
+
+		$snapshots_table = $wpdb->prefix . 'wp_claw_snapshots';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh state.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT snapshot_id, agent, action_description, path, tables_count, files_count, status, created_at, expires_at FROM {$snapshots_table} WHERE status = %s ORDER BY created_at DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'active'
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				esc_html__( 'Database error fetching snapshots.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$snapshots = array();
+		foreach ( $rows as $row ) {
+			$snapshots[] = array(
+				'snapshot_id'        => sanitize_text_field( $row['snapshot_id'] ),
+				'agent'              => sanitize_text_field( $row['agent'] ),
+				'action_description' => sanitize_text_field( $row['action_description'] ),
+				'path'               => sanitize_text_field( $row['path'] ),
+				'tables_count'       => absint( $row['tables_count'] ),
+				'files_count'        => absint( $row['files_count'] ),
+				'created_at'         => sanitize_text_field( $row['created_at'] ),
+				'expires_at'         => sanitize_text_field( $row['expires_at'] ),
+			);
+		}
+
+		return array(
+			'success'   => true,
+			'snapshots' => $snapshots,
+			'count'     => count( $snapshots ),
+		);
+	}
+
+	/**
+	 * Clean up expired snapshots.
+	 *
+	 * Queries snapshots where expires_at has passed, deletes their directories
+	 * via WP_Filesystem, and updates status to 'cleaned'.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters from the agent. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_cleanup_expired_snapshots( array $params ) {
+		global $wpdb;
+
+		$wp_filesystem = $this->get_wp_filesystem();
+		if ( is_wp_error( $wp_filesystem ) ) {
+			return $wp_filesystem;
+		}
+
+		$snapshots_table = $wpdb->prefix . 'wp_claw_snapshots';
+		$now             = current_time( 'mysql', true );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; cleanup needs fresh state.
+		$expired = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT snapshot_id, path FROM {$snapshots_table} WHERE status = %s AND expires_at < %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'active',
+				$now
+			),
+			ARRAY_A
+		);
+
+		if ( null === $expired ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				esc_html__( 'Database error fetching expired snapshots.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$cleaned = 0;
+
+		foreach ( $expired as $row ) {
+			$path = sanitize_text_field( $row['path'] );
+
+			if ( $wp_filesystem->is_dir( $path ) ) {
+				$wp_filesystem->delete( $path, true );
+			}
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional UPDATE for cleanup.
+			$wpdb->update(
+				$snapshots_table,
+				array( 'status' => 'cleaned' ),
+				array( 'snapshot_id' => sanitize_text_field( $row['snapshot_id'] ) ),
+				array( '%s' ),
+				array( '%s' )
+			);
+
+			++$cleaned;
+		}
+
+		wp_claw_log(
+			'Backup: cleaned up expired snapshots.',
+			'info',
+			array( 'cleaned_count' => $cleaned )
+		);
+
+		return array(
+			'success'       => true,
+			'cleaned_count' => $cleaned,
+			'message'       => sprintf(
+				/* translators: %d: number of snapshots cleaned */
+				__( '%d expired snapshots cleaned up.', 'claw-agent' ),
+				$cleaned
+			),
+		);
+	}
+
+	/**
+	 * Create a compressed file backup of the wp-content directory.
+	 *
+	 * Backs up plugins, themes, and mu-plugins directories. Optionally
+	 * includes the uploads directory. Stores the ZIP in the backup root.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type bool $include_uploads Whether to include wp-content/uploads. Default false.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_create_file_backup( array $params ) {
+		$include_uploads = ! empty( $params['include_uploads'] );
+
+		$wp_filesystem = $this->get_wp_filesystem();
+		if ( is_wp_error( $wp_filesystem ) ) {
+			return $wp_filesystem;
+		}
+
+		$backup_root = $this->get_backup_root();
+
+		// Ensure backup root exists.
+		if ( ! $wp_filesystem->is_dir( $backup_root ) ) {
+			if ( ! wp_mkdir_p( $backup_root ) ) {
+				return new \WP_Error(
+					'wp_claw_backup_mkdir_failed',
+					esc_html__( 'Failed to create backup root directory.', 'claw-agent' ),
+					array( 'status' => 500 )
+				);
+			}
+			$this->write_protection_files( $wp_filesystem, $backup_root );
+		}
+
+		$zip_file = trailingslashit( $backup_root ) . 'wp-content-backup.zip';
+
+		if ( ! class_exists( 'ZipArchive' ) ) {
+			return new \WP_Error(
+				'wp_claw_backup_zip_unavailable',
+				esc_html__( 'ZipArchive PHP extension is not available.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$zip = new \ZipArchive();
+		$res = $zip->open( $zip_file, \ZipArchive::CREATE | \ZipArchive::OVERWRITE );
+
+		if ( true !== $res ) {
+			return new \WP_Error(
+				'wp_claw_backup_zip_create_failed',
+				esc_html__( 'Failed to create ZIP archive.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$content_dir = trailingslashit( WP_CONTENT_DIR );
+		$dirs_to_backup = array( 'plugins', 'themes', 'mu-plugins' );
+
+		if ( $include_uploads ) {
+			$dirs_to_backup[] = 'uploads';
+		}
+
+		foreach ( $dirs_to_backup as $dir_name ) {
+			$dir_path = $content_dir . $dir_name;
+
+			if ( ! is_dir( $dir_path ) ) {
+				continue;
+			}
+
+			$iterator = new \RecursiveIteratorIterator(
+				new \RecursiveDirectoryIterator( $dir_path, \RecursiveDirectoryIterator::SKIP_DOTS ),
+				\RecursiveIteratorIterator::LEAVES_ONLY
+			);
+
+			foreach ( $iterator as $file ) {
+				if ( $file->isDir() ) {
+					continue;
+				}
+
+				$real_path     = $file->getRealPath();
+				$relative_path = $dir_name . '/' . substr( $real_path, strlen( $dir_path ) + 1 );
+
+				$zip->addFile( $real_path, $relative_path );
+			}
+		}
+
+		$zip->close();
+
+		$file_size = filesize( $zip_file );
+
+		wp_claw_log(
+			'Backup: file backup created.',
+			'info',
+			array(
+				'path'             => $zip_file,
+				'size_bytes'       => $file_size,
+				'include_uploads'  => $include_uploads,
+			)
+		);
+
+		return array(
+			'success'         => true,
+			'path'            => $zip_file,
+			'size_bytes'      => $file_size,
+			'include_uploads' => $include_uploads,
+			'message'         => __( 'File backup created successfully.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Return current backup retention settings.
+	 *
+	 * Reads the daily and weekly retention values from wp_options with
+	 * sensible defaults (30 days daily, 90 days weekly).
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters from the agent. Currently unused.
+	 *
+	 * @return array
+	 */
+	private function action_get_backup_retention( array $params ): array {
+		$daily_retention  = absint( get_option( 'wp_claw_backup_daily_retention', 30 ) );
+		$weekly_retention = absint( get_option( 'wp_claw_backup_weekly_retention', 90 ) );
+
+		return array(
+			'success'          => true,
+			'daily_retention'  => $daily_retention ? $daily_retention : 30,
+			'weekly_retention' => $weekly_retention ? $weekly_retention : 90,
 		);
 	}
 

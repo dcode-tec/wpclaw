@@ -83,6 +83,14 @@ class Module_Commerce extends Module_Base {
 			'get_products',
 			'send_abandoned_cart_reminder',
 			'update_product_description',
+			'track_cart_state',
+			'get_abandoned_carts',
+			'mark_cart_recovered',
+			'update_cart_email_step',
+			'detect_fraud_signals',
+			'get_daily_order_summary',
+			'get_customer_segments',
+			'set_product_stock_threshold',
 		);
 	}
 
@@ -145,6 +153,30 @@ class Module_Commerce extends Module_Base {
 
 			case 'update_product_description':
 				return $this->handle_update_product_description( $params );
+
+			case 'track_cart_state':
+				return $this->handle_track_cart_state( $params );
+
+			case 'get_abandoned_carts':
+				return $this->handle_get_abandoned_carts( $params );
+
+			case 'mark_cart_recovered':
+				return $this->handle_mark_cart_recovered( $params );
+
+			case 'update_cart_email_step':
+				return $this->handle_update_cart_email_step( $params );
+
+			case 'detect_fraud_signals':
+				return $this->handle_detect_fraud_signals( $params );
+
+			case 'get_daily_order_summary':
+				return $this->handle_get_daily_order_summary( $params );
+
+			case 'get_customer_segments':
+				return $this->handle_get_customer_segments( $params );
+
+			case 'set_product_stock_threshold':
+				return $this->handle_set_product_stock_threshold( $params );
 
 			default:
 				return new \WP_Error(
@@ -562,6 +594,571 @@ class Module_Commerce extends Module_Base {
 		);
 	}
 
+	/**
+	 * Track or update the state of a visitor cart for abandoned cart recovery.
+	 *
+	 * Upserts a row into the wp_claw_abandoned_carts table keyed by session_id.
+	 * Called periodically by the Commerce agent as visitors browse the store.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Parameters.
+	 *
+	 *     @type string $session_id    Unique session identifier (required).
+	 *     @type int    $user_id       WordPress user ID (optional).
+	 *     @type string $email         Customer email (optional).
+	 *     @type string $cart_contents JSON-encoded cart items.
+	 *     @type string $cart_total    Cart total amount.
+	 *     @type string $currency      Currency code (e.g. 'EUR').
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_track_cart_state( array $params ) {
+		global $wpdb;
+
+		$session_id    = sanitize_text_field( $params['session_id'] ?? '' );
+		$user_id       = isset( $params['user_id'] ) ? absint( $params['user_id'] ) : null;
+		$email         = sanitize_email( $params['email'] ?? '' );
+		$cart_contents = sanitize_text_field( $params['cart_contents'] ?? '' );
+		$cart_total    = floatval( $params['cart_total'] ?? 0 );
+		$currency      = sanitize_text_field( $params['currency'] ?? '' );
+
+		if ( empty( $session_id ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'session_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$table = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional REPLACE into WP-Claw custom table.
+		$result = $wpdb->replace(
+			$table,
+			array(
+				'session_id'    => $session_id,
+				'user_id'       => $user_id,
+				'email'         => $email,
+				'cart_contents' => $cart_contents,
+				'cart_total'    => $cart_total,
+				'currency'      => $currency,
+				'status'        => 'active',
+				'updated_at'    => current_time( 'mysql' ),
+				'created_at'    => current_time( 'mysql' ),
+			),
+			array( '%s', '%d', '%s', '%s', '%f', '%s', '%s', '%s', '%s' )
+		);
+
+		if ( false === $result ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to track cart state.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return array(
+			'success'    => true,
+			'cart_id'    => $wpdb->insert_id,
+			'session_id' => $session_id,
+		);
+	}
+
+	/**
+	 * Retrieve abandoned carts older than a specified age.
+	 *
+	 * Returns carts with status 'abandoned' that have not been updated
+	 * within the given time window, sorted by most recent first.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Parameters.
+	 *
+	 *     @type int $min_age_hours Minimum age in hours (default 2).
+	 *     @type int $limit         Maximum results (default 50, max 100).
+	 * }
+	 *
+	 * @return array
+	 */
+	private function handle_get_abandoned_carts( array $params ) {
+		global $wpdb;
+
+		$min_age_hours = absint( $params['min_age_hours'] ?? 2 );
+		$limit         = min( 100, absint( $params['limit'] ?? 50 ) );
+		$limit         = max( 1, $limit );
+		$table         = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional SELECT from WP-Claw custom table; result set is dynamic.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, safe.
+				"SELECT id, session_id, user_id, email, cart_contents, cart_total, currency, email_step, created_at, TIMESTAMPDIFF(HOUR, created_at, NOW()) AS hours_since_creation FROM {$table} WHERE status = 'abandoned' AND created_at < DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY created_at DESC LIMIT %d",
+				$min_age_hours,
+				$limit
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			$rows = array();
+		}
+
+		return array(
+			'success' => true,
+			'carts'   => $rows,
+			'count'   => count( $rows ),
+		);
+	}
+
+	/**
+	 * Mark an abandoned cart as recovered.
+	 *
+	 * Sets the cart status to 'recovered' and records the recovery timestamp.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Parameters.
+	 *
+	 *     @type string $session_id Session identifier of the cart (required).
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_mark_cart_recovered( array $params ) {
+		global $wpdb;
+
+		$session_id = sanitize_text_field( $params['session_id'] ?? '' );
+
+		if ( empty( $session_id ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'session_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$table = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional UPDATE on WP-Claw custom table.
+		$updated = $wpdb->update(
+			$table,
+			array(
+				'status'       => 'recovered',
+				'recovered_at' => current_time( 'mysql' ),
+				'updated_at'   => current_time( 'mysql' ),
+			),
+			array( 'session_id' => $session_id ),
+			array( '%s', '%s', '%s' ),
+			array( '%s' )
+		);
+
+		if ( false === $updated ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to update cart status.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		if ( 0 === $updated ) {
+			return new \WP_Error(
+				'wp_claw_not_found',
+				/* translators: %s: session ID */
+				sprintf( __( 'No cart found for session: %s', 'claw-agent' ), esc_html( $session_id ) ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return array(
+			'success'    => true,
+			'session_id' => $session_id,
+			'message'    => __( 'Cart marked as recovered.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Update the email step for an abandoned cart.
+	 *
+	 * Tracks which email in the recovery sequence (1, 2, or 3) has been
+	 * sent for a given cart, along with the send timestamp.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Parameters.
+	 *
+	 *     @type int $cart_id Cart row ID (required).
+	 *     @type int $step    Email step number (1, 2, or 3; required).
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_update_cart_email_step( array $params ) {
+		global $wpdb;
+
+		$cart_id = absint( $params['cart_id'] ?? 0 );
+		$step    = absint( $params['step'] ?? 0 );
+
+		if ( ! $cart_id ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'cart_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( $step < 1 || $step > 3 ) {
+			return new \WP_Error(
+				'wp_claw_invalid_param',
+				__( 'step must be 1, 2, or 3.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$table = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional UPDATE on WP-Claw custom table.
+		$updated = $wpdb->update(
+			$table,
+			array(
+				'email_step'    => $step,
+				'last_email_at' => current_time( 'mysql' ),
+				'updated_at'    => current_time( 'mysql' ),
+			),
+			array( 'id' => $cart_id ),
+			array( '%d', '%s', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to update email step.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		if ( 0 === $updated ) {
+			return new \WP_Error(
+				'wp_claw_not_found',
+				/* translators: %d: cart ID */
+				sprintf( __( 'No cart found with ID: %d', 'claw-agent' ), $cart_id ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return array(
+			'success' => true,
+			'cart_id' => $cart_id,
+			'step'    => $step,
+			'message' => __( 'Email step updated.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Detect potential fraud signals in recent orders.
+	 *
+	 * Analyses the last 100 orders for: (1) orders with totals exceeding
+	 * 3x the average order value, and (2) billing emails appearing 3+
+	 * times within a one-hour window.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Unused; reserved for future filter options.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_detect_fraud_signals( array $params ) {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return new \WP_Error(
+				'wp_claw_woocommerce_unavailable',
+				__( 'WooCommerce is not active.', 'claw-agent' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$orders = wc_get_orders(
+			array(
+				'limit'   => 100,
+				'orderby' => 'date',
+				'order'   => 'DESC',
+				'return'  => 'objects',
+			)
+		);
+
+		if ( empty( $orders ) ) {
+			return array(
+				'success' => true,
+				'flagged' => array(),
+				'count'   => 0,
+			);
+		}
+
+		// Calculate average order total.
+		$totals = array();
+		foreach ( $orders as $order ) {
+			if ( $order instanceof \WC_Order ) {
+				$totals[] = (float) $order->get_total();
+			}
+		}
+
+		$avg_total = array_sum( $totals ) / count( $totals );
+		$threshold = $avg_total * 3;
+
+		// Build email frequency map (per hour buckets).
+		$email_hourly = array();
+		foreach ( $orders as $order ) {
+			if ( ! ( $order instanceof \WC_Order ) ) {
+				continue;
+			}
+			$email      = $order->get_billing_email();
+			$created    = $order->get_date_created();
+			$hour_key   = $created ? $created->format( 'Y-m-d-H' ) : '';
+			$bucket_key = $email . '|' . $hour_key;
+			if ( ! isset( $email_hourly[ $bucket_key ] ) ) {
+				$email_hourly[ $bucket_key ] = array(
+					'email'    => $email,
+					'hour'     => $hour_key,
+					'count'    => 0,
+					'order_ids' => array(),
+				);
+			}
+			++$email_hourly[ $bucket_key ]['count'];
+			$email_hourly[ $bucket_key ]['order_ids'][] = $order->get_id();
+		}
+
+		$flagged = array();
+
+		// Flag 1: orders exceeding 3x average.
+		foreach ( $orders as $order ) {
+			if ( ! ( $order instanceof \WC_Order ) ) {
+				continue;
+			}
+			$total = (float) $order->get_total();
+			if ( $total > $threshold ) {
+				$flagged[] = array(
+					'order_id' => $order->get_id(),
+					'total'    => $total,
+					'reason'   => 'high_value',
+					'detail'   => sprintf(
+						/* translators: 1: order total, 2: average total */
+						__( 'Order total %.2f exceeds 3x average (%.2f).', 'claw-agent' ),
+						$total,
+						$avg_total
+					),
+				);
+			}
+		}
+
+		// Flag 2: same email 3+ times in one hour.
+		foreach ( $email_hourly as $bucket ) {
+			if ( $bucket['count'] >= 3 ) {
+				$flagged[] = array(
+					'email'     => $bucket['email'],
+					'hour'      => $bucket['hour'],
+					'count'     => $bucket['count'],
+					'order_ids' => $bucket['order_ids'],
+					'reason'    => 'rapid_orders',
+					'detail'    => sprintf(
+						/* translators: 1: email address, 2: order count, 3: hour window */
+						__( '%1$s placed %2$d orders in hour %3$s.', 'claw-agent' ),
+						$bucket['email'],
+						$bucket['count'],
+						$bucket['hour']
+					),
+				);
+			}
+		}
+
+		return array(
+			'success'   => true,
+			'flagged'   => $flagged,
+			'count'     => count( $flagged ),
+			'avg_total' => round( $avg_total, 2 ),
+		);
+	}
+
+	/**
+	 * Return a summary of today's WooCommerce orders.
+	 *
+	 * Provides total orders, total revenue, average order value, top 5
+	 * products by quantity sold, and a breakdown of orders by status.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Unused; reserved for future date range options.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_get_daily_order_summary( array $params ) {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return new \WP_Error(
+				'wp_claw_woocommerce_unavailable',
+				__( 'WooCommerce is not active.', 'claw-agent' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		$today_start = gmdate( 'Y-m-d' ) . ' 00:00:00';
+
+		$orders = wc_get_orders(
+			array(
+				'limit'      => -1,
+				'date_after' => $today_start,
+				'return'     => 'objects',
+			)
+		);
+
+		$total_revenue   = 0.0;
+		$orders_by_status = array();
+		$product_qty      = array();
+
+		foreach ( $orders as $order ) {
+			if ( ! ( $order instanceof \WC_Order ) ) {
+				continue;
+			}
+
+			$total_revenue += (float) $order->get_total();
+			$status         = $order->get_status();
+
+			if ( ! isset( $orders_by_status[ $status ] ) ) {
+				$orders_by_status[ $status ] = 0;
+			}
+			++$orders_by_status[ $status ];
+
+			// Tally product quantities.
+			foreach ( $order->get_items() as $item ) {
+				if ( ! ( $item instanceof \WC_Order_Item_Product ) ) {
+					continue;
+				}
+				$product_id   = $item->get_product_id();
+				$product_name = $item->get_name();
+				$qty          = $item->get_quantity();
+
+				if ( ! isset( $product_qty[ $product_id ] ) ) {
+					$product_qty[ $product_id ] = array(
+						'product_id' => $product_id,
+						'name'       => $product_name,
+						'quantity'   => 0,
+					);
+				}
+				$product_qty[ $product_id ]['quantity'] += $qty;
+			}
+		}
+
+		$total_orders    = count( $orders );
+		$avg_order_value = $total_orders > 0 ? round( $total_revenue / $total_orders, 2 ) : 0;
+
+		// Sort products by quantity descending, take top 5.
+		usort(
+			$product_qty,
+			function ( $a, $b ) {
+				return $b['quantity'] - $a['quantity'];
+			}
+		);
+		$top_products = array_slice( array_values( $product_qty ), 0, 5 );
+
+		return array(
+			'success'          => true,
+			'total_orders'     => $total_orders,
+			'total_revenue'    => round( $total_revenue, 2 ),
+			'avg_order_value'  => $avg_order_value,
+			'top_products'     => $top_products,
+			'orders_by_status' => $orders_by_status,
+		);
+	}
+
+	/**
+	 * Retrieve pre-computed customer segments.
+	 *
+	 * Returns the aggregate segment counts stored in the wp_claw_customer_segments
+	 * option. This data is typically computed by a scheduled cron task.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Unused; reserved for future filter options.
+	 *
+	 * @return array
+	 */
+	private function handle_get_customer_segments( array $params ) {
+		$segments = get_option( 'wp_claw_customer_segments', array() );
+
+		return array(
+			'success'  => true,
+			'segments' => $segments,
+		);
+	}
+
+	/**
+	 * Set a custom stock threshold for a product.
+	 *
+	 * Stores a per-product low-stock threshold in product meta so the
+	 * Commerce agent can use custom thresholds beyond WooCommerce defaults.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *     Parameters.
+	 *
+	 *     @type int $product_id WooCommerce product ID (required).
+	 *     @type int $threshold  Stock threshold value (required).
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_set_product_stock_threshold( array $params ) {
+		$product_id = absint( $params['product_id'] ?? 0 );
+		$threshold  = absint( $params['threshold'] ?? 0 );
+
+		if ( ! $product_id ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'product_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		if ( ! $threshold ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'threshold is required and must be greater than 0.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$product = wc_get_product( $product_id );
+		if ( ! $product ) {
+			return new \WP_Error(
+				'wp_claw_product_not_found',
+				/* translators: %d: product ID */
+				sprintf( __( 'Product #%d not found.', 'claw-agent' ), $product_id ),
+				array( 'status' => 404 )
+			);
+		}
+
+		update_post_meta( $product_id, '_wp_claw_stock_threshold', $threshold );
+
+		return array(
+			'success'    => true,
+			'product_id' => $product_id,
+			'threshold'  => $threshold,
+			'message'    => __( 'Stock threshold updated.', 'claw-agent' ),
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Hook registration
 	// -------------------------------------------------------------------------
@@ -742,9 +1339,13 @@ class Module_Commerce extends Module_Base {
 	 *
 	 * @since 1.0.0
 	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
 	 * @return array
 	 */
 	public function get_state(): array {
+		global $wpdb;
+
 		if ( ! $this->is_available() ) {
 			return array(
 				'module'       => $this->get_slug(),
@@ -772,14 +1373,64 @@ class Module_Commerce extends Module_Base {
 		// Low stock count via WooCommerce data store.
 		$low_stock_count = $this->get_low_stock_count();
 
+		// Abandoned cart stats.
+		$abandoned_carts_count = 0;
+		$abandoned_carts_value = 0;
+		$carts_table           = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional SELECT from WP-Claw custom table; result set is dynamic.
+		$cart_stats = $wpdb->get_row(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, safe.
+			"SELECT COUNT(*) AS cnt, COALESCE(SUM(cart_total), 0) AS total_value FROM {$carts_table} WHERE status = 'abandoned'",
+			ARRAY_A
+		);
+
+		if ( $cart_stats ) {
+			$abandoned_carts_count = absint( $cart_stats['cnt'] );
+			$abandoned_carts_value = round( (float) $cart_stats['total_value'], 2 );
+		}
+
+		// Daily revenue and orders.
+		$daily_revenue = 0;
+		$daily_orders  = 0;
+		$today_start   = gmdate( 'Y-m-d' ) . ' 00:00:00';
+		$today_orders  = wc_get_orders(
+			array(
+				'limit'      => -1,
+				'date_after' => $today_start,
+				'return'     => 'objects',
+			)
+		);
+		foreach ( $today_orders as $today_order ) {
+			if ( $today_order instanceof \WC_Order ) {
+				$daily_revenue += (float) $today_order->get_total();
+				++$daily_orders;
+			}
+		}
+
+		// Customer segments.
+		$customer_segments = get_option( 'wp_claw_customer_segments', array() );
+
+		// Fraud flags today (cached in transient for performance).
+		$fraud_flags_today = get_transient( 'wp_claw_fraud_flags_today' );
+		if ( false === $fraud_flags_today ) {
+			$fraud_flags_today = 0;
+		}
+
 		return array(
-			'module'          => $this->get_slug(),
-			'available'       => true,
-			'order_counts'    => $order_counts,
-			'total_orders'    => array_sum( $order_counts ),
-			'total_products'  => $total_products,
-			'low_stock_count' => $low_stock_count,
-			'generated_at'    => current_time( 'c' ),
+			'module'                => $this->get_slug(),
+			'available'             => true,
+			'order_counts'          => $order_counts,
+			'total_orders'          => array_sum( $order_counts ),
+			'total_products'        => $total_products,
+			'low_stock_count'       => $low_stock_count,
+			'abandoned_carts_count' => $abandoned_carts_count,
+			'abandoned_carts_value' => $abandoned_carts_value,
+			'daily_revenue'         => round( $daily_revenue, 2 ),
+			'daily_orders'          => $daily_orders,
+			'customer_segments'     => $customer_segments,
+			'fraud_flags_today'     => absint( $fraud_flags_today ),
+			'generated_at'          => current_time( 'c' ),
 		);
 	}
 

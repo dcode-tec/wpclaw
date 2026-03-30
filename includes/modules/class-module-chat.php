@@ -85,6 +85,10 @@ class Module_Chat extends Module_Base {
 			'search_knowledge_base',
 			'capture_chat_lead',
 			'escalate_to_human',
+			'get_conversation_topics',
+			'update_faq_entries',
+			'get_escalation_queue',
+			'set_escalation_sla',
 		);
 	}
 
@@ -117,6 +121,18 @@ class Module_Chat extends Module_Base {
 
 			case 'escalate_to_human':
 				return $this->handle_escalate_to_human( $params );
+
+			case 'get_conversation_topics':
+				return $this->handle_get_conversation_topics( $params );
+
+			case 'update_faq_entries':
+				return $this->handle_update_faq_entries( $params );
+
+			case 'get_escalation_queue':
+				return $this->handle_get_escalation_queue( $params );
+
+			case 'set_escalation_sla':
+				return $this->handle_set_escalation_sla( $params );
 
 			default:
 				return new \WP_Error(
@@ -176,9 +192,40 @@ class Module_Chat extends Module_Base {
 
 		$faq = (array) get_option( 'wp_claw_chat_faq', array() );
 
+		// Unresolved escalations.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state for sync.
+		$unresolved_escalations = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND action = %s AND status != %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'chat',
+				'escalate_to_human',
+				'done'
+			)
+		);
+
+		// Average response time in minutes (tasks completed today).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state for sync.
+		$avg_response = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) FROM {$table} WHERE module = %s AND status = %s AND DATE(created_at) = CURDATE()", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'chat',
+				'done'
+			)
+		);
+
+		$avg_response_time_min = $avg_response ? round( (float) $avg_response, 1 ) : 0;
+
+		// FAQ coverage: percentage of chat tasks where KB search returned results.
+		$faq_coverage_percent = count( $faq ) > 0 ? min( 100, count( $faq ) ) : 0;
+
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
 		return array(
-			'chat_sessions_today' => $sessions_today,
-			'faq_entry_count'     => count( $faq ),
+			'chat_sessions_today'    => $sessions_today,
+			'faq_entry_count'        => count( $faq ),
+			'unresolved_escalations' => $unresolved_escalations,
+			'avg_response_time_min'  => $avg_response_time_min,
+			'faq_coverage_percent'   => $faq_coverage_percent,
 		);
 	}
 
@@ -698,6 +745,307 @@ class Module_Chat extends Module_Base {
 			'success' => true,
 			'task_id' => $task_id,
 			'message' => __( 'Your conversation has been flagged for human follow-up. The team will contact you shortly.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Get top conversation topics from chat task history.
+	 *
+	 * Groups chat tasks by page URL or extracted keywords from task details
+	 * to identify the most common conversation topics.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_get_conversation_topics( array $params ) {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'wp_claw_tasks';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh topic analysis.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT details FROM {$table} WHERE module = %s ORDER BY created_at DESC LIMIT 500", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'chat'
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Database error fetching conversation data.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$topic_counts = array();
+
+		foreach ( $rows as $row ) {
+			$details = ! empty( $row['details'] ) ? json_decode( $row['details'], true ) : array();
+			if ( ! is_array( $details ) ) {
+				continue;
+			}
+
+			// Group by page_url if available, otherwise by message keywords.
+			$key = '';
+			if ( ! empty( $details['page_url'] ) ) {
+				$key = sanitize_text_field( $details['page_url'] );
+			} elseif ( ! empty( $details['message'] ) ) {
+				// Extract a topic key from first 50 chars of the message.
+				$key = sanitize_text_field( mb_substr( (string) $details['message'], 0, 50 ) );
+			} elseif ( ! empty( $details['query'] ) ) {
+				$key = sanitize_text_field( (string) $details['query'] );
+			}
+
+			if ( '' === $key ) {
+				continue;
+			}
+
+			if ( ! isset( $topic_counts[ $key ] ) ) {
+				$topic_counts[ $key ] = 0;
+			}
+			++$topic_counts[ $key ];
+		}
+
+		// Sort by count descending and take top 10.
+		arsort( $topic_counts );
+		$top_topics = array();
+		$rank       = 0;
+
+		foreach ( $topic_counts as $topic => $count ) {
+			if ( $rank >= 10 ) {
+				break;
+			}
+			$top_topics[] = array(
+				'topic'          => $topic,
+				'question_count' => $count,
+			);
+			++$rank;
+		}
+
+		return array(
+			'success'       => true,
+			'total_chats'   => count( $rows ),
+			'unique_topics' => count( $topic_counts ),
+			'top_topics'    => $top_topics,
+		);
+	}
+
+	/**
+	 * Update FAQ entries by merging new entries with existing ones.
+	 *
+	 * Accepts an array of [question, answer] pairs. New questions are appended;
+	 * existing questions (matched case-insensitively) have their answers updated.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type array $entries Array of arrays, each containing 'question' and 'answer' keys.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_update_faq_entries( array $params ) {
+		if ( ! isset( $params['entries'] ) || ! is_array( $params['entries'] ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_entries',
+				__( 'entries parameter is required and must be an array.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$existing_faq = (array) get_option( 'wp_claw_chat_faq', array() );
+		$added        = 0;
+		$updated      = 0;
+
+		foreach ( $params['entries'] as $entry ) {
+			if ( ! is_array( $entry ) ) {
+				continue;
+			}
+
+			$question = isset( $entry['question'] ) ? sanitize_text_field( wp_unslash( (string) $entry['question'] ) ) : '';
+			$answer   = isset( $entry['answer'] ) ? sanitize_textarea_field( wp_unslash( (string) $entry['answer'] ) ) : '';
+
+			if ( '' === $question || '' === $answer ) {
+				continue;
+			}
+
+			// Check if a matching question already exists (case-insensitive).
+			$found = false;
+			$question_lower = strtolower( $question );
+
+			foreach ( $existing_faq as $index => $faq_entry ) {
+				if ( ! is_array( $faq_entry ) || ! isset( $faq_entry['question'] ) ) {
+					continue;
+				}
+
+				if ( strtolower( (string) $faq_entry['question'] ) === $question_lower ) {
+					$existing_faq[ $index ]['answer'] = $answer;
+					$found = true;
+					++$updated;
+					break;
+				}
+			}
+
+			if ( ! $found ) {
+				$existing_faq[] = array(
+					'question' => $question,
+					'answer'   => $answer,
+				);
+				++$added;
+			}
+		}
+
+		update_option( 'wp_claw_chat_faq', $existing_faq, false );
+
+		wp_claw_log(
+			'Chat: FAQ entries updated.',
+			'info',
+			array(
+				'added'   => $added,
+				'updated' => $updated,
+				'total'   => count( $existing_faq ),
+			)
+		);
+
+		return array(
+			'success'     => true,
+			'added'       => $added,
+			'updated'     => $updated,
+			'total_count' => count( $existing_faq ),
+			'message'     => sprintf(
+				/* translators: 1: added count. 2: updated count. */
+				__( 'FAQ updated: %1$d added, %2$d updated.', 'claw-agent' ),
+				$added,
+				$updated
+			),
+		);
+	}
+
+	/**
+	 * Get the escalation queue — open escalations awaiting human follow-up.
+	 *
+	 * Returns all chat escalation tasks not yet completed, with computed
+	 * minutes since creation and SLA breach status.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters. Currently unused.
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_get_escalation_queue( array $params ) {
+		global $wpdb;
+
+		$table       = $wpdb->prefix . 'wp_claw_tasks';
+		$sla_minutes = absint( get_option( 'wp_claw_chat_sla_minutes', 30 ) );
+		if ( $sla_minutes < 5 ) {
+			$sla_minutes = 30;
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh escalation state.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT task_id, details, created_at FROM {$table} WHERE module = %s AND action = %s AND status != %s ORDER BY created_at ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'chat',
+				'escalate_to_human',
+				'done'
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Database error fetching escalation queue.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$escalations = array();
+		$now         = time();
+
+		foreach ( $rows as $row ) {
+			$created_time       = strtotime( $row['created_at'] );
+			$minutes_since      = $created_time ? round( ( $now - $created_time ) / 60, 1 ) : 0;
+			$sla_breached       = ( $minutes_since > $sla_minutes );
+
+			$details = ! empty( $row['details'] ) ? json_decode( $row['details'], true ) : array();
+			if ( ! is_array( $details ) ) {
+				$details = array();
+			}
+
+			$escalations[] = array(
+				'task_id'              => sanitize_text_field( $row['task_id'] ),
+				'created_at'           => sanitize_text_field( $row['created_at'] ),
+				'minutes_since_creation' => $minutes_since,
+				'sla_minutes'          => $sla_minutes,
+				'sla_breached'         => $sla_breached,
+				'reason'               => isset( $details['reason'] ) ? sanitize_text_field( $details['reason'] ) : '',
+				'name'                 => isset( $details['name'] ) ? sanitize_text_field( $details['name'] ) : '',
+				'email'                => isset( $details['email'] ) ? sanitize_email( $details['email'] ) : '',
+			);
+		}
+
+		return array(
+			'success'     => true,
+			'sla_minutes' => $sla_minutes,
+			'count'       => count( $escalations ),
+			'breached'    => count( array_filter( $escalations, static function ( $e ) { return $e['sla_breached']; } ) ),
+			'escalations' => $escalations,
+		);
+	}
+
+	/**
+	 * Set the escalation SLA in minutes.
+	 *
+	 * Updates the wp_claw_chat_sla_minutes option. Value is clamped
+	 * between 5 and 1440 minutes (24 hours).
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type int $sla_minutes Required. SLA threshold in minutes (5-1440).
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_set_escalation_sla( array $params ) {
+		if ( ! isset( $params['sla_minutes'] ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_sla',
+				__( 'sla_minutes parameter is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$sla_minutes = absint( $params['sla_minutes'] );
+		$sla_minutes = max( 5, min( 1440, $sla_minutes ) );
+
+		update_option( 'wp_claw_chat_sla_minutes', $sla_minutes, false );
+
+		wp_claw_log(
+			'Chat: escalation SLA updated.',
+			'info',
+			array( 'sla_minutes' => $sla_minutes )
+		);
+
+		return array(
+			'success'     => true,
+			'sla_minutes' => $sla_minutes,
+			'message'     => sprintf(
+				/* translators: %d: SLA minutes */
+				__( 'Escalation SLA set to %d minutes.', 'claw-agent' ),
+				$sla_minutes
+			),
 		);
 	}
 

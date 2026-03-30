@@ -84,6 +84,8 @@
 		this.suggestionsEl = null;
 		this.container     = null;
 		this.lastMessageTs = 0;
+		this.messageCount  = 0;
+		this.consentShown  = false;
 	}
 
 	// -----------------------------------------------------------------------
@@ -91,11 +93,35 @@
 	// -----------------------------------------------------------------------
 
 	WPClawChat.prototype.init = function () {
+		// GDPR consent gate — check before rendering anything.
+		var consent = null;
+		try {
+			consent = sessionStorage.getItem( 'wp_claw_chat_consent' );
+		} catch ( e ) {
+			// sessionStorage unavailable — treat as no prior decision.
+		}
+
+		if ( consent === '0' ) {
+			// User declined this session — do not show the chat widget at all.
+			return;
+		}
+
 		this.createDOM();
 		this.bindEvents();
 		this.applyAccentColor();
 		this.checkBusinessHours();
 
+		if ( consent === '1' ) {
+			// Already consented — show welcome message normally.
+			this.showWelcomeMessage();
+		}
+		// If consent is null, the consent overlay will be shown on first open.
+	};
+
+	/**
+	 * Display the welcome message if configured.
+	 */
+	WPClawChat.prototype.showWelcomeMessage = function () {
 		if ( this.config.welcomeMessage ) {
 			this.renderMessage(
 				{
@@ -315,6 +341,14 @@
 	};
 
 	WPClawChat.prototype.open = function () {
+		var consent = null;
+		try {
+			consent = sessionStorage.getItem( 'wp_claw_chat_consent' );
+		} catch ( e ) {
+			// sessionStorage unavailable — proceed without consent gate.
+			consent = '1';
+		}
+
 		this.isOpen = true;
 		this.windowEl.classList.remove( 'wp-claw-chat-window--hidden' );
 		this.windowEl.classList.add( 'wp-claw-chat-window--visible' );
@@ -323,6 +357,12 @@
 		setIcon( this.buttonEl, SVG_CLOSE );
 		this.buttonEl.appendChild( this.badgeEl );
 		this.hideBadge();
+
+		if ( consent !== '1' && ! this.consentShown ) {
+			this.showConsentOverlay();
+			return;
+		}
+
 		this.scrollToBottom();
 		this.inputField.focus();
 		this.startPolling();
@@ -337,6 +377,104 @@
 		setIcon( this.buttonEl, SVG_CHAT );
 		this.buttonEl.appendChild( this.badgeEl );
 		this.stopPolling();
+	};
+
+	// -----------------------------------------------------------------------
+	// GDPR Consent Overlay
+	// -----------------------------------------------------------------------
+
+	/**
+	 * Show the GDPR consent overlay inside the chat window.
+	 * Built entirely with DOM methods — no innerHTML with user content.
+	 */
+	WPClawChat.prototype.showConsentOverlay = function () {
+		var self = this;
+		this.consentShown = true;
+
+		var overlay       = document.createElement( 'div' );
+		overlay.className = 'wp-claw-chat-consent';
+
+		var icon         = document.createElement( 'div' );
+		icon.className   = 'wp-claw-chat-consent__icon';
+		icon.textContent = '\uD83D\uDD12'; // Lock emoji
+
+		var title         = document.createElement( 'h3' );
+		title.className   = 'wp-claw-chat-consent__title';
+		title.textContent = 'Privacy Notice';
+
+		var text       = document.createElement( 'p' );
+		text.className = 'wp-claw-chat-consent__text';
+
+		var consentText = this.config.consentText ||
+			'This chat is powered by AI. Your messages will be processed to provide support. No personal data is stored beyond this session.';
+		text.textContent = consentText;
+
+		if ( this.config.privacyUrl ) {
+			text.appendChild( document.createTextNode( ' ' ) );
+			var link       = document.createElement( 'a' );
+			link.href      = this.config.privacyUrl;
+			link.target    = '_blank';
+			link.rel       = 'noopener noreferrer';
+			link.textContent = 'Privacy Policy';
+			text.appendChild( link );
+		}
+
+		var actions       = document.createElement( 'div' );
+		actions.className = 'wp-claw-chat-consent__actions';
+
+		var acceptBtn         = document.createElement( 'button' );
+		acceptBtn.type        = 'button';
+		acceptBtn.className   = 'wp-claw-chat-consent__accept';
+		acceptBtn.textContent = 'Accept & Chat';
+
+		var declineBtn         = document.createElement( 'button' );
+		declineBtn.type        = 'button';
+		declineBtn.className   = 'wp-claw-chat-consent__decline';
+		declineBtn.textContent = 'Decline';
+
+		actions.appendChild( acceptBtn );
+		actions.appendChild( declineBtn );
+
+		overlay.appendChild( icon );
+		overlay.appendChild( title );
+		overlay.appendChild( text );
+		overlay.appendChild( actions );
+
+		// Insert overlay into messages area.
+		this.messagesEl.appendChild( overlay );
+
+		acceptBtn.addEventListener(
+			'click',
+			function () {
+				try {
+					sessionStorage.setItem( 'wp_claw_chat_consent', '1' );
+				} catch ( e ) {
+					// Continue without persistence.
+				}
+				if ( overlay.parentNode ) {
+					overlay.parentNode.removeChild( overlay );
+				}
+				self.showWelcomeMessage();
+				self.scrollToBottom();
+				self.inputField.focus();
+				self.startPolling();
+			}
+		);
+
+		declineBtn.addEventListener(
+			'click',
+			function () {
+				try {
+					sessionStorage.setItem( 'wp_claw_chat_consent', '0' );
+				} catch ( e ) {
+					// Continue without persistence.
+				}
+				self.close();
+				self.container.style.display = 'none';
+			}
+		);
+
+		acceptBtn.focus();
 	};
 
 	// -----------------------------------------------------------------------
@@ -360,15 +498,29 @@
 	WPClawChat.prototype.sendMessage = function ( text ) {
 		var self = this;
 
+		// 50-message session limit.
+		if ( this.messageCount >= 50 ) {
+			this.addSystemMessage( 'Session limit reached. Please start a new conversation.' );
+			this.inputField.disabled = true;
+			this.sendBtn.disabled    = true;
+			return;
+		}
+
+		this.messageCount++;
 		this.renderMessage( { role: 'visitor', content: text } );
 		this.setSendDisabled( true );
 		this.showTyping();
 
+		// Extract page context from main content area.
+		var mainEl      = document.querySelector( 'main, article, .entry-content, .post-content, #content' );
+		var pageContext  = mainEl ? this.truncate( mainEl.textContent.trim(), 500 ) : '';
+
 		var payload = JSON.stringify(
 			{
-				session_id: this.sessionId,
-				message:    text,
-				page_url:   this.truncate( window.location.href, 512 )
+				session_id:   this.sessionId,
+				message:      text,
+				page_url:     this.truncate( window.location.href, 512 ),
+				page_context: pageContext
 			}
 		);
 
@@ -405,6 +557,15 @@
 
 				if ( data && data.message ) {
 						self.renderMessage( { role: 'agent', content: data.message } );
+				}
+
+				// Escalation SLA notice.
+				if ( data && data.escalated ) {
+					var slaMinutes = self.config.escalationSla || 30;
+					self.addSystemMessage(
+						'Your question has been escalated. Someone will respond within ' + slaMinutes + ' minutes.',
+						'wp-claw-chat-sla-notice'
+					);
 				}
 
 				if ( data && Array.isArray( data.products ) && data.products.length ) {
@@ -582,6 +743,24 @@
 			this.suggestionsEl.removeChild( this.suggestionsEl.firstChild );
 		}
 		this.suggestionsEl.style.display = 'none';
+	};
+
+	/**
+	 * Add a system-level message to the chat.
+	 * All content inserted via textContent — no XSS risk.
+	 *
+	 * @param {string} text          The message text.
+	 * @param {string} [extraClass]  Optional additional CSS class.
+	 */
+	WPClawChat.prototype.addSystemMessage = function ( text, extraClass ) {
+		var bubble       = document.createElement( 'div' );
+		bubble.className = 'wp-claw-chat-bubble wp-claw-chat-bubble--system';
+		if ( extraClass ) {
+			bubble.className += ' ' + extraClass;
+		}
+		bubble.textContent = this.stripHTML( text );
+		this.messagesEl.appendChild( bubble );
+		this.scrollToBottom();
 	};
 
 	// -----------------------------------------------------------------------

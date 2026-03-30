@@ -100,6 +100,22 @@ class Cron {
 
 		// Analytics data retention cleanup.
 		add_action( 'wp_claw_analytics_cleanup', array( $this, 'run_analytics_cleanup' ) );
+
+		// Vision capability events.
+		add_action( 'wp_claw_file_integrity', array( $this, 'run_file_integrity' ) );
+		add_action( 'wp_claw_malware_scan', array( $this, 'run_malware_scan' ) );
+		add_action( 'wp_claw_ssl_check', array( $this, 'run_ssl_check' ) );
+
+		add_action(
+			'wp_claw_abandoned_cart',
+			function () {
+				$this->run_abandoned_cart_check();
+			}
+		);
+
+		add_action( 'wp_claw_ab_test_eval', array( $this, 'run_ab_test_eval' ) );
+		add_action( 'wp_claw_cwv_cleanup', array( $this, 'run_cwv_cleanup' ) );
+		add_action( 'wp_claw_segmentation', array( $this, 'run_segmentation' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -128,10 +144,19 @@ class Cron {
 					'message' => $result->get_error_message(),
 				)
 			);
+
+			$consecutive = (int) get_transient( 'wp_claw_consecutive_health_fails' );
+			set_transient( 'wp_claw_consecutive_health_fails', $consecutive + 1, 2 * HOUR_IN_SECONDS );
+			if ( $consecutive + 1 >= 2 ) {
+				update_option( 'wp_claw_operations_halted', true, false );
+				wp_claw_log_error( 'Two consecutive health check failures — halting T2/T3 operations.' );
+			}
 			return;
 		}
 
 		wp_claw_log_debug( 'Scheduled health check completed.', array( 'status' => $result['status'] ?? 'unknown' ) );
+		delete_transient( 'wp_claw_consecutive_health_fails' );
+		delete_option( 'wp_claw_operations_halted' );
 	}
 
 	/**
@@ -171,6 +196,16 @@ class Cron {
 		 * @param array $state The state array before it is sent.
 		 */
 		$state = (array) apply_filters( 'wp_claw_sync_state', $state );
+
+		$plugin          = WP_Claw::get_instance();
+		$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
+		$state['modules'] = array();
+		foreach ( $enabled_modules as $slug ) {
+			$module = $plugin->get_module( sanitize_key( $slug ) );
+			if ( null !== $module ) {
+				$state['modules'][ $slug ] = $module->get_state();
+			}
+		}
 
 		$result = $this->api_client->sync_state( $state );
 
@@ -320,6 +355,521 @@ class Cron {
 				'retention_days' => $retention_days,
 				'cutoff'         => $cutoff,
 			)
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Vision capability cron handlers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Hourly: compare WordPress core/plugin/theme file hashes against originals.
+	 *
+	 * Detects modified, new, or deleted files that may indicate a compromise.
+	 * Creates a task for the sentinel agent when changes are found.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_file_integrity(): void {
+		$results = wp_claw_compare_file_hashes( 'all' );
+
+		$modified  = isset( $results['modified'] ) ? (array) $results['modified'] : array();
+		$new_files = isset( $results['new'] ) ? (array) $results['new'] : array();
+		$deleted   = isset( $results['deleted'] ) ? (array) $results['deleted'] : array();
+
+		if ( empty( $modified ) && empty( $new_files ) && empty( $deleted ) ) {
+			wp_claw_log_debug( 'File integrity check passed — no changes detected.' );
+			return;
+		}
+
+		$summary = array(
+			'modified' => count( $modified ),
+			'new'      => count( $new_files ),
+			'deleted'  => count( $deleted ),
+			'files'    => array_merge(
+				array_slice( $modified, 0, 10 ),
+				array_slice( $new_files, 0, 10 ),
+				array_slice( $deleted, 0, 10 )
+			),
+		);
+
+		$result = $this->api_client->create_task(
+			array(
+				'agent'  => 'sentinel',
+				'title'  => __( 'File integrity changes detected', 'claw-agent' ),
+				'module' => 'security',
+				'source' => 'cron',
+				'data'   => $summary,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log_warning(
+				'Failed to create file integrity task.',
+				array(
+					'code'    => $result->get_error_code(),
+					'message' => $result->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'File integrity task created.',
+			array( 'task_id' => $result['id'] ?? 'unknown' )
+		);
+	}
+
+	/**
+	 * Daily: scan plugin and theme directories for known malware patterns.
+	 *
+	 * Creates a task for the sentinel agent when suspicious files are found.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_malware_scan(): void {
+		$plugin_matches = wp_claw_scan_directory_for_malware( WP_PLUGIN_DIR, 5000 );
+		$theme_matches  = wp_claw_scan_directory_for_malware( get_theme_root(), 2000 );
+
+		$all_matches = array_merge(
+			is_array( $plugin_matches ) ? $plugin_matches : array(),
+			is_array( $theme_matches ) ? $theme_matches : array()
+		);
+
+		if ( empty( $all_matches ) ) {
+			wp_claw_log_debug( 'Malware scan completed — no threats detected.' );
+			return;
+		}
+
+		$result = $this->api_client->create_task(
+			array(
+				'agent'  => 'sentinel',
+				'title'  => __( 'Malware scan: suspicious files detected', 'claw-agent' ),
+				'module' => 'security',
+				'source' => 'cron',
+				'data'   => array(
+					'infected_count' => count( $all_matches ),
+					'files'          => array_slice( $all_matches, 0, 20 ),
+				),
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log_warning(
+				'Failed to create malware scan task.',
+				array(
+					'code'    => $result->get_error_code(),
+					'message' => $result->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'Malware scan task created.',
+			array( 'task_id' => $result['id'] ?? 'unknown' )
+		);
+	}
+
+	/**
+	 * Daily: check SSL certificate expiry and alert when nearing renewal.
+	 *
+	 * Creates a task for the sentinel agent when the certificate expires
+	 * within 30 days.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_ssl_check(): void {
+		$plugin = WP_Claw::get_instance();
+		$module = $plugin->get_module( 'audit' );
+
+		if ( null === $module ) {
+			wp_claw_log_debug( 'SSL check skipped — audit module not available.' );
+			return;
+		}
+
+		$ssl_info = $module->handle_action( 'get_ssl_info', array() );
+
+		if ( is_wp_error( $ssl_info ) ) {
+			wp_claw_log_warning(
+				'SSL check failed.',
+				array(
+					'code'    => $ssl_info->get_error_code(),
+					'message' => $ssl_info->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		$days_remaining = isset( $ssl_info['days_remaining'] ) ? (int) $ssl_info['days_remaining'] : 999;
+
+		if ( $days_remaining >= 30 ) {
+			wp_claw_log_debug(
+				'SSL certificate OK.',
+				array( 'days_remaining' => $days_remaining )
+			);
+			return;
+		}
+
+		$result = $this->api_client->create_task(
+			array(
+				'agent'  => 'sentinel',
+				'title'  => sprintf(
+					/* translators: %d: number of days until SSL certificate expires. */
+					__( 'SSL certificate expires in %d days', 'claw-agent' ),
+					$days_remaining
+				),
+				'module' => 'security',
+				'source' => 'cron',
+				'data'   => $ssl_info,
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log_warning(
+				'Failed to create SSL expiry task.',
+				array(
+					'code'    => $result->get_error_code(),
+					'message' => $result->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'SSL expiry task created.',
+			array( 'task_id' => $result['id'] ?? 'unknown' )
+		);
+	}
+
+	/**
+	 * Hourly: detect and flag abandoned WooCommerce carts.
+	 *
+	 * Carts older than 2 hours with status 'active' are marked as 'abandoned'
+	 * and a recovery task is created for the commerce agent.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_abandoned_cart_check(): void {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'wp_claw_abandoned_carts';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$abandoned = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE status = %s AND created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)",
+				$table,
+				'active'
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( empty( $abandoned ) ) {
+			wp_claw_log_debug( 'No abandoned carts found.' );
+			return;
+		}
+
+		$cart_ids = array();
+		foreach ( $abandoned as $cart ) {
+			$cart_ids[] = (int) $cart->id;
+
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->update(
+				$table,
+				array( 'status' => 'abandoned' ),
+				array( 'id' => (int) $cart->id ),
+				array( '%s' ),
+				array( '%d' )
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		}
+
+		$result = $this->api_client->create_task(
+			array(
+				'agent'  => 'commerce',
+				'title'  => sprintf(
+					/* translators: %d: number of abandoned carts. */
+					__( '%d abandoned carts detected', 'claw-agent' ),
+					count( $cart_ids )
+				),
+				'module' => 'commerce',
+				'source' => 'cron',
+				'data'   => array( 'cart_ids' => $cart_ids ),
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log_warning(
+				'Failed to create abandoned cart task.',
+				array(
+					'code'    => $result->get_error_code(),
+					'message' => $result->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'Abandoned cart task created.',
+			array(
+				'cart_count' => count( $cart_ids ),
+				'task_id'    => $result['id'] ?? 'unknown',
+			)
+		);
+	}
+
+	/**
+	 * Daily: check running A/B tests for statistical significance.
+	 *
+	 * Uses a chi-squared test (p < 0.05, threshold 3.84) to determine
+	 * winners. Completed tests are marked with the winning variant.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_ab_test_eval(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'wp_claw_ab_tests';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$tests = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT * FROM %i WHERE status = %s",
+				$table,
+				'running'
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( empty( $tests ) ) {
+			wp_claw_log_debug( 'No running A/B tests to check.' );
+			return;
+		}
+
+		$completed = array();
+
+		foreach ( $tests as $test ) {
+			$ia = (int) $test->impressions_a;
+			$ib = (int) $test->impressions_b;
+			$ca = (int) $test->clicks_a;
+			$cb = (int) $test->clicks_b;
+
+			// Require minimum sample size.
+			if ( $ia < 500 || $ib < 500 ) {
+				continue;
+			}
+
+			// Avoid division by zero.
+			$total_clicks      = $ca + $cb;
+			$total_impressions = $ia + $ib;
+			$non_clicks        = $total_impressions - $total_clicks;
+
+			if ( 0 === $total_clicks || 0 === $non_clicks || 0 === $ia || 0 === $ib ) {
+				continue;
+			}
+
+			// Chi-squared test for independence.
+			$cross        = ( $ca * $ib ) - ( $cb * $ia );
+			$numerator    = $cross * $cross * $total_impressions;
+			$denominator  = $ia * $ib * $total_clicks * $non_clicks;
+			$chi_squared  = $numerator / $denominator;
+
+			if ( $chi_squared <= 3.84 ) {
+				continue;
+			}
+
+			// Determine winner by higher CTR.
+			$ctr_a  = $ca / $ia;
+			$ctr_b  = $cb / $ib;
+			$winner = $ctr_a >= $ctr_b ? 'a' : 'b';
+
+			// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->update(
+				$table,
+				array(
+					'winner'   => $winner,
+					'status'   => 'completed',
+					'ended_at' => current_time( 'mysql', true ),
+				),
+				array( 'id' => (int) $test->id ),
+				array( '%s', '%s', '%s' ),
+				array( '%d' )
+			);
+			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			$completed[] = array(
+				'test_id'     => (int) $test->id,
+				'winner'      => $winner,
+				'chi_squared' => round( $chi_squared, 2 ),
+				'ctr_a'       => round( $ctr_a, 4 ),
+				'ctr_b'       => round( $ctr_b, 4 ),
+			);
+		}
+
+		if ( empty( $completed ) ) {
+			wp_claw_log_debug( 'A/B test check complete — no tests reached significance.' );
+			return;
+		}
+
+		$result = $this->api_client->create_task(
+			array(
+				'agent'  => 'scribe',
+				'title'  => sprintf(
+					/* translators: %d: number of completed A/B tests. */
+					__( '%d A/B tests reached statistical significance', 'claw-agent' ),
+					count( $completed )
+				),
+				'module' => 'analytics',
+				'source' => 'cron',
+				'data'   => array( 'completed_tests' => $completed ),
+			)
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log_warning(
+				'Failed to create A/B test results task.',
+				array(
+					'code'    => $result->get_error_code(),
+					'message' => $result->get_error_message(),
+				)
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'A/B test results task created.',
+			array( 'task_id' => $result['id'] ?? 'unknown' )
+		);
+	}
+
+	/**
+	 * Weekly: delete Core Web Vitals history older than 90 days.
+	 *
+	 * Keeps the CWV history table lean for GDPR compliance and performance.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_cwv_cleanup(): void {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'wp_claw_cwv_history';
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$deleted = $wpdb->query(
+			$wpdb->prepare(
+				"DELETE FROM %i WHERE measured_at < DATE_SUB(NOW(), INTERVAL 90 DAY)",
+				$table
+			)
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		if ( false === $deleted ) {
+			wp_claw_log_warning(
+				'CWV cleanup query failed.',
+				array( 'last_error' => $wpdb->last_error )
+			);
+			return;
+		}
+
+		wp_claw_log_debug(
+			'CWV history cleanup completed.',
+			array( 'rows_deleted' => $deleted )
+		);
+	}
+
+	/**
+	 * Weekly: compute customer RFM segmentation from WooCommerce orders.
+	 *
+	 * Stores aggregate segment counts (not per-customer data) in a WordPress
+	 * option for dashboard display and commerce agent context.
+	 *
+	 * Segments:
+	 *   - new:     1 order, last order < 30 days ago
+	 *   - active:  2-3 orders, last order < 90 days
+	 *   - loyal:   4+ orders, last order < 90 days
+	 *   - at_risk: any orders, last order 90-180 days ago
+	 *   - dormant: last order > 180 days ago
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function run_segmentation(): void {
+		if ( ! class_exists( 'WooCommerce' ) ) {
+			return;
+		}
+
+		global $wpdb;
+
+		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$customers = $wpdb->get_results(
+			"SELECT
+				pm.meta_value AS customer_id,
+				COUNT(*) AS order_count,
+				MAX(p.post_date) AS last_order_date,
+				SUM(pm2.meta_value) AS total_spend
+			FROM {$wpdb->posts} p
+			INNER JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key = '_customer_user'
+			INNER JOIN {$wpdb->postmeta} pm2 ON p.ID = pm2.post_id AND pm2.meta_key = '_order_total'
+			WHERE p.post_type = 'shop_order'
+			AND p.post_status IN ('wc-completed', 'wc-processing')
+			AND pm.meta_value > 0
+			GROUP BY pm.meta_value"
+		);
+		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+		$segments = array(
+			'new'     => 0,
+			'active'  => 0,
+			'loyal'   => 0,
+			'at_risk' => 0,
+			'dormant' => 0,
+		);
+
+		$now = time();
+
+		foreach ( $customers as $customer ) {
+			$order_count = (int) $customer->order_count;
+			$last_order  = strtotime( $customer->last_order_date );
+			$days_since  = (int) floor( ( $now - $last_order ) / DAY_IN_SECONDS );
+
+			if ( $days_since > 180 ) {
+				++$segments['dormant'];
+			} elseif ( $days_since >= 90 ) {
+				++$segments['at_risk'];
+			} elseif ( $order_count >= 4 ) {
+				++$segments['loyal'];
+			} elseif ( $order_count >= 2 ) {
+				++$segments['active'];
+			} elseif ( $days_since < 30 ) {
+				++$segments['new'];
+			} else {
+				++$segments['active'];
+			}
+		}
+
+		update_option( 'wp_claw_customer_segments', $segments, false );
+
+		wp_claw_log_debug(
+			'Customer segmentation completed.',
+			array( 'segments' => $segments )
 		);
 	}
 

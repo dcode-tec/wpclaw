@@ -11,7 +11,7 @@
  * Plugin Name:       Claw Agent
  * Plugin URI:        https://wp-claw.ai
  * Description:       The AI Operating Layer for WordPress — replaces 10-15 plugins with one AI-powered system connected to Klawty.
- * Version:           1.0.3
+ * Version:           1.1.0
  * Requires at least: 6.4
  * Requires PHP:      7.4
  * Author:            dcode technologies
@@ -25,8 +25,8 @@
 defined( 'ABSPATH' ) || exit;
 
 // Plugin constants.
-define( 'WP_CLAW_VERSION', '1.0.3' );
-define( 'WP_CLAW_DB_VERSION', '1.0.0' );
+define( 'WP_CLAW_VERSION', '1.1.0' );
+define( 'WP_CLAW_DB_VERSION', '1.1.0' );
 define( 'WP_CLAW_PLUGIN_FILE', __FILE__ );
 define( 'WP_CLAW_PLUGIN_DIR', plugin_dir_path( __FILE__ ) );
 define( 'WP_CLAW_PLUGIN_URL', plugin_dir_url( __FILE__ ) );
@@ -37,6 +37,8 @@ require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/logger.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/encryption.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/sanitization.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/capabilities.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/file-scanner.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/helpers/malware-patterns.php';
 
 // Core classes — load in dependency order.
 require_once WP_CLAW_PLUGIN_DIR . 'includes/class-module-base.php';
@@ -63,6 +65,7 @@ require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-analytics.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-backup.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-social.php';
 require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-chat.php';
+require_once WP_CLAW_PLUGIN_DIR . 'includes/modules/class-module-audit.php';
 
 // Activation and deactivation hooks.
 register_activation_hook( __FILE__, array( 'WPClaw\\Activator', 'activate' ) );

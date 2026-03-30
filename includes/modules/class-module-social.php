@@ -105,6 +105,8 @@ class Module_Social extends Module_Base {
 			'create_social_post',
 			'schedule_post',
 			'get_scheduled_posts',
+			'format_for_platform',
+			'get_posting_history',
 		);
 	}
 
@@ -131,6 +133,12 @@ class Module_Social extends Module_Base {
 
 			case 'get_scheduled_posts':
 				return $this->handle_get_scheduled_posts( $params );
+
+			case 'format_for_platform':
+				return $this->handle_format_for_platform( $params );
+
+			case 'get_posting_history':
+				return $this->handle_get_posting_history( $params );
 
 			default:
 				return new \WP_Error(
@@ -597,6 +605,192 @@ class Module_Social extends Module_Base {
 
 		return array(
 			'success' => true,
+			'count'   => count( $posts ),
+			'posts'   => $posts,
+		);
+	}
+
+	/**
+	 * Format text for a specific social media platform.
+	 *
+	 * Applies platform-specific formatting rules: LinkedIn keeps full text
+	 * with hashtags, Twitter truncates to 250 chars + URL, Facebook uses
+	 * a shorter conversational tone.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type string $text     Required. Raw post text.
+	 *   @type string $platform Required. Target platform (facebook|instagram|linkedin|twitter|pinterest).
+	 *   @type string $post_url Optional. URL to append to the post.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_format_for_platform( array $params ) {
+		$text = isset( $params['text'] ) ? sanitize_textarea_field( wp_unslash( (string) $params['text'] ) ) : '';
+		if ( '' === $text ) {
+			return new \WP_Error(
+				'wp_claw_missing_text',
+				__( 'text parameter is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$platform = isset( $params['platform'] ) ? sanitize_key( $params['platform'] ) : '';
+		if ( ! in_array( $platform, self::$allowed_platforms, true ) ) {
+			return new \WP_Error(
+				'wp_claw_invalid_platform',
+				sprintf(
+					/* translators: 1: Supplied platform. 2: Comma-separated list of allowed platforms. */
+					__( 'Invalid platform "%1$s". Allowed values: %2$s.', 'claw-agent' ),
+					esc_html( $platform ),
+					implode( ', ', self::$allowed_platforms )
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		$post_url  = isset( $params['post_url'] ) ? esc_url_raw( wp_unslash( (string) $params['post_url'] ) ) : '';
+		$formatted = $text;
+
+		switch ( $platform ) {
+			case 'linkedin':
+				// Keep full text, append hashtags and URL.
+				$formatted = $text;
+				if ( '' !== $post_url ) {
+					$formatted .= "\n\n" . $post_url;
+				}
+				break;
+
+			case 'twitter':
+				// Truncate to 250 chars to leave room for URL.
+				$max_length = '' !== $post_url ? 250 : 280;
+				if ( mb_strlen( $text ) > $max_length ) {
+					$formatted = mb_substr( $text, 0, $max_length - 1 ) . "\xe2\x80\xa6";
+				}
+				if ( '' !== $post_url ) {
+					$formatted .= ' ' . $post_url;
+				}
+				break;
+
+			case 'facebook':
+				// Shorter conversational tone — truncate to 500 chars.
+				if ( mb_strlen( $text ) > 500 ) {
+					$formatted = mb_substr( $text, 0, 497 ) . '...';
+				}
+				if ( '' !== $post_url ) {
+					$formatted .= "\n\n" . $post_url;
+				}
+				break;
+
+			case 'instagram':
+				// Instagram: keep text, hashtags at end. Max 2200 chars.
+				if ( mb_strlen( $text ) > 2200 ) {
+					$formatted = mb_substr( $text, 0, 2197 ) . '...';
+				}
+				break;
+
+			case 'pinterest':
+				// Pinterest: concise description, max 500 chars.
+				if ( mb_strlen( $text ) > 500 ) {
+					$formatted = mb_substr( $text, 0, 497 ) . '...';
+				}
+				if ( '' !== $post_url ) {
+					$formatted .= "\n" . $post_url;
+				}
+				break;
+		}
+
+		return array(
+			'success'   => true,
+			'platform'  => $platform,
+			'formatted' => $formatted,
+			'length'    => mb_strlen( $formatted ),
+		);
+	}
+
+	/**
+	 * Return posting history for the social module.
+	 *
+	 * Queries the wp_claw_tasks table for social module entries within
+	 * the specified time window. Optionally filters by platform.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type int    $days     Optional. Number of days to look back. Default 7.
+	 *   @type string $platform Optional. Filter by platform name.
+	 * }
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_get_posting_history( array $params ) {
+		global $wpdb;
+
+		$days     = isset( $params['days'] ) ? max( 1, min( 90, absint( $params['days'] ) ) ) : 7;
+		$platform = isset( $params['platform'] ) ? sanitize_key( (string) $params['platform'] ) : '';
+		$table    = $wpdb->prefix . 'wp_claw_tasks';
+
+		if ( '' !== $platform && ! in_array( $platform, self::$allowed_platforms, true ) ) {
+			return new \WP_Error(
+				'wp_claw_invalid_platform',
+				sprintf(
+					/* translators: %s: Supplied platform value. */
+					__( 'Invalid platform filter: %s', 'claw-agent' ),
+					esc_html( $platform )
+				),
+				array( 'status' => 400 )
+			);
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh posting history.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT task_id, action, status, details, created_at FROM {$table} WHERE module = %s AND created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) ORDER BY created_at DESC LIMIT 100", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				'social',
+				$days
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Database error fetching posting history.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		$posts = array();
+
+		foreach ( $rows as $row ) {
+			$details = ! empty( $row['details'] ) ? json_decode( $row['details'], true ) : array();
+			if ( ! is_array( $details ) ) {
+				$details = array();
+			}
+
+			$row_platform = isset( $details['platform'] ) ? sanitize_key( $details['platform'] ) : '';
+
+			// Apply platform filter if specified.
+			if ( '' !== $platform && $row_platform !== $platform ) {
+				continue;
+			}
+
+			$posts[] = array(
+				'task_id'    => sanitize_text_field( $row['task_id'] ),
+				'action'     => sanitize_text_field( $row['action'] ),
+				'status'     => sanitize_text_field( $row['status'] ),
+				'platform'   => $row_platform,
+				'created_at' => sanitize_text_field( $row['created_at'] ),
+			);
+		}
+
+		return array(
+			'success' => true,
+			'days'    => $days,
 			'count'   => count( $posts ),
 			'posts'   => $posts,
 		);

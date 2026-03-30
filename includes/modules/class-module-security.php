@@ -126,6 +126,13 @@ class Module_Security extends Module_Base {
 			'enable_brute_force_protection',
 			'update_htaccess_rules',
 			'get_login_attempts',
+			'compute_file_hashes',
+			'compare_file_hashes',
+			'scan_malware_patterns',
+			'quarantine_file',
+			'deploy_security_headers',
+			'check_ssl_certificate',
+			'get_quarantined_files',
 		);
 	}
 
@@ -161,6 +168,27 @@ class Module_Security extends Module_Base {
 
 			case 'get_login_attempts':
 				return $this->action_get_login_attempts( $params );
+
+			case 'compute_file_hashes':
+				return $this->action_compute_file_hashes( $params );
+
+			case 'compare_file_hashes':
+				return $this->action_compare_file_hashes( $params );
+
+			case 'scan_malware_patterns':
+				return $this->action_scan_malware_patterns( $params );
+
+			case 'quarantine_file':
+				return $this->action_quarantine_file( $params );
+
+			case 'deploy_security_headers':
+				return $this->action_deploy_security_headers();
+
+			case 'check_ssl_certificate':
+				return $this->action_check_ssl_certificate();
+
+			case 'get_quarantined_files':
+				return $this->action_get_quarantined_files();
 
 			default:
 				return new \WP_Error(
@@ -198,10 +226,59 @@ class Module_Security extends Module_Base {
 			}
 		}
 
+		// File integrity status from the file_hashes table.
+		$file_integrity_status  = 'scan_pending';
+		$quarantined_file_count = 0;
+
+		global $wpdb;
+		$file_hashes_table = $wpdb->prefix . 'wp_claw_file_hashes';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$total_hashes = $wpdb->get_var(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT COUNT(*) FROM {$file_hashes_table}"
+		);
+
+		if ( $total_hashes && (int) $total_hashes > 0 ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$non_clean = $wpdb->get_var(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$file_hashes_table} WHERE status != 'clean'"
+			);
+			$file_integrity_status = ( $non_clean && (int) $non_clean > 0 ) ? 'issues_detected' : 'clean';
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$quarantined_file_count = (int) $wpdb->get_var(
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$file_hashes_table} WHERE status = 'quarantined'"
+			);
+		}
+
+		// SSL info via audit module.
+		$ssl_valid          = false;
+		$ssl_days_remaining = null;
+
+		$plugin = \WPClaw\WP_Claw::get_instance();
+		$audit  = $plugin->get_module( 'audit' );
+
+		if ( $audit ) {
+			$ssl_result = $audit->handle_action( 'get_ssl_info', array() );
+			if ( ! is_wp_error( $ssl_result ) && isset( $ssl_result['data'] ) ) {
+				$ssl_valid          = ! empty( $ssl_result['data']['valid'] );
+				$ssl_days_remaining = isset( $ssl_result['data']['days_remaining'] ) ? (int) $ssl_result['data']['days_remaining'] : null;
+			}
+		}
+
 		return array(
-			'failed_logins_24h' => $recent_fails,
-			'blocked_ips_count' => count( $blocked_ips ),
-			'last_scan_time'    => get_option( self::OPT_LAST_SCAN, '' ),
+			'failed_logins_24h'       => $recent_fails,
+			'blocked_ips_count'       => count( $blocked_ips ),
+			'last_scan_time'          => get_option( self::OPT_LAST_SCAN, '' ),
+			'file_integrity_status'   => $file_integrity_status,
+			'quarantined_file_count'  => $quarantined_file_count,
+			'ssl_valid'               => $ssl_valid,
+			'ssl_days_remaining'      => $ssl_days_remaining,
+			'last_malware_scan'       => get_option( 'wp_claw_last_malware_scan', '' ),
+			'security_headers_active' => (bool) get_option( 'wp_claw_security_headers_active', false ),
 		);
 	}
 
@@ -218,6 +295,7 @@ class Module_Security extends Module_Base {
 	public function register_hooks(): void {
 		add_action( 'wp_login_failed', array( $this, 'on_login_failed' ), 10, 1 );
 		add_action( 'wp_login', array( $this, 'on_wp_login' ), 10, 2 );
+		add_action( 'send_headers', array( $this, 'deploy_stored_headers' ), 5 );
 	}
 
 	// -------------------------------------------------------------------------
@@ -283,6 +361,39 @@ class Module_Security extends Module_Base {
 				'ip'         => $this->get_client_ip(),
 			)
 		);
+	}
+
+	/**
+	 * Deploy stored security headers on every front-end response.
+	 *
+	 * Reads the header map from wp_options and emits each as an HTTP
+	 * header via header(). Only fires when explicitly activated by the
+	 * deploy_security_headers action. Headers are additive only — this
+	 * method never removes existing headers.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return void
+	 */
+	public function deploy_stored_headers(): void {
+		if ( ! get_option( 'wp_claw_security_headers_active', false ) ) {
+			return;
+		}
+
+		$headers = get_option( self::OPT_SECURITY_HEADERS, array() );
+
+		if ( ! is_array( $headers ) || empty( $headers ) ) {
+			return;
+		}
+
+		foreach ( $headers as $name => $value ) {
+			$clean_name  = sanitize_text_field( (string) $name );
+			$clean_value = sanitize_text_field( (string) $value );
+
+			if ( '' !== $clean_name && '' !== $clean_value ) {
+				header( "{$clean_name}: {$clean_value}" );
+			}
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -587,6 +698,294 @@ class Module_Security extends Module_Base {
 			'data'    => array(
 				'attempts' => $attempts,
 				'total'    => count( $attempts ),
+			),
+		);
+	}
+
+	/**
+	 * Compute and store SHA-256 hashes for files in the given scope.
+	 *
+	 * Delegates to wp_claw_compute_file_hashes() for the actual scanning,
+	 * then upserts each result into the wp_claw_file_hashes table.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params { scope?: string }.
+	 *
+	 * @return array
+	 */
+	private function action_compute_file_hashes( array $params ): array {
+		$allowed_scopes = array( 'core', 'plugin', 'theme', 'all' );
+		$scope          = isset( $params['scope'] ) ? sanitize_key( $params['scope'] ) : 'all';
+
+		if ( ! in_array( $scope, $allowed_scopes, true ) ) {
+			$scope = 'all';
+		}
+
+		$hashes = wp_claw_compute_file_hashes( $scope );
+
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'wp_claw_file_hashes';
+		$count      = 0;
+
+		foreach ( $hashes as $file_path => $hash ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+			$abs_path  = ABSPATH . $file_path;
+				$file_size = file_exists( $abs_path ) ? (int) filesize( $abs_path ) : 0;
+				$wpdb->replace(
+				$table_name,
+				array(
+					'file_path'  => sanitize_text_field( $file_path ),
+					'file_hash'  => sanitize_text_field( $hash ),
+					'file_size'  => $file_size,
+					'scope'      => $scope,
+					'status'     => 'clean',
+					'checked_at' => current_time( 'mysql', true ),
+				),
+				array( '%s', '%s', '%d', '%s', '%s', '%s' )
+			);
+			++$count;
+		}
+
+		update_option( self::OPT_LAST_SCAN, current_time( 'mysql', true ) );
+
+		wp_claw_log( 'File hashes computed and stored.', 'info', array( 'scope' => $scope, 'files' => $count ) );
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'scope'       => $scope,
+				'files_hashed' => $count,
+			),
+		);
+	}
+
+	/**
+	 * Compare current file hashes against the stored baseline.
+	 *
+	 * Delegates to wp_claw_compare_file_hashes() and returns the diff
+	 * arrays (modified, new, deleted).
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params { scope?: string }.
+	 *
+	 * @return array
+	 */
+	private function action_compare_file_hashes( array $params ): array {
+		$allowed_scopes = array( 'core', 'plugin', 'theme', 'all' );
+		$scope          = isset( $params['scope'] ) ? sanitize_key( $params['scope'] ) : 'all';
+
+		if ( ! in_array( $scope, $allowed_scopes, true ) ) {
+			$scope = 'all';
+		}
+
+		$diff = wp_claw_compare_file_hashes( $scope );
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'scope'    => $scope,
+				'modified' => $diff['modified'],
+				'new'      => $diff['new'],
+				'deleted'  => $diff['deleted'],
+			),
+		);
+	}
+
+	/**
+	 * Scan directories for malware patterns.
+	 *
+	 * Maps the directory parameter to real filesystem paths and delegates
+	 * to wp_claw_scan_directory_for_malware(). Records the scan timestamp.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params { directory?: string }.
+	 *
+	 * @return array
+	 */
+	private function action_scan_malware_patterns( array $params ): array {
+		$allowed_dirs = array( 'plugins', 'themes', 'uploads', 'all' );
+		$directory    = isset( $params['directory'] ) ? sanitize_key( $params['directory'] ) : 'all';
+
+		if ( ! in_array( $directory, $allowed_dirs, true ) ) {
+			$directory = 'all';
+		}
+
+		$dir_map = array(
+			'plugins' => array( WP_PLUGIN_DIR ),
+			'themes'  => array( get_theme_root() ),
+			'uploads' => array( wp_upload_dir()['basedir'] ),
+		);
+
+		if ( 'all' === $directory ) {
+			$paths = array_merge( $dir_map['plugins'], $dir_map['themes'], $dir_map['uploads'] );
+		} else {
+			$paths = $dir_map[ $directory ];
+		}
+
+		$all_matches = array();
+		foreach ( $paths as $path ) {
+			$matches = wp_claw_scan_directory_for_malware( $path );
+			// Merge results, keyed by file path.
+			foreach ( $matches as $file => $file_matches ) {
+				$all_matches[ $file ] = $file_matches;
+			}
+		}
+
+		update_option( 'wp_claw_last_malware_scan', current_time( 'mysql', true ) );
+
+		wp_claw_log(
+			'Malware pattern scan complete.',
+			'info',
+			array(
+				'directory'      => $directory,
+				'infected_files' => count( $all_matches ),
+			)
+		);
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'directory'      => $directory,
+				'infected_files' => count( $all_matches ),
+				'matches'        => $all_matches,
+			),
+		);
+	}
+
+	/**
+	 * Quarantine a suspicious file.
+	 *
+	 * Delegates to wp_claw_quarantine_file() which enforces hard-coded
+	 * path restrictions (wp-content/plugins/ and wp-content/themes/ only).
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params { file_path: string }.
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_quarantine_file( array $params ) {
+		if ( empty( $params['file_path'] ) ) {
+			return new \WP_Error(
+				'wp_claw_security_missing_file_path',
+				__( 'file_path parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$file_path = sanitize_text_field( wp_unslash( $params['file_path'] ) );
+
+		$result = wp_claw_quarantine_file( $file_path );
+
+		if ( is_wp_error( $result ) ) {
+			return $result;
+		}
+
+		// Update the file_hashes table to mark the file as quarantined.
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'wp_claw_file_hashes';
+		$abspath    = untrailingslashit( ABSPATH );
+		$rel_path   = ltrim( str_replace( $abspath, '', $result['original_path'] ), DIRECTORY_SEPARATOR );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->update(
+			$table_name,
+			array(
+				'status'    => 'quarantined',
+				'checked_at' => current_time( 'mysql', true ),
+			),
+			array( 'file_path' => $rel_path ),
+			array( '%s', '%s' ),
+			array( '%s' )
+		);
+
+		return array(
+			'success' => true,
+			'data'    => $result,
+		);
+	}
+
+	/**
+	 * Activate the deployment of stored security headers.
+	 *
+	 * Sets the wp_claw_security_headers_active option to true. The actual
+	 * header emission happens in the send_headers hook callback.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return array
+	 */
+	private function action_deploy_security_headers(): array {
+		update_option( 'wp_claw_security_headers_active', true );
+
+		$headers = get_option( self::OPT_SECURITY_HEADERS, array() );
+		$count   = is_array( $headers ) ? count( $headers ) : 0;
+
+		wp_claw_log( 'Security headers deployment activated.', 'info', array( 'header_count' => $count ) );
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'active'       => true,
+				'header_count' => $count,
+				'message'      => __( 'Security headers will be sent on every response.', 'claw-agent' ),
+			),
+		);
+	}
+
+	/**
+	 * Check the SSL certificate status via the audit module.
+	 *
+	 * Delegates to the audit module's get_ssl_info action. Returns a
+	 * WP_Error if the audit module is not available.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_check_ssl_certificate() {
+		$plugin = \WPClaw\WP_Claw::get_instance();
+		$audit  = $plugin->get_module( 'audit' );
+
+		if ( ! $audit ) {
+			return new \WP_Error(
+				'wp_claw_audit_module_unavailable',
+				__( 'The audit module is not available. Enable it to check SSL certificates.', 'claw-agent' ),
+				array( 'status' => 503 )
+			);
+		}
+
+		return $audit->handle_action( 'get_ssl_info', array() );
+	}
+
+	/**
+	 * Retrieve all quarantined file records from the file_hashes table.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return array
+	 */
+	private function action_get_quarantined_files(): array {
+		global $wpdb;
+		$table_name = $wpdb->prefix . 'wp_claw_file_hashes';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$rows = $wpdb->get_results(
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			"SELECT file_path, file_hash, scope, status, checked_at FROM {$table_name} WHERE status = 'quarantined'",
+			ARRAY_A
+		);
+
+		$files = is_array( $rows ) ? $rows : array();
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'quarantined_files' => $files,
+				'total'             => count( $files ),
 			),
 		);
 	}

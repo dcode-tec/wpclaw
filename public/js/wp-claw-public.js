@@ -117,10 +117,19 @@
 			}
 			this.fired = true;
 
+			var eventType = 'pageview';
+			if ( document.body.classList.contains( 'woocommerce-cart' ) ) {
+				eventType = 'cart_view';
+			} else if ( document.body.classList.contains( 'woocommerce-checkout' ) && ! document.body.classList.contains( 'woocommerce-order-received' ) ) {
+				eventType = 'checkout_view';
+			} else if ( document.body.classList.contains( 'woocommerce-order-received' ) ) {
+				eventType = 'purchase';
+			}
+
 			var data = {
 				page_url:    this.truncate( window.location.href, 512 ),
 				referrer:    this.truncate( document.referrer || '', 512 ),
-				event_type:  'pageview',
+				event_type:  eventType,
 				device_type: this.getDeviceType()
 			};
 

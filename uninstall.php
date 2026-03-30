@@ -26,6 +26,13 @@ global $wpdb;
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_tasks' ) );
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_proposals' ) );
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_analytics' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_command_log' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_file_hashes' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_ab_tests' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_abandoned_carts' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_email_drafts' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_cwv_history' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_snapshots' ) );
 // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 // 2. Delete all plugin options.
@@ -69,6 +76,13 @@ $cron_hooks = array(
 	'wp_claw_analytics_report',
 	'wp_claw_performance_check',
 	'wp_claw_analytics_cleanup',
+	'wp_claw_file_integrity',
+	'wp_claw_malware_scan',
+	'wp_claw_ssl_check',
+	'wp_claw_abandoned_cart',
+	'wp_claw_ab_test_eval',
+	'wp_claw_cwv_cleanup',
+	'wp_claw_segmentation',
 );
 
 foreach ( $cron_hooks as $hook ) {

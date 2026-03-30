@@ -70,29 +70,21 @@ class Activator {
 		add_option( 'wp_claw_connection_mode', 'managed' );
 		add_option(
 			'wp_claw_enabled_modules',
-			array( 'seo', 'security', 'content', 'crm', 'commerce', 'performance', 'forms', 'analytics', 'backup', 'social', 'chat' )
+			array( 'seo', 'security', 'content', 'crm', 'commerce', 'performance', 'forms', 'analytics', 'backup', 'social', 'chat', 'audit' )
 		);
 		add_option( 'wp_claw_chat_enabled', true );
 		add_option( 'wp_claw_chat_position', 'bottom-right' );
 		add_option( 'wp_claw_chat_welcome', 'Hi! How can I help you today?' );
 		add_option( 'wp_claw_chat_agent_name', 'Concierge' );
 		add_option( 'wp_claw_analytics_enabled', false );
+		add_option( 'wp_claw_chat_consent_text', 'This chat is powered by AI. Your messages are processed to provide assistance. No personal data is stored after your session ends unless you provide contact information.' );
+		add_option( 'wp_claw_chat_privacy_url', '' );
 
 		// --- 5. Add capabilities to WordPress roles -------------------------
 		wp_claw_add_capabilities();
 
 		// --- 6. Schedule WP-Cron events -------------------------------------
-		$cron_events = array(
-			'wp_claw_health_check'      => 'hourly',
-			'wp_claw_sync_state'        => 'hourly',
-			'wp_claw_update_check'      => 'twicedaily',
-			'wp_claw_security_scan'     => 'twicedaily',
-			'wp_claw_backup'            => 'daily',
-			'wp_claw_seo_audit'         => 'daily',
-			'wp_claw_analytics_report'  => 'weekly',
-			'wp_claw_performance_check' => 'weekly',
-			'wp_claw_analytics_cleanup' => 'weekly',
-		);
+		$cron_events = self::get_cron_events();
 
 		$now = time();
 		foreach ( $cron_events as $hook => $recurrence ) {
@@ -199,6 +191,119 @@ class Activator {
 			KEY idx_created_at (created_at)
 		) {$charset_collate};";
 
+		// Table: wp_claw_file_hashes — file integrity baseline for core/plugin/theme files.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_file_hashes (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			file_path VARCHAR(512) NOT NULL DEFAULT '',
+			file_hash VARCHAR(64) NOT NULL DEFAULT '',
+			file_size BIGINT(20) UNSIGNED NOT NULL DEFAULT 0,
+			scope VARCHAR(16) NOT NULL DEFAULT 'core',
+			status VARCHAR(16) NOT NULL DEFAULT 'clean',
+			checked_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			UNIQUE KEY idx_file_path (file_path(191)),
+			KEY idx_scope (scope),
+			KEY idx_status (status)
+		) {$charset_collate};";
+
+		// Table: wp_claw_ab_tests — SEO A/B test variants and results.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_ab_tests (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			post_id BIGINT(20) UNSIGNED NOT NULL,
+			variant_a_title VARCHAR(255) NOT NULL DEFAULT '',
+			variant_a_desc VARCHAR(255) NOT NULL DEFAULT '',
+			variant_b_title VARCHAR(255) NOT NULL DEFAULT '',
+			variant_b_desc VARCHAR(255) NOT NULL DEFAULT '',
+			impressions_a INT UNSIGNED NOT NULL DEFAULT 0,
+			impressions_b INT UNSIGNED NOT NULL DEFAULT 0,
+			clicks_a INT UNSIGNED NOT NULL DEFAULT 0,
+			clicks_b INT UNSIGNED NOT NULL DEFAULT 0,
+			status VARCHAR(16) NOT NULL DEFAULT 'running',
+			winner VARCHAR(1) DEFAULT NULL,
+			started_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			ended_at DATETIME DEFAULT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_post_id (post_id),
+			KEY idx_status (status)
+		) {$charset_collate};";
+
+		// Table: wp_claw_abandoned_carts — WooCommerce cart recovery tracking.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_abandoned_carts (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			session_id VARCHAR(64) NOT NULL DEFAULT '',
+			user_id BIGINT(20) UNSIGNED DEFAULT NULL,
+			email VARCHAR(255) DEFAULT NULL,
+			cart_contents LONGTEXT NOT NULL,
+			cart_total DECIMAL(10,2) NOT NULL DEFAULT 0.00,
+			currency VARCHAR(3) NOT NULL DEFAULT '',
+			status VARCHAR(16) NOT NULL DEFAULT 'active',
+			email_step TINYINT UNSIGNED NOT NULL DEFAULT 0,
+			last_email_at DATETIME DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			recovered_at DATETIME DEFAULT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY idx_session (session_id),
+			KEY idx_status (status),
+			KEY idx_created (created_at),
+			KEY idx_user_id (user_id)
+		) {$charset_collate};";
+
+		// Table: wp_claw_email_drafts — agent-drafted emails awaiting approval.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_email_drafts (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			lead_task_id VARCHAR(64) DEFAULT NULL,
+			recipient_email VARCHAR(255) NOT NULL DEFAULT '',
+			recipient_name VARCHAR(255) NOT NULL DEFAULT '',
+			subject VARCHAR(255) NOT NULL DEFAULT '',
+			body LONGTEXT NOT NULL,
+			language VARCHAR(5) NOT NULL DEFAULT 'en',
+			status VARCHAR(16) NOT NULL DEFAULT 'draft',
+			approved_by BIGINT(20) UNSIGNED DEFAULT NULL,
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			resolved_at DATETIME DEFAULT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_status (status),
+			KEY idx_lead (lead_task_id),
+			KEY idx_created (created_at)
+		) {$charset_collate};";
+
+		// Table: wp_claw_cwv_history — Core Web Vitals time-series data.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_cwv_history (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			page_url VARCHAR(512) NOT NULL DEFAULT '',
+			lcp_ms INT UNSIGNED DEFAULT NULL,
+			inp_ms INT UNSIGNED DEFAULT NULL,
+			cls_score DECIMAL(5,3) DEFAULT NULL,
+			ttfb_ms INT UNSIGNED DEFAULT NULL,
+			rating VARCHAR(8) NOT NULL DEFAULT 'unknown',
+			measured_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			PRIMARY KEY  (id),
+			KEY idx_page_url (page_url(191)),
+			KEY idx_measured (measured_at),
+			KEY idx_rating (rating)
+		) {$charset_collate};";
+
+		// Table: wp_claw_snapshots — rollback snapshots for agent actions.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_snapshots (
+			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			snapshot_id VARCHAR(64) NOT NULL,
+			agent VARCHAR(32) NOT NULL DEFAULT '',
+			action_description VARCHAR(255) NOT NULL DEFAULT '',
+			snapshot_type VARCHAR(16) NOT NULL DEFAULT 'database',
+			path VARCHAR(512) DEFAULT NULL,
+			tables_count INT UNSIGNED NOT NULL DEFAULT 0,
+			files_count INT UNSIGNED NOT NULL DEFAULT 0,
+			status VARCHAR(16) NOT NULL DEFAULT 'active',
+			created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			expires_at DATETIME NOT NULL,
+			PRIMARY KEY  (id),
+			UNIQUE KEY idx_snapshot_id (snapshot_id),
+			KEY idx_status (status),
+			KEY idx_expires (expires_at),
+			KEY idx_agent (agent)
+		) {$charset_collate};";
+
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.SchemaChange
 
 		require_once ABSPATH . 'wp-admin/includes/upgrade.php';
@@ -206,5 +311,38 @@ class Activator {
 		foreach ( $sql as $statement ) {
 			dbDelta( $statement );
 		}
+	}
+
+	/**
+	 * Return the full list of WP-Cron events registered by WP-Claw.
+	 *
+	 * Centralises the event list so that activate() and deactivate() (and
+	 * any future callers) share the same source of truth.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @return array<string, string> Hook name => recurrence.
+	 */
+	public static function get_cron_events(): array {
+		return array(
+			// Existing events.
+			'wp_claw_health_check'      => 'hourly',
+			'wp_claw_sync_state'        => 'hourly',
+			'wp_claw_update_check'      => 'twicedaily',
+			'wp_claw_security_scan'     => 'twicedaily',
+			'wp_claw_backup'            => 'daily',
+			'wp_claw_seo_audit'         => 'daily',
+			'wp_claw_analytics_report'  => 'weekly',
+			'wp_claw_performance_check' => 'weekly',
+			'wp_claw_analytics_cleanup' => 'weekly',
+			// Vision capabilities events.
+			'wp_claw_file_integrity'    => 'hourly',
+			'wp_claw_malware_scan'      => 'daily',
+			'wp_claw_ssl_check'         => 'daily',
+			'wp_claw_abandoned_cart'    => 'hourly',
+			'wp_claw_ab_test_eval'      => 'daily',
+			'wp_claw_cwv_cleanup'       => 'weekly',
+			'wp_claw_segmentation'      => 'weekly',
+		);
 	}
 }

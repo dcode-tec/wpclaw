@@ -78,6 +78,11 @@ class Module_CRM extends Module_Base {
 			'score_lead',
 			'create_followup_task',
 			'get_leads',
+			'draft_followup_email',
+			'get_followup_drafts',
+			'approve_followup_draft',
+			'reject_followup_draft',
+			'get_pipeline_health',
 		);
 	}
 
@@ -111,6 +116,21 @@ class Module_CRM extends Module_Base {
 
 			case 'get_leads':
 				return $this->handle_get_leads( $params );
+
+			case 'draft_followup_email':
+				return $this->handle_draft_followup_email( $params );
+
+			case 'get_followup_drafts':
+				return $this->handle_get_followup_drafts( $params );
+
+			case 'approve_followup_draft':
+				return $this->handle_approve_followup_draft( $params );
+
+			case 'reject_followup_draft':
+				return $this->handle_reject_followup_draft( $params );
+
+			case 'get_pipeline_health':
+				return $this->handle_get_pipeline_health( $params );
 
 			default:
 				return new \WP_Error(
@@ -497,6 +517,373 @@ class Module_CRM extends Module_Base {
 		);
 	}
 
+	/**
+	 * Draft a follow-up email for a lead, pending human approval.
+	 *
+	 * Inserts a new row into wp_claw_email_drafts with status 'draft'.
+	 * The agent writes the email; a human must approve before it sends.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Draft parameters.
+	 *
+	 *     @type string $lead_task_id    Task ID of the related lead.
+	 *     @type string $recipient_email Required. Recipient email address.
+	 *     @type string $recipient_name  Recipient display name.
+	 *     @type string $subject         Required. Email subject line.
+	 *     @type string $body            Required. Email body content.
+	 *     @type string $language        Language code (default 'en').
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_draft_followup_email( array $params ) {
+		global $wpdb;
+
+		$recipient_email = sanitize_email( $params['recipient_email'] ?? '' );
+
+		if ( empty( $recipient_email ) || ! is_email( $recipient_email ) ) {
+			return new \WP_Error(
+				'wp_claw_invalid_email',
+				__( 'A valid recipient_email is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$subject = sanitize_text_field( $params['subject'] ?? '' );
+
+		if ( empty( $subject ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'subject is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$body = sanitize_textarea_field( $params['body'] ?? '' );
+
+		if ( empty( $body ) ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'body is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$lead_task_id   = sanitize_text_field( $params['lead_task_id'] ?? '' );
+		$recipient_name = sanitize_text_field( $params['recipient_name'] ?? '' );
+		$language       = sanitize_text_field( $params['language'] ?? 'en' );
+
+		$table = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery -- intentional INSERT into WP-Claw custom table.
+		$inserted = $wpdb->insert(
+			$table,
+			array(
+				'lead_task_id'   => $lead_task_id,
+				'recipient_email' => $recipient_email,
+				'recipient_name' => $recipient_name,
+				'subject'        => $subject,
+				'body'           => $body,
+				'language'       => $language,
+				'status'         => 'draft',
+				'created_at'     => current_time( 'mysql' ),
+			),
+			array( '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s' )
+		);
+
+		if ( false === $inserted ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to store email draft.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		return array(
+			'success'  => true,
+			'draft_id' => (int) $wpdb->insert_id,
+			'message'  => __( 'Email draft created and awaiting approval.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Retrieve follow-up email drafts filtered by status.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Query parameters.
+	 *
+	 *     @type string $status Filter by status (default 'draft').
+	 *     @type int    $limit  Maximum results (default 20, max 50).
+	 * }
+	 *
+	 * @return array
+	 */
+	private function handle_get_followup_drafts( array $params ) {
+		global $wpdb;
+
+		$status = sanitize_text_field( $params['status'] ?? 'draft' );
+		$limit  = min( 50, max( 1, absint( $params['limit'] ?? 20 ) ) );
+		$table  = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT id, lead_task_id, recipient_email, recipient_name, subject, body, language, status, approved_by, created_at, resolved_at FROM %i WHERE status = %s ORDER BY created_at DESC LIMIT %d',
+				$table,
+				$status,
+				$limit
+			),
+			ARRAY_A
+		);
+
+		return array(
+			'success' => true,
+			'drafts'  => is_array( $rows ) ? $rows : array(),
+			'count'   => is_array( $rows ) ? count( $rows ) : 0,
+		);
+	}
+
+	/**
+	 * Approve a follow-up email draft.
+	 *
+	 * Sets status to 'approved', records the approving user, and returns
+	 * the full draft record so the agent can proceed with sending.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Approval parameters.
+	 *
+	 *     @type int $draft_id Required. ID of the draft to approve.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_approve_followup_draft( array $params ) {
+		global $wpdb;
+
+		$draft_id = absint( $params['draft_id'] ?? 0 );
+
+		if ( 0 === $draft_id ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'draft_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$table = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$updated = $wpdb->update(
+			$table,
+			array(
+				'status'      => 'approved',
+				'approved_by' => get_current_user_id(),
+				'resolved_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => $draft_id ),
+			array( '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to approve email draft.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		if ( 0 === $updated ) {
+			return new \WP_Error(
+				'wp_claw_not_found',
+				__( 'Draft not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		// Return full draft record for sending.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$draft = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT id, lead_task_id, recipient_email, recipient_name, subject, body, language, status, approved_by, created_at, resolved_at FROM %i WHERE id = %d',
+				$table,
+				$draft_id
+			),
+			ARRAY_A
+		);
+
+		return array(
+			'success' => true,
+			'draft'   => $draft,
+		);
+	}
+
+	/**
+	 * Reject a follow-up email draft.
+	 *
+	 * Sets status to 'rejected' and records the resolution timestamp.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params {
+	 *     Rejection parameters.
+	 *
+	 *     @type int $draft_id Required. ID of the draft to reject.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function handle_reject_followup_draft( array $params ) {
+		global $wpdb;
+
+		$draft_id = absint( $params['draft_id'] ?? 0 );
+
+		if ( 0 === $draft_id ) {
+			return new \WP_Error(
+				'wp_claw_missing_param',
+				__( 'draft_id is required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$table = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$updated = $wpdb->update(
+			$table,
+			array(
+				'status'      => 'rejected',
+				'resolved_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => $draft_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+
+		if ( false === $updated ) {
+			return new \WP_Error(
+				'wp_claw_db_error',
+				__( 'Failed to reject email draft.', 'claw-agent' ),
+				array( 'status' => 500 )
+			);
+		}
+
+		if ( 0 === $updated ) {
+			return new \WP_Error(
+				'wp_claw_not_found',
+				__( 'Draft not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		return array(
+			'success' => true,
+			'message' => __( 'Email draft rejected.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Return pipeline health metrics.
+	 *
+	 * Aggregates leads by status, identifies stale leads (>14 days in
+	 * the same stage), and computes average days per stage.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @param array $params Action parameters (unused).
+	 *
+	 * @return array
+	 */
+	private function handle_get_pipeline_health( array $params ) {
+		global $wpdb;
+
+		$table = $wpdb->prefix . 'wp_claw_tasks';
+
+		// Count leads per status.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT status, COUNT(*) as count
+				 FROM %i
+				 WHERE module = %s AND action = %s
+				 GROUP BY status",
+				$table,
+				$this->get_slug(),
+				'capture_lead'
+			),
+			ARRAY_A
+		);
+
+		$stages      = array();
+		$total_leads = 0;
+
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$key            = sanitize_key( $row['status'] );
+				$cnt            = absint( $row['count'] );
+				$stages[ $key ] = $cnt;
+				$total_leads   += $cnt;
+			}
+		}
+
+		// Stale leads: same stage for > 14 days.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$stale_count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i
+				 WHERE module = %s AND action = %s
+				 AND status NOT IN (%s, %s)
+				 AND updated_at < %s",
+				$table,
+				$this->get_slug(),
+				'capture_lead',
+				'won',
+				'lost',
+				gmdate( 'Y-m-d H:i:s', strtotime( '-14 days' ) )
+			)
+		);
+
+		// Average days per stage (time from created_at to updated_at for completed leads).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$avg_days = $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT AVG( TIMESTAMPDIFF( DAY, created_at, updated_at ) )
+				 FROM %i
+				 WHERE module = %s AND action = %s
+				 AND status IN (%s, %s)",
+				$table,
+				$this->get_slug(),
+				'capture_lead',
+				'won',
+				'lost'
+			)
+		);
+
+		return array(
+			'success'           => true,
+			'stages'            => $stages,
+			'total_leads'       => $total_leads,
+			'stale_count'       => $stale_count,
+			'avg_days_per_stage' => null !== $avg_days ? round( (float) $avg_days, 1 ) : null,
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Hook registration
 	// -------------------------------------------------------------------------
@@ -704,11 +1091,27 @@ class Module_CRM extends Module_Base {
 			$counts[ sanitize_key( $row['status'] ) ] = absint( $row['count'] );
 		}
 
+		// Pending email drafts count.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- custom table query.
+		$pending_drafts = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT COUNT(*) FROM %i WHERE status = %s',
+				$wpdb->prefix . 'wp_claw_email_drafts',
+				'draft'
+			)
+		);
+
+		// Pipeline stages and stale count (lightweight version).
+		$pipeline = $this->handle_get_pipeline_health( array() );
+
 		return array(
-			'module'       => $this->get_slug(),
-			'lead_counts'  => $counts,
-			'total_leads'  => array_sum( $counts ),
-			'generated_at' => current_time( 'c' ),
+			'module'              => $this->get_slug(),
+			'lead_counts'         => $counts,
+			'total_leads'         => array_sum( $counts ),
+			'pending_email_drafts' => $pending_drafts,
+			'pipeline_stages'     => $pipeline['stages'] ?? array(),
+			'stale_leads_count'   => $pipeline['stale_count'] ?? 0,
+			'generated_at'        => current_time( 'c' ),
 		);
 	}
 }

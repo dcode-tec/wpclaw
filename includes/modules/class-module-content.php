@@ -78,6 +78,9 @@ class Module_Content extends Module_Base {
 			'create_page',
 			'translate_post',
 			'generate_excerpt',
+			'check_content_freshness',
+			'update_stale_dates',
+			'expand_thin_content',
 		);
 	}
 
@@ -107,6 +110,15 @@ class Module_Content extends Module_Base {
 
 			case 'generate_excerpt':
 				return $this->action_generate_excerpt( $params );
+
+			case 'check_content_freshness':
+				return $this->action_check_content_freshness( $params );
+
+			case 'update_stale_dates':
+				return $this->action_update_stale_dates( $params );
+
+			case 'expand_thin_content':
+				return $this->action_expand_thin_content( $params );
 
 			default:
 				return new \WP_Error(
@@ -556,6 +568,299 @@ class Module_Content extends Module_Base {
 			'data'    => array(
 				'excerpt'    => $excerpt,
 				'word_count' => $length,
+			),
+		);
+	}
+
+	/**
+	 * Check content freshness across all published posts.
+	 *
+	 * Returns posts that are stale (modified > 12 months ago), thin
+	 * (word count < 300), or contain outdated year references older
+	 * than the current year.
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params Action parameters. Currently unused.
+	 *
+	 * @return array
+	 */
+	private function action_check_content_freshness( array $params ): array {
+		$current_year   = (int) gmdate( 'Y' );
+		$twelve_months  = gmdate( 'Y-m-d H:i:s', strtotime( '-12 months' ) );
+
+		$query = new \WP_Query(
+			array(
+				'post_type'      => array( 'post', 'page' ),
+				'post_status'    => 'publish',
+				'posts_per_page' => 100,
+				'orderby'        => 'modified',
+				'order'          => 'ASC',
+			)
+		);
+
+		$stale_posts = array();
+
+		if ( $query->have_posts() ) {
+			foreach ( $query->posts as $post ) {
+				if ( ! ( $post instanceof \WP_Post ) ) {
+					continue;
+				}
+
+				$plain_content = wp_strip_all_tags( $post->post_content );
+				$word_count    = str_word_count( $plain_content );
+				$is_stale      = ( $post->post_modified_gmt < $twelve_months );
+				$is_thin       = ( $word_count < 300 );
+
+				// Check for outdated year references.
+				$outdated_years = array();
+				if ( preg_match_all( '/\b(20[0-2][0-9])\b/', $plain_content, $matches ) ) {
+					foreach ( $matches[1] as $year ) {
+						$year_int = (int) $year;
+						if ( $year_int < $current_year && ! in_array( $year_int, $outdated_years, true ) ) {
+							$outdated_years[] = $year_int;
+						}
+					}
+				}
+
+				if ( $is_stale || $is_thin || ! empty( $outdated_years ) ) {
+					$stale_posts[] = array(
+						'post_id'        => $post->ID,
+						'title'          => esc_html( get_the_title( $post->ID ) ),
+						'post_type'      => esc_html( $post->post_type ),
+						'modified'       => esc_html( $post->post_modified_gmt ),
+						'word_count'     => $word_count,
+						'is_stale'       => $is_stale,
+						'is_thin'        => $is_thin,
+						'outdated_years' => $outdated_years,
+						'edit_url'       => esc_url( get_edit_post_link( $post->ID, 'raw' ) ),
+					);
+				}
+			}
+		}
+
+		wp_reset_postdata();
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'posts_checked' => $query->found_posts,
+				'issues_found'  => count( $stale_posts ),
+				'posts'         => $stale_posts,
+			),
+		);
+	}
+
+	/**
+	 * Update standalone year references in a post's content.
+	 *
+	 * Uses a regex that matches standalone year numbers while avoiding
+	 * matches inside URLs, HTML attributes, or code blocks. Triggers a
+	 * revision via wp_update_post().
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type int    $post_id  Required. The post to update.
+	 *   @type string $old_year Required. The year to find (e.g. '2024').
+	 *   @type string $new_year Required. The replacement year (e.g. '2026').
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_update_stale_dates( array $params ) {
+		$post_id = isset( $params['post_id'] ) ? absint( $params['post_id'] ) : 0;
+		if ( ! $post_id ) {
+			return new \WP_Error(
+				'wp_claw_content_invalid_post',
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return new \WP_Error(
+				'wp_claw_content_post_not_found',
+				__( 'Post not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$old_year = isset( $params['old_year'] ) ? sanitize_text_field( wp_unslash( $params['old_year'] ) ) : '';
+		$new_year = isset( $params['new_year'] ) ? sanitize_text_field( wp_unslash( $params['new_year'] ) ) : '';
+
+		if ( '' === $old_year || '' === $new_year ) {
+			return new \WP_Error(
+				'wp_claw_content_missing_years',
+				__( 'old_year and new_year parameters are required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		// Only match standalone year references — not inside URLs, attributes, or code.
+		$pattern     = '/(?<!["\x27\/=\d])' . preg_quote( $old_year, '/' ) . '(?!["\x27\/=\d])/';
+		$new_content = preg_replace( $pattern, $new_year, $post->post_content, -1, $count );
+
+		if ( 0 === $count ) {
+			return array(
+				'success'           => true,
+				'data'              => array(
+					'post_id'           => $post_id,
+					'replacements_made' => 0,
+					'message'           => __( 'No standalone year references found to replace.', 'claw-agent' ),
+				),
+			);
+		}
+
+		$result = wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => $new_content,
+			),
+			true
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log(
+				'Failed to update stale dates.',
+				'error',
+				array(
+					'post_id' => $post_id,
+					'error'   => $result->get_error_message(),
+				)
+			);
+			return $result;
+		}
+
+		wp_claw_log(
+			'Content: updated stale year references.',
+			'info',
+			array(
+				'post_id'  => $post_id,
+				'old_year' => $old_year,
+				'new_year' => $new_year,
+				'count'    => $count,
+			)
+		);
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'post_id'           => $post_id,
+				'old_year'          => esc_html( $old_year ),
+				'new_year'          => esc_html( $new_year ),
+				'replacements_made' => $count,
+			),
+		);
+	}
+
+	/**
+	 * Expand thin content by replacing a heading section.
+	 *
+	 * Locates a heading in the post content by text match and replaces
+	 * the section (heading + content until next heading or end) with
+	 * the provided new content. Creates a revision via wp_update_post().
+	 *
+	 * @since 1.1.0
+	 *
+	 * @param array $params {
+	 *   @type int    $post_id     Required. The post to update.
+	 *   @type string $heading     Required. Text of the heading to find.
+	 *   @type string $new_content Required. Replacement content for the section.
+	 * }
+	 *
+	 * @return array|\WP_Error
+	 */
+	private function action_expand_thin_content( array $params ) {
+		$post_id = isset( $params['post_id'] ) ? absint( $params['post_id'] ) : 0;
+		if ( ! $post_id ) {
+			return new \WP_Error(
+				'wp_claw_content_invalid_post',
+				__( 'Invalid or missing post_id.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$post = get_post( $post_id );
+		if ( ! $post ) {
+			return new \WP_Error(
+				'wp_claw_content_post_not_found',
+				__( 'Post not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$heading = isset( $params['heading'] ) ? sanitize_text_field( wp_unslash( $params['heading'] ) ) : '';
+		if ( '' === $heading ) {
+			return new \WP_Error(
+				'wp_claw_content_missing_heading',
+				__( 'heading parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		if ( ! isset( $params['new_content'] ) ) {
+			return new \WP_Error(
+				'wp_claw_content_missing_content',
+				__( 'new_content parameter is required.', 'claw-agent' ),
+				array( 'status' => 422 )
+			);
+		}
+
+		$new_section = wp_kses_post( wp_unslash( $params['new_content'] ) );
+		$content     = $post->post_content;
+
+		// Match the heading (h1-h6) and everything until the next heading of same or higher level, or end.
+		$escaped_heading = preg_quote( $heading, '/' );
+		$pattern         = '/(<h[1-6][^>]*>)\s*' . $escaped_heading . '\s*(<\/h[1-6]>)(.*?)(?=<h[1-6]|$)/is';
+
+		$replaced = preg_replace( $pattern, '$1' . $heading . '$2' . "\n" . $new_section, $content, 1, $count );
+
+		if ( 0 === $count || null === $replaced ) {
+			return new \WP_Error(
+				'wp_claw_content_heading_not_found',
+				/* translators: %s: heading text */
+				sprintf( __( 'Heading "%s" not found in post content.', 'claw-agent' ), esc_html( $heading ) ),
+				array( 'status' => 404 )
+			);
+		}
+
+		$result = wp_update_post(
+			array(
+				'ID'           => $post_id,
+				'post_content' => $replaced,
+			),
+			true
+		);
+
+		if ( is_wp_error( $result ) ) {
+			wp_claw_log(
+				'Failed to expand thin content.',
+				'error',
+				array(
+					'post_id' => $post_id,
+					'error'   => $result->get_error_message(),
+				)
+			);
+			return $result;
+		}
+
+		wp_claw_log(
+			'Content: expanded thin content section.',
+			'info',
+			array(
+				'post_id' => $post_id,
+				'heading' => $heading,
+			)
+		);
+
+		return array(
+			'success' => true,
+			'data'    => array(
+				'post_id' => $post_id,
+				'heading' => esc_html( $heading ),
+				'message' => __( 'Content section expanded successfully.', 'claw-agent' ),
 			),
 		);
 	}
