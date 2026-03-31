@@ -188,6 +188,220 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 		</p>
 	</section>
 
+	<!-- Chat GDPR Configuration (v1.2.0) -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Chat — GDPR & Privacy', 'claw-agent' ); ?></h2>
+		<p class="wpc-kpi-label">
+			<?php esc_html_e( 'Configure GDPR consent and privacy settings for Marc (The Concierge) chat widget.', 'claw-agent' ); ?>
+		</p>
+
+		<form method="post" action="options.php">
+			<?php settings_fields( 'wp_claw_settings' ); ?>
+
+			<table class="wpc-agent-table">
+				<tbody>
+					<tr>
+						<td><label for="wp-claw-consent-text"><?php esc_html_e( 'Consent message', 'claw-agent' ); ?></label></td>
+						<td>
+							<textarea
+								id="wp-claw-consent-text"
+								name="wp_claw_chat_consent_text"
+								rows="3"
+								style="width:100%;max-width:480px"
+							><?php echo esc_textarea( get_option( 'wp_claw_chat_consent_text', '' ) ); ?></textarea>
+							<p class="wpc-form-hint"><?php esc_html_e( 'Shown to visitors before they can start a chat. Leave blank to use the default.', 'claw-agent' ); ?></p>
+						</td>
+					</tr>
+					<tr>
+						<td><label for="wp-claw-privacy-url"><?php esc_html_e( 'Privacy policy URL', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="url"
+								id="wp-claw-privacy-url"
+								name="wp_claw_chat_privacy_url"
+								value="<?php echo esc_url( get_option( 'wp_claw_chat_privacy_url', '' ) ); ?>"
+								style="width:100%;max-width:480px"
+								placeholder="https://example.com/privacy"
+							>
+						</td>
+					</tr>
+					<tr>
+						<td><label for="wp-claw-sla-minutes"><?php esc_html_e( 'Escalation SLA (minutes)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wp-claw-sla-minutes"
+								name="wp_claw_chat_sla_minutes"
+								value="<?php echo esc_attr( get_option( 'wp_claw_chat_sla_minutes', 60 ) ); ?>"
+								min="5"
+								max="1440"
+								style="width:100px"
+							>
+							<p class="wpc-form-hint"><?php esc_html_e( 'If Marc cannot resolve within this time, the visitor is offered human contact.', 'claw-agent' ); ?></p>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<?php submit_button( __( 'Save Chat Settings', 'claw-agent' ) ); ?>
+		</form>
+	</section>
+
+	<!-- Security Configuration (v1.2.0) -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Security — Brute Force Protection', 'claw-agent' ); ?></h2>
+		<p class="wpc-kpi-label">
+			<?php esc_html_e( 'Configure login attempt limits managed by Bastien (The Sentinel).', 'claw-agent' ); ?>
+		</p>
+
+		<form method="post" action="options.php">
+			<?php settings_fields( 'wp_claw_settings' ); ?>
+
+			<table class="wpc-agent-table">
+				<tbody>
+					<tr>
+						<td><label for="wp-claw-brute-force"><?php esc_html_e( 'Enable brute force protection', 'claw-agent' ); ?></label></td>
+						<td>
+							<div class="wpc-toggle-switch">
+								<input
+									type="checkbox"
+									id="wp-claw-brute-force"
+									name="wp_claw_brute_force_enabled"
+									value="1"
+									<?php checked( get_option( 'wp_claw_brute_force_enabled', false ) ); ?>
+								>
+								<span class="wpc-toggle-switch__slider"></span>
+							</div>
+						</td>
+					</tr>
+					<tr>
+						<td><label for="wp-claw-max-attempts"><?php esc_html_e( 'Max login attempts', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wp-claw-max-attempts"
+								name="wp_claw_brute_force_max_attempts"
+								value="<?php echo esc_attr( get_option( 'wp_claw_brute_force_max_attempts', 5 ) ); ?>"
+								min="1"
+								max="20"
+								style="width:100px"
+							>
+						</td>
+					</tr>
+					<tr>
+						<td><label for="wp-claw-lockout"><?php esc_html_e( 'Lockout duration (minutes)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wp-claw-lockout"
+								name="wp_claw_brute_force_lockout_minutes"
+								value="<?php echo esc_attr( get_option( 'wp_claw_brute_force_lockout_minutes', 30 ) ); ?>"
+								min="5"
+								max="1440"
+								style="width:100px"
+							>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<?php submit_button( __( 'Save Security Settings', 'claw-agent' ) ); ?>
+		</form>
+	</section>
+
+	<!-- Backup Configuration (v1.2.0) -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Backup — Retention Policy', 'claw-agent' ); ?></h2>
+		<p class="wpc-kpi-label">
+			<?php esc_html_e( 'Configure how long Bastien (The Sentinel) keeps backup snapshots.', 'claw-agent' ); ?>
+		</p>
+
+		<form method="post" action="options.php">
+			<?php settings_fields( 'wp_claw_settings' ); ?>
+
+			<table class="wpc-agent-table">
+				<tbody>
+					<tr>
+						<td><label for="wp-claw-daily-retention"><?php esc_html_e( 'Daily backup retention (days)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wp-claw-daily-retention"
+								name="wp_claw_backup_daily_retention"
+								value="<?php echo esc_attr( get_option( 'wp_claw_backup_daily_retention', 7 ) ); ?>"
+								min="1"
+								max="90"
+								style="width:100px"
+							>
+						</td>
+					</tr>
+					<tr>
+						<td><label for="wp-claw-weekly-retention"><?php esc_html_e( 'Weekly backup retention (days)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wp-claw-weekly-retention"
+								name="wp_claw_backup_weekly_retention"
+								value="<?php echo esc_attr( get_option( 'wp_claw_backup_weekly_retention', 30 ) ); ?>"
+								min="7"
+								max="365"
+								style="width:100px"
+							>
+						</td>
+					</tr>
+				</tbody>
+			</table>
+
+			<?php submit_button( __( 'Save Backup Settings', 'claw-agent' ) ); ?>
+		</form>
+	</section>
+
+	<!-- System Status (v1.2.0) -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'System Status', 'claw-agent' ); ?></h2>
+
+		<?php
+		$is_halted = (bool) get_option( 'wp_claw_operations_halted' );
+		$t3_count  = (int) get_transient( 'wp_claw_t3_daily_count' );
+		?>
+
+		<table class="wpc-agent-table">
+			<tbody>
+				<tr>
+					<td><?php esc_html_e( 'Operations Status', 'claw-agent' ); ?></td>
+					<td>
+						<?php if ( $is_halted ) : ?>
+							<span class="wpc-badge wpc-badge--error">
+								<span class="wpc-status-dot wpc-status-dot--red"></span>
+								<?php esc_html_e( 'Halted', 'claw-agent' ); ?>
+							</span>
+							<button type="button" class="wpc-btn wpc-btn--sm wpc-btn--ghost wpc-admin-resume-ops">
+								<?php esc_html_e( 'Resume Operations', 'claw-agent' ); ?>
+							</button>
+						<?php else : ?>
+							<span class="wpc-badge wpc-badge--active">
+								<span class="wpc-status-dot wpc-status-dot--green"></span>
+								<?php esc_html_e( 'Normal', 'claw-agent' ); ?>
+							</span>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<td><?php esc_html_e( 'T3 Structural Changes Today', 'claw-agent' ); ?></td>
+					<td>
+						<span class="wpc-badge wpc-badge--<?php echo esc_attr( $t3_count >= 4 ? 'error' : ( $t3_count >= 3 ? 'pending' : 'idle' ) ); ?>">
+							<?php echo esc_html( $t3_count . '/5' ); ?>
+						</span>
+					</td>
+				</tr>
+				<tr>
+					<td><?php esc_html_e( 'Plugin Version', 'claw-agent' ); ?></td>
+					<td><?php echo esc_html( defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0' ); ?></td>
+				</tr>
+			</tbody>
+		</table>
+	</section>
+
 	<!-- Data Section -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Data Management', 'claw-agent' ); ?></h2>
@@ -210,20 +424,5 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 		</form>
 	</section>
 
-	<!-- Version Footer -->
-	<section class="wpc-card">
-		<h2 class="wpc-section-heading"><?php esc_html_e( 'Plugin Version', 'claw-agent' ); ?></h2>
-		<p>
-			<?php
-			printf(
-				/* translators: %s: version number */
-				esc_html__( 'WP-Claw v%s', 'claw-agent' ),
-				esc_html( $current_version )
-			);
-			?>
-			&mdash;
-			<?php esc_html_e( 'Updates are delivered through the standard WordPress plugin updater.', 'claw-agent' ); ?>
-		</p>
-	</section>
 
 </div>
