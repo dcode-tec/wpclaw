@@ -205,7 +205,7 @@ class Module_Backup extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state snapshot needed for sync.
 		$active_snapshots = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT COUNT(*) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'active'
 			)
 		);
@@ -213,7 +213,7 @@ class Module_Backup extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state snapshot needed for sync.
 		$oldest_snapshot_time = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT MIN(created_at) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT MIN(created_at) FROM {$snapshots_table} WHERE status = %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'active'
 			)
 		);
@@ -806,7 +806,7 @@ class Module_Backup extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh state.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT snapshot_id, agent, action_description, path, tables_count, files_count, status, created_at, expires_at FROM {$snapshots_table} WHERE status = %s ORDER BY created_at DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT snapshot_id, agent, action_description, path, tables_count, files_count, status, created_at, expires_at FROM {$snapshots_table} WHERE status = %s ORDER BY created_at DESC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'active'
 			),
 			ARRAY_A
@@ -869,7 +869,7 @@ class Module_Backup extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; cleanup needs fresh state.
 		$expired = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT snapshot_id, path FROM {$snapshots_table} WHERE status = %s AND expires_at < %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT snapshot_id, path FROM {$snapshots_table} WHERE status = %s AND expires_at < %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'active',
 				$now
 			),

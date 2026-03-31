@@ -699,7 +699,7 @@ class Module_Commerce extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional SELECT from WP-Claw custom table; result set is dynamic.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, safe.
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is built from $wpdb->prefix, safe.
 				"SELECT id, session_id, user_id, email, cart_contents, cart_total, currency, email_step, created_at, TIMESTAMPDIFF(HOUR, created_at, NOW()) AS hours_since_creation FROM {$table} WHERE status = 'abandoned' AND created_at < DATE_SUB(NOW(), INTERVAL %d HOUR) ORDER BY created_at DESC LIMIT %d",
 				$min_age_hours,
 				$limit
@@ -955,7 +955,7 @@ class Module_Commerce extends Module_Base {
 					'reason'   => 'high_value',
 					'detail'   => sprintf(
 						/* translators: 1: order total, 2: average total */
-						__( 'Order total %.2f exceeds 3x average (%.2f).', 'claw-agent' ),
+						__( 'Order total %1$.2f exceeds 3x average (%2$.2f).', 'claw-agent' ),
 						$total,
 						$avg_total
 					),
@@ -1380,7 +1380,7 @@ class Module_Commerce extends Module_Base {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional SELECT from WP-Claw custom table; result set is dynamic.
 		$cart_stats = $wpdb->get_row(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- table name is built from $wpdb->prefix, safe.
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is built from $wpdb->prefix, safe.
 			"SELECT COUNT(*) AS cnt, COALESCE(SUM(cart_total), 0) AS total_value FROM {$carts_table} WHERE status = 'abandoned'",
 			ARRAY_A
 		);

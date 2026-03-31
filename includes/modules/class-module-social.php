@@ -749,7 +749,7 @@ class Module_Social extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh posting history.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT task_id, action, status, details, created_at FROM {$table} WHERE module = %s AND created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) ORDER BY created_at DESC LIMIT 100", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT task_id, action, status, details, created_at FROM {$table} WHERE module = %s AND created_at >= DATE_SUB(NOW(), INTERVAL %d DAY) ORDER BY created_at DESC LIMIT 100", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'social',
 				$days
 			),

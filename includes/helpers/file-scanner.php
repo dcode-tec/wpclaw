@@ -156,7 +156,7 @@ function wp_claw_compare_file_hashes( string $scope ): array {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 	$rows = $wpdb->get_results(
 		$wpdb->prepare(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is hardcoded plugin prefix, not user input.
 			"SELECT file_path, file_hash FROM {$table_name} WHERE scope = %s",
 			$scope
 		),

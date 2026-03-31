@@ -196,7 +196,7 @@ class Module_Chat extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state for sync.
 		$unresolved_escalations = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND action = %s AND status != %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT COUNT(*) FROM {$table} WHERE module = %s AND action = %s AND status != %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'chat',
 				'escalate_to_human',
 				'done'
@@ -207,7 +207,7 @@ class Module_Chat extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- fresh state for sync.
 		$avg_response = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) FROM {$table} WHERE module = %s AND status = %s AND DATE(created_at) = CURDATE()", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT AVG(TIMESTAMPDIFF(MINUTE, created_at, updated_at)) FROM {$table} WHERE module = %s AND status = %s AND DATE(created_at) = CURDATE()", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'chat',
 				'done'
 			)
@@ -770,7 +770,7 @@ class Module_Chat extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh topic analysis.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT details FROM {$table} WHERE module = %s ORDER BY created_at DESC LIMIT 500", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT details FROM {$table} WHERE module = %s ORDER BY created_at DESC LIMIT 500", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'chat'
 			),
 			ARRAY_A
@@ -954,7 +954,7 @@ class Module_Chat extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- live query; agent needs fresh escalation state.
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT task_id, details, created_at FROM {$table} WHERE module = %s AND action = %s AND status != %s ORDER BY created_at ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared -- prefix is safe.
+				"SELECT task_id, details, created_at FROM {$table} WHERE module = %s AND action = %s AND status != %s ORDER BY created_at ASC", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
 				'chat',
 				'escalate_to_human',
 				'done'

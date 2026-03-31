@@ -443,7 +443,7 @@ class Module_Audit extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$task_count = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$tasks_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$tasks_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 				'done',
 				$week_ago
 			)
@@ -460,7 +460,7 @@ class Module_Audit extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$approved_count = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$proposals_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$proposals_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 				'approved',
 				$week_ago
 			)
@@ -472,7 +472,7 @@ class Module_Audit extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rejected_count = $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(*) FROM {$proposals_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				"SELECT COUNT(*) FROM {$proposals_table} WHERE status = %s AND created_at > %s", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter
 				'rejected',
 				$week_ago
 			)
@@ -738,6 +738,7 @@ class Module_Audit extends Module_Base {
 			}
 
 			$context_params = stream_context_get_params( $client );
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_system_operations_fclose -- closing a stream_socket_client resource, not a file handle.
 			fclose( $client );
 
 			if ( empty( $context_params['options']['ssl']['peer_certificate'] ) ) {

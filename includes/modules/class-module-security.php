@@ -235,21 +235,21 @@ class Module_Security extends Module_Base {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$total_hashes = $wpdb->get_var(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is hardcoded plugin prefix, not user input.
 			"SELECT COUNT(*) FROM {$file_hashes_table}"
 		);
 
 		if ( $total_hashes && (int) $total_hashes > 0 ) {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$non_clean = $wpdb->get_var(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is hardcoded plugin prefix, not user input.
 				"SELECT COUNT(*) FROM {$file_hashes_table} WHERE status != 'clean'"
 			);
 			$file_integrity_status = ( $non_clean && (int) $non_clean > 0 ) ? 'issues_detected' : 'clean';
 
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 			$quarantined_file_count = (int) $wpdb->get_var(
-				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+				// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is hardcoded plugin prefix, not user input.
 				"SELECT COUNT(*) FROM {$file_hashes_table} WHERE status = 'quarantined'"
 			);
 		}
@@ -974,7 +974,7 @@ class Module_Security extends Module_Base {
 
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
-			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared
+			// phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- table name is hardcoded plugin prefix, not user input.
 			"SELECT file_path, file_hash, scope, status, checked_at FROM {$table_name} WHERE status = 'quarantined'",
 			ARRAY_A
 		);

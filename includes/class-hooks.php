@@ -418,6 +418,7 @@ class Hooks {
 					$base,
 					array(
 						'title'        => sprintf(
+							/* translators: %s: product name */
 							__( 'Item added to cart: %s', 'claw-agent' ),
 							$product_name
 						),
@@ -443,6 +444,7 @@ class Hooks {
 					$base,
 					array(
 						'title'    => sprintf(
+							/* translators: %d: order ID */
 							__( 'Checkout completed: Order #%d', 'claw-agent' ),
 							$order_id
 						),
@@ -472,6 +474,7 @@ class Hooks {
 					$base,
 					array(
 						'title'    => sprintf(
+							/* translators: %d: order ID */
 							__( 'Order confirmed: #%d', 'claw-agent' ),
 							$order_id
 						),
