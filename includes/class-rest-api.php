@@ -252,6 +252,90 @@ class REST_API {
 				),
 			)
 		);
+
+		// ----- Admin dashboard AJAX routes (v1.2.0) -----
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/module-states',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_admin_module_states' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_view_dashboard' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/run-scan',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_admin_run_scan' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+				'args'                => array(
+					'scan_type' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'enum'              => array( 'file_integrity', 'malware' ),
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/email-drafts/(?P<id>[\d]+)/approve',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_admin_email_approve' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_approve_proposals' );
+				},
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/email-drafts/(?P<id>[\d]+)/reject',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_admin_email_reject' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_approve_proposals' );
+				},
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/resume-operations',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_admin_resume_ops' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+			)
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -1130,5 +1214,238 @@ class REST_API {
 			return false;
 		}
 		return (bool) preg_match( '/^[\w-]+$/', $value );
+	}
+
+	// -------------------------------------------------------------------------
+	// Admin dashboard AJAX handlers (v1.2.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return all enabled module states at once.
+	 *
+	 * Used by the dashboard 60-second polling to refresh metric cards.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_admin_module_states( \WP_REST_Request $request ): \WP_REST_Response {
+		$plugin  = \WPClaw\WP_Claw::get_instance();
+		$enabled = (array) get_option( 'wp_claw_enabled_modules', array() );
+		$states  = array();
+
+		foreach ( $enabled as $slug ) {
+			$module = $plugin->get_module( sanitize_key( $slug ) );
+			if ( null !== $module ) {
+				$states[ $slug ] = $module->get_state();
+			}
+		}
+
+		// Include constitutional constraints.
+		$states['_constraints'] = array(
+			't3_daily_count'    => (int) get_transient( 'wp_claw_t3_daily_count' ),
+			'operations_halted' => (bool) get_option( 'wp_claw_operations_halted' ),
+		);
+
+		return new \WP_REST_Response( array( 'states' => $states ), 200 );
+	}
+
+	/**
+	 * Trigger a file integrity or malware scan.
+	 *
+	 * Runs the cron callback directly rather than scheduling a new event.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_admin_run_scan( \WP_REST_Request $request ) {
+		$scan_type = sanitize_text_field( $request->get_param( 'scan_type' ) );
+
+		$plugin = \WPClaw\WP_Claw::get_instance();
+
+		if ( 'file_integrity' === $scan_type ) {
+			$module = $plugin->get_module( 'security' );
+			if ( null === $module ) {
+				return new \WP_Error(
+					'module_disabled',
+					__( 'Security module is not enabled.', 'claw-agent' ),
+					array( 'status' => 400 )
+				);
+			}
+			// Trigger the file integrity check directly.
+			do_action( 'wp_claw_cron_file_integrity' );
+			return new \WP_REST_Response(
+				array( 'message' => __( 'File integrity scan started.', 'claw-agent' ) ),
+				200
+			);
+		}
+
+		if ( 'malware' === $scan_type ) {
+			$module = $plugin->get_module( 'security' );
+			if ( null === $module ) {
+				return new \WP_Error(
+					'module_disabled',
+					__( 'Security module is not enabled.', 'claw-agent' ),
+					array( 'status' => 400 )
+				);
+			}
+			do_action( 'wp_claw_cron_malware_scan' );
+			return new \WP_REST_Response(
+				array( 'message' => __( 'Malware scan started.', 'claw-agent' ) ),
+				200
+			);
+		}
+
+		return new \WP_Error(
+			'invalid_scan_type',
+			__( 'Invalid scan type.', 'claw-agent' ),
+			array( 'status' => 400 )
+		);
+	}
+
+	/**
+	 * Approve an email draft.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_admin_email_approve( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$draft_id = absint( $request->get_param( 'id' ) );
+		$table    = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// Verify the draft exists and is in draft status.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$draft = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT id, status FROM %i WHERE id = %d',
+				$table,
+				$draft_id
+			)
+		);
+
+		if ( ! $draft ) {
+			return new \WP_Error(
+				'not_found',
+				__( 'Email draft not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		if ( 'draft' !== $draft->status ) {
+			return new \WP_Error(
+				'invalid_status',
+				__( 'Email draft is not in draft status.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->update(
+			$table,
+			array(
+				'status'      => 'approved',
+				'approved_by' => get_current_user_id(),
+				'resolved_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => $draft_id ),
+			array( '%s', '%d', '%s' ),
+			array( '%d' )
+		);
+
+		return new \WP_REST_Response(
+			array(
+				'message' => __( 'Email draft approved.', 'claw-agent' ),
+				'id'      => $draft_id,
+				'status'  => 'approved',
+			),
+			200
+		);
+	}
+
+	/**
+	 * Reject an email draft.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_admin_email_reject( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$draft_id = absint( $request->get_param( 'id' ) );
+		$table    = $wpdb->prefix . 'wp_claw_email_drafts';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$draft = $wpdb->get_row(
+			$wpdb->prepare(
+				'SELECT id, status FROM %i WHERE id = %d',
+				$table,
+				$draft_id
+			)
+		);
+
+		if ( ! $draft ) {
+			return new \WP_Error(
+				'not_found',
+				__( 'Email draft not found.', 'claw-agent' ),
+				array( 'status' => 404 )
+			);
+		}
+
+		if ( 'draft' !== $draft->status ) {
+			return new \WP_Error(
+				'invalid_status',
+				__( 'Email draft is not in draft status.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$wpdb->update(
+			$table,
+			array(
+				'status'      => 'rejected',
+				'resolved_at' => current_time( 'mysql' ),
+			),
+			array( 'id' => $draft_id ),
+			array( '%s', '%s' ),
+			array( '%d' )
+		);
+
+		return new \WP_REST_Response(
+			array(
+				'message' => __( 'Email draft rejected.', 'claw-agent' ),
+				'id'      => $draft_id,
+				'status'  => 'rejected',
+			),
+			200
+		);
+	}
+
+	/**
+	 * Resume operations after a health-fail halt.
+	 *
+	 * Deletes the operations_halted flag so T2/T3 actions can proceed again.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_admin_resume_ops( \WP_REST_Request $request ): \WP_REST_Response {
+		delete_option( 'wp_claw_operations_halted' );
+
+		return new \WP_REST_Response(
+			array( 'message' => __( 'Operations resumed. T2/T3 actions are now allowed.', 'claw-agent' ) ),
+			200
+		);
 	}
 }
