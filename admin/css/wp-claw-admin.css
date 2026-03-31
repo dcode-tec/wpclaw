@@ -32,8 +32,8 @@
 	--wpc-text: #111827;
 	--wpc-dim: #6b7280;
 	--wpc-muted: #9ca3af;
-	--wpc-radius: 8px;
-	--wpc-radius-sm: 6px;
+	--wpc-radius: 12px;
+	--wpc-radius-sm: 8px;
 	--wpc-font: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 	--wpc-mono: "SF Mono", "Cascadia Code", "Fira Code", monospace;
 	--wpc-transition: 0.15s ease;
@@ -896,6 +896,84 @@
 }
 
 /* ==========================================================================
+   v1.2.0 — New components for domain dashboards
+   ========================================================================== */
+
+/* Alert Banner — full-width constitutional constraint banner */
+
+.wpc-alert-banner { padding: 12px 20px; border-radius: var(--wpc-radius); margin-bottom: 16px; display: flex; align-items: center; gap: 12px; font-size: 0.875rem; font-weight: 600; }
+.wpc-alert-banner--danger { background: var(--wpc-danger-light); border: 1px solid var(--wpc-danger); color: #991b1b; }
+.wpc-alert-banner--warning { background: var(--wpc-warning-light); border: 1px solid var(--wpc-warning); color: #92400e; }
+.wpc-alert-banner a { color: inherit; text-decoration: underline; }
+
+/* Metric Grid & Cards — compact metric cards for module status */
+
+.wpc-metric-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px; }
+.wpc-metric-card { background: var(--wpc-card); border: 1px solid var(--wpc-border); border-radius: var(--wpc-radius); padding: 20px; }
+.wpc-metric-card__header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.wpc-metric-card__title { font-size: 0.875rem; font-weight: 700; color: var(--wpc-text); }
+.wpc-metric-card__agent { font-size: 0.75rem; color: var(--wpc-dim); }
+.wpc-metric-card__metrics { display: flex; flex-direction: column; gap: 8px; }
+.wpc-metric-card__row { display: flex; justify-content: space-between; align-items: center; font-size: 0.8125rem; }
+.wpc-metric-card__row span:first-child { color: var(--wpc-dim); }
+.wpc-metric-card__row span:last-child { font-weight: 600; color: var(--wpc-text); }
+.wpc-metric-card__link { display: block; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--wpc-border); font-size: 0.8125rem; color: var(--wpc-accent); text-decoration: none; }
+.wpc-metric-card__link:hover { text-decoration: underline; }
+
+/* Coverage Bar — progress bar with label for SEO coverage */
+
+.wpc-coverage-bar { display: flex; align-items: center; gap: 8px; font-size: 0.8125rem; }
+.wpc-coverage-bar__track { flex: 1; height: 8px; background: var(--wpc-border); border-radius: 4px; overflow: hidden; }
+.wpc-coverage-bar__fill { height: 100%; background: var(--wpc-accent); border-radius: 4px; transition: width 0.3s ease; }
+.wpc-coverage-bar__label { min-width: 48px; text-align: right; font-weight: 600; color: var(--wpc-text); }
+
+/* Pipeline Bar — horizontal stacked bar for lead pipeline */
+
+.wpc-pipeline-bar { display: flex; height: 24px; border-radius: 4px; overflow: hidden; gap: 2px; margin: 8px 0; }
+.wpc-pipeline-bar__segment { display: flex; align-items: center; justify-content: center; font-size: 0.625rem; font-weight: 700; color: #fff; min-width: 20px; padding: 0 4px; }
+.wpc-pipeline-bar__segment--new { background: var(--wpc-accent); }
+.wpc-pipeline-bar__segment--qualified { background: #8b5cf6; }
+.wpc-pipeline-bar__segment--proposal { background: var(--wpc-warning); }
+.wpc-pipeline-bar__segment--won { background: var(--wpc-success); }
+.wpc-pipeline-bar__segment--lost { background: var(--wpc-danger); }
+
+/* Detail Table — sortable data table */
+
+.wpc-detail-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+.wpc-detail-table th { text-align: left; padding: 8px 12px; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--wpc-dim); border-bottom: 2px solid var(--wpc-border); background: var(--wpc-bg); }
+.wpc-detail-table td { padding: 8px 12px; border-bottom: 1px solid var(--wpc-border); color: var(--wpc-text); }
+.wpc-detail-table tr:hover td { background: var(--wpc-accent-light); }
+.wpc-detail-table .wpc-severity--critical { color: var(--wpc-danger); font-weight: 700; }
+.wpc-detail-table .wpc-severity--high { color: #dc2626; font-weight: 600; }
+.wpc-detail-table .wpc-severity--medium { color: var(--wpc-warning); }
+
+/* Expandable Row — collapsible table row */
+
+.wpc-expandable-row { display: none; }
+.wpc-expandable-row.wpc-expandable-row--open { display: table-row; }
+.wpc-expandable-row td { padding: 12px 20px; background: var(--wpc-bg); border-bottom: 1px solid var(--wpc-border); }
+.wpc-expandable-row__content { max-height: 200px; overflow-y: auto; font-size: 0.8125rem; line-height: 1.6; }
+.wpc-expand-toggle { cursor: pointer; color: var(--wpc-accent); font-size: 0.75rem; border: none; background: none; padding: 2px 6px; border-radius: 4px; }
+.wpc-expand-toggle:hover { background: var(--wpc-accent-light); }
+
+/* Filter Tabs (compact variant) */
+
+.wpc-filter-tabs--sm { display: flex; gap: 4px; margin-bottom: 16px; }
+.wpc-filter-tabs--sm .wpc-nav-tabs__item { font-size: 0.75rem; padding: 4px 10px; }
+
+/* Scan Button — button with loading spinner */
+
+.wpc-scan-button { position: relative; }
+.wpc-scan-button.wpc-scan-button--loading { pointer-events: none; opacity: 0.7; }
+.wpc-scan-button .wpc-spinner { display: none; width: 14px; height: 14px; border: 2px solid var(--wpc-border); border-top-color: var(--wpc-accent); border-radius: 50%; animation: wpc-spin 0.6s linear infinite; margin-left: 6px; vertical-align: middle; }
+.wpc-scan-button--loading .wpc-spinner { display: inline-block; }
+@keyframes wpc-spin { to { transform: rotate(360deg); } }
+
+/* KPI Grid — 6-column variant */
+
+.wpc-kpi-grid--6 { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 24px; }
+
+/* ==========================================================================
    Responsive
    ========================================================================== */
 
@@ -910,6 +988,14 @@
 
 	.wpc-status-grid {
 		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.wpc-metric-grid {
+		grid-template-columns: 1fr;
+	}
+
+	.wpc-kpi-grid--6 {
+		grid-template-columns: repeat(3, 1fr);
 	}
 }
 
@@ -951,6 +1037,15 @@
 		font-size: 1.5rem;
 	}
 
+	.wpc-kpi-grid--6 {
+		grid-template-columns: repeat(2, 1fr);
+	}
+
+	.wpc-alert-banner {
+		flex-direction: column;
+		align-items: flex-start;
+	}
+
 	.wpc-card__header {
 		flex-direction: column;
 		align-items: flex-start;
@@ -959,6 +1054,10 @@
 }
 
 @media (max-width: 480px) {
+	.wpc-kpi-grid--6 {
+		grid-template-columns: 1fr;
+	}
+
 	.wpc-nav-tabs__item {
 		padding: 8px 12px;
 		font-size: 0.75rem;
