@@ -29,50 +29,64 @@ if ( '' === $active_tab && ! empty( $enabled_slugs ) ) {
 
 // Build the ordered list of all known modules (enabled + available = in $enabled_modules;
 // enabled + unavailable = in $enabled_slugs but not in $enabled_modules).
+// Agent display names — maps slug to "Name — The Role" format.
+$wp_claw_agent_display_names = array(
+	'architect' => __( 'Karim — The Architect', 'claw-agent' ),
+	'scribe'    => __( 'Lina — The Scribe', 'claw-agent' ),
+	'sentinel'  => __( 'Bastien — The Sentinel', 'claw-agent' ),
+	'commerce'  => __( 'Hugo — Commerce Lead', 'claw-agent' ),
+	'analyst'   => __( 'Selma — The Analyst', 'claw-agent' ),
+	'concierge' => __( 'Marc — The Concierge', 'claw-agent' ),
+);
+
 $all_known_modules = array(
+	'audit'       => array(
+		'label' => __( 'Site Audit', 'claw-agent' ),
+		'agent' => 'architect',
+	),
 	'seo'         => array(
 		'label' => __( 'SEO', 'claw-agent' ),
-		'agent' => 'Scribe',
+		'agent' => 'scribe',
 	),
 	'security'    => array(
 		'label' => __( 'Security', 'claw-agent' ),
-		'agent' => 'Sentinel',
+		'agent' => 'sentinel',
 	),
 	'content'     => array(
 		'label' => __( 'Content', 'claw-agent' ),
-		'agent' => 'Scribe',
+		'agent' => 'scribe',
 	),
 	'crm'         => array(
 		'label' => __( 'CRM & Leads', 'claw-agent' ),
-		'agent' => 'Commerce',
+		'agent' => 'commerce',
 	),
 	'commerce'    => array(
 		'label' => __( 'Commerce', 'claw-agent' ),
-		'agent' => 'Commerce',
+		'agent' => 'commerce',
 	),
 	'performance' => array(
 		'label' => __( 'Performance', 'claw-agent' ),
-		'agent' => 'Analyst',
+		'agent' => 'analyst',
 	),
 	'forms'       => array(
 		'label' => __( 'Forms', 'claw-agent' ),
-		'agent' => 'Architect',
+		'agent' => 'architect',
 	),
 	'analytics'   => array(
 		'label' => __( 'Analytics', 'claw-agent' ),
-		'agent' => 'Analyst',
+		'agent' => 'analyst',
 	),
 	'backup'      => array(
 		'label' => __( 'Backup', 'claw-agent' ),
-		'agent' => 'Sentinel',
+		'agent' => 'sentinel',
 	),
 	'social'      => array(
 		'label' => __( 'Social Media', 'claw-agent' ),
-		'agent' => 'Scribe',
+		'agent' => 'scribe',
 	),
 	'chat'        => array(
 		'label' => __( 'Chat Widget', 'claw-agent' ),
-		'agent' => 'Concierge',
+		'agent' => 'concierge',
 	),
 );
 
@@ -226,10 +240,13 @@ $wp_claw_render_module_field = function ( array $field ) {
 				</header>
 				<p class="wpc-kpi-label">
 					<?php
+					$agent_display = isset( $wp_claw_agent_display_names[ $module_agent ] )
+						? $wp_claw_agent_display_names[ $module_agent ]
+						: ucfirst( $module_agent );
 					printf(
-						/* translators: %s: agent name */
+						/* translators: %s: agent display name */
 						esc_html__( 'Managed by %s', 'claw-agent' ),
-						esc_html( ucfirst( $module_agent ) )
+						esc_html( $agent_display )
 					);
 					?>
 				</p>
@@ -282,10 +299,14 @@ $wp_claw_render_module_field = function ( array $field ) {
 				<tr>
 					<td><?php esc_html_e( 'Managed by', 'claw-agent' ); ?></td>
 					<td>
+						<?php
+						$detail_agent_display = isset( $wp_claw_agent_display_names[ $module_agent ] )
+							? $wp_claw_agent_display_names[ $module_agent ]
+							: ucfirst( $module_agent );
+						?>
 						<span class="wpc-badge wpc-badge--active">
-							<?php echo esc_html( ucfirst( $module_agent ) ); ?>
+							<?php echo esc_html( $detail_agent_display ); ?>
 						</span>
-						<?php esc_html_e( 'agent', 'claw-agent' ); ?>
 					</td>
 				</tr>
 			</tbody>

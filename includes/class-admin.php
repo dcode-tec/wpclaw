@@ -976,6 +976,7 @@ class Admin {
 		}
 
 		$known_modules = array(
+			'audit',
 			'seo',
 			'security',
 			'content',

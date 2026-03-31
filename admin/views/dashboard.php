@@ -15,6 +15,16 @@ defined( 'ABSPATH' ) || exit;
 
 global $wpdb;
 
+// Agent display names — maps slug to "Name — The Role" format.
+$wp_claw_agent_display_names = array(
+	'architect' => __( 'Karim — The Architect', 'claw-agent' ),
+	'scribe'    => __( 'Lina — The Scribe', 'claw-agent' ),
+	'sentinel'  => __( 'Bastien — The Sentinel', 'claw-agent' ),
+	'commerce'  => __( 'Hugo — Commerce Lead', 'claw-agent' ),
+	'analyst'   => __( 'Selma — The Analyst', 'claw-agent' ),
+	'concierge' => __( 'Marc — The Concierge', 'claw-agent' ),
+);
+
 // -------------------------------------------------------------------------
 // Data gathering
 // -------------------------------------------------------------------------
@@ -330,7 +340,13 @@ $wp_claw_badge_class = function ( $status ) {
 					?>
 				<tr>
 					<td>
-						<strong><?php echo esc_html( ucfirst( sanitize_text_field( (string) $stat->agent ) ) ); ?></strong>
+						<?php
+								$stat_agent_slug = sanitize_key( (string) $stat->agent );
+								$stat_agent_name = isset( $wp_claw_agent_display_names[ $stat_agent_slug ] )
+									? $wp_claw_agent_display_names[ $stat_agent_slug ]
+									: ucfirst( $stat_agent_slug );
+								?>
+							<strong><?php echo esc_html( $stat_agent_name ); ?></strong>
 					</td>
 					<td><?php echo esc_html( number_format_i18n( $agent_total ) ); ?></td>
 					<td>
@@ -371,7 +387,13 @@ $wp_claw_badge_class = function ( $status ) {
 			<?php foreach ( $recent_tasks as $task ) : ?>
 			<div class="wpc-activity-item">
 				<span class="wpc-badge wpc-badge--<?php echo esc_attr( $wp_claw_badge_class( (string) $task->status ) ); ?>">
-					<?php echo esc_html( ucfirst( sanitize_text_field( (string) $task->agent ) ) ); ?>
+					<?php
+					$task_agent_slug = sanitize_key( (string) $task->agent );
+					$task_agent_name = isset( $wp_claw_agent_display_names[ $task_agent_slug ] )
+						? $wp_claw_agent_display_names[ $task_agent_slug ]
+						: ucfirst( $task_agent_slug );
+					echo esc_html( $task_agent_name );
+					?>
 				</span>
 				<span>
 					<?php echo esc_html( ucfirst( str_replace( '_', ' ', sanitize_text_field( (string) $task->action ) ) ) ); ?>

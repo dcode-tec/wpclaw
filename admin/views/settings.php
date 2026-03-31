@@ -16,17 +16,18 @@ defined( 'ABSPATH' ) || exit;
 // Module slugs available for the enabled-modules checklist.
 // The sanitize_enabled_modules() callback in Admin validates against this same list.
 $all_modules = array(
-	'seo'         => __( 'SEO', 'claw-agent' ),
-	'security'    => __( 'Security', 'claw-agent' ),
-	'content'     => __( 'Content', 'claw-agent' ),
-	'crm'         => __( 'CRM & Leads', 'claw-agent' ),
-	'commerce'    => __( 'Commerce (WooCommerce)', 'claw-agent' ),
-	'performance' => __( 'Performance', 'claw-agent' ),
-	'forms'       => __( 'Forms', 'claw-agent' ),
-	'analytics'   => __( 'Analytics', 'claw-agent' ),
-	'backup'      => __( 'Backup', 'claw-agent' ),
-	'social'      => __( 'Social Media', 'claw-agent' ),
-	'chat'        => __( 'Chat Widget (Concierge)', 'claw-agent' ),
+	'audit'       => __( 'Site Audit (Karim)', 'claw-agent' ),
+	'seo'         => __( 'SEO (Lina)', 'claw-agent' ),
+	'security'    => __( 'Security (Bastien)', 'claw-agent' ),
+	'content'     => __( 'Content (Lina)', 'claw-agent' ),
+	'crm'         => __( 'CRM & Leads (Hugo)', 'claw-agent' ),
+	'commerce'    => __( 'Commerce — WooCommerce (Hugo)', 'claw-agent' ),
+	'performance' => __( 'Performance (Selma)', 'claw-agent' ),
+	'forms'       => __( 'Forms (Karim)', 'claw-agent' ),
+	'analytics'   => __( 'Analytics (Selma)', 'claw-agent' ),
+	'backup'      => __( 'Backup (Bastien)', 'claw-agent' ),
+	'social'      => __( 'Social Media (Lina)', 'claw-agent' ),
+	'chat'        => __( 'Chat Widget (Marc)', 'claw-agent' ),
 );
 
 $enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
@@ -132,7 +133,7 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Chat Widget', 'claw-agent' ); ?></h2>
 		<p class="wpc-kpi-label">
-			<?php esc_html_e( 'Configure the Concierge chat widget appearance for your visitors.', 'claw-agent' ); ?>
+			<?php esc_html_e( 'Configure Marc (The Concierge) chat widget appearance for your visitors.', 'claw-agent' ); ?>
 		</p>
 
 		<?php
