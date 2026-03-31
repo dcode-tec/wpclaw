@@ -235,7 +235,7 @@ function wp_claw_compare_file_hashes( string $scope ): array {
  * @return array|\WP_Error Array with quarantined_path, original_path, replaced on success.
  *                         WP_Error on failure or path restriction.
  */
-function wp_claw_quarantine_file( string $file_path ): array {
+function wp_claw_quarantine_file( string $file_path ) {
 	// Resolve to real path to prevent directory traversal.
 	$real_path = realpath( $file_path );
 	if ( false === $real_path || ! file_exists( $real_path ) ) {
