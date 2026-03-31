@@ -91,6 +91,34 @@ $wp_claw_health_badge = function ( $health ) {
 	}
 	return 'pending';
 };
+
+// Agent-to-module mapping (v1.2.0).
+$wp_claw_agent_modules = array(
+	'architect' => array( 'audit', 'forms' ),
+	'scribe'    => array( 'seo', 'content', 'social' ),
+	'sentinel'  => array( 'security', 'backup' ),
+	'commerce'  => array( 'commerce', 'crm' ),
+	'analyst'   => array( 'analytics', 'performance' ),
+	'concierge' => array( 'chat' ),
+);
+
+$wp_claw_agent_display_names = array(
+	'architect' => __( 'Karim — The Architect', 'claw-agent' ),
+	'scribe'    => __( 'Lina — The Scribe', 'claw-agent' ),
+	'sentinel'  => __( 'Bastien — The Sentinel', 'claw-agent' ),
+	'commerce'  => __( 'Hugo — Commerce Lead', 'claw-agent' ),
+	'analyst'   => __( 'Selma — The Analyst', 'claw-agent' ),
+	'concierge' => __( 'Marc — The Concierge', 'claw-agent' ),
+);
+
+$wp_claw_agent_dashboard = array(
+	'architect' => 'claw-agent',
+	'scribe'    => 'wp-claw-seo',
+	'sentinel'  => 'wp-claw-security',
+	'commerce'  => 'wp-claw-commerce',
+	'analyst'   => 'claw-agent',
+	'concierge' => 'claw-agent',
+);
 ?>
 <div class="wpc-admin-wrap">
 
@@ -119,6 +147,64 @@ $wp_claw_health_badge = function ( $health ) {
 	<div class="wpc-empty-state">
 		<p><?php esc_html_e( 'No agents are currently reporting status. The Klawty instance may still be starting up.', 'claw-agent' ); ?></p>
 	</div>
+	<?php endif; ?>
+
+	<?php if ( empty( $agents ) && $api_error ) : ?>
+		<!-- Local module state fallback (v1.2.0) -->
+		<div class="wpc-connection-banner wpc-connection-banner--disconnected" style="margin-bottom: 16px;">
+			<span class="wpc-status-dot wpc-status-dot--yellow"></span>
+			<span><?php esc_html_e( 'Live agent status unavailable — showing local module data.', 'claw-agent' ); ?></span>
+		</div>
+
+		<div class="wpc-module-grid">
+			<?php
+			$plugin = \WPClaw\WP_Claw::get_instance();
+			foreach ( $wp_claw_agent_modules as $agent_slug => $module_slugs ) :
+				$agent_name = isset( $wp_claw_agent_display_names[ $agent_slug ] ) ? $wp_claw_agent_display_names[ $agent_slug ] : ucfirst( $agent_slug );
+				$has_data = false;
+				$module_states = array();
+				foreach ( $module_slugs as $mod_slug ) {
+					$mod = $plugin->get_module( $mod_slug );
+					if ( null !== $mod ) {
+						$module_states[ $mod_slug ] = $mod->get_state();
+						$has_data = true;
+					}
+				}
+				?>
+				<article class="wpc-module-card">
+					<header>
+						<div><strong><?php echo esc_html( $agent_name ); ?></strong></div>
+						<span class="wpc-badge wpc-badge--idle">
+							<span class="wpc-status-dot wpc-status-dot--yellow"></span>
+							<?php esc_html_e( 'Offline', 'claw-agent' ); ?>
+						</span>
+					</header>
+					<div>
+						<?php if ( $has_data ) : ?>
+							<p class="wpc-kpi-label">
+								<?php
+								printf(
+									/* translators: %s: comma-separated list of module names */
+									esc_html__( 'Modules: %s', 'claw-agent' ),
+									esc_html( implode( ', ', array_map( 'ucfirst', $module_slugs ) ) )
+								);
+								?>
+							</p>
+						<?php else : ?>
+							<p><em><?php esc_html_e( 'No enabled modules for this agent.', 'claw-agent' ); ?></em></p>
+						<?php endif; ?>
+					</div>
+					<?php
+					$dash_page = isset( $wp_claw_agent_dashboard[ $agent_slug ] ) ? $wp_claw_agent_dashboard[ $agent_slug ] : 'claw-agent';
+					?>
+					<p>
+						<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $dash_page ) ); ?>" class="wpc-btn wpc-btn--ghost wpc-btn--sm">
+							<?php esc_html_e( 'View Dashboard', 'claw-agent' ); ?>
+						</a>
+					</p>
+				</article>
+			<?php endforeach; ?>
+		</div>
 	<?php endif; ?>
 
 	<?php if ( ! empty( $agents ) ) : ?>
@@ -216,6 +302,34 @@ $wp_claw_health_badge = function ( $health ) {
 					<?php endif; ?>
 				</tbody>
 			</table>
+
+			<?php
+			// Module badges (v1.2.0).
+			$card_agent_slug = sanitize_key( (string) ( isset( $agent['name'] ) ? strtolower( str_replace( ' ', '', $agent['name'] ) ) : '' ) );
+			// Try to find matching slug from display names.
+			foreach ( $wp_claw_agent_display_names as $slug => $display ) {
+				if ( stripos( $display, $agent_name ) !== false || $slug === $card_agent_slug ) {
+					$card_agent_slug = $slug;
+					break;
+				}
+			}
+			$card_modules = isset( $wp_claw_agent_modules[ $card_agent_slug ] ) ? $wp_claw_agent_modules[ $card_agent_slug ] : array();
+			if ( ! empty( $card_modules ) ) :
+			?>
+			<div style="margin-top: 8px; display: flex; flex-wrap: wrap; gap: 4px;">
+				<?php foreach ( $card_modules as $mod_slug ) : ?>
+					<span class="wpc-badge wpc-badge--idle"><?php echo esc_html( ucfirst( $mod_slug ) ); ?></span>
+				<?php endforeach; ?>
+			</div>
+			<?php
+				$card_dash = isset( $wp_claw_agent_dashboard[ $card_agent_slug ] ) ? $wp_claw_agent_dashboard[ $card_agent_slug ] : 'claw-agent';
+			?>
+			<p style="margin-top: 8px;">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=' . $card_dash ) ); ?>" class="wpc-btn wpc-btn--ghost wpc-btn--sm">
+					<?php esc_html_e( 'View Dashboard', 'claw-agent' ); ?>
+				</a>
+			</p>
+			<?php endif; ?>
 
 		</article>
 		<?php endforeach; ?>
