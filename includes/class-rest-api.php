@@ -336,6 +336,44 @@ class REST_API {
 				},
 			)
 		);
+
+		// ----- Dashboard proxy routes (v1.3.0) -----
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/health',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_health' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_view_dashboard' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/agents',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_agents' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_view_dashboard' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/settings/modules',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_settings_modules' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+			)
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -1445,6 +1483,112 @@ class REST_API {
 
 		return new \WP_REST_Response(
 			array( 'message' => __( 'Operations resumed. T2/T3 actions are now allowed.', 'claw-agent' ) ),
+			200
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Dashboard proxy handlers (v1.3.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Health check — proxies to Klawty instance /api/health.
+	 *
+	 * Used by the "Test Connection" button in wp-admin.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_health( \WP_REST_Request $request ): \WP_REST_Response {
+		$client   = new \WPClaw\API_Client();
+		$response = $client->health_check();
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array(
+					'status'  => 'error',
+					'message' => $response->get_error_message(),
+				),
+				502
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'status'    => 'ok',
+				'connected' => $client->is_connected(),
+				'data'      => $response,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Agent status — proxies to Klawty instance /api/agents.
+	 *
+	 * Used by the agent cards refresh in wp-admin dashboard.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_agents( \WP_REST_Request $request ): \WP_REST_Response {
+		$client   = new \WPClaw\API_Client();
+		$response = $client->get_agents();
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array(
+					'status'  => 'error',
+					'message' => $response->get_error_message(),
+					'agents'  => array(),
+				),
+				502
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'status' => 'ok',
+				'agents' => $response,
+			),
+			200
+		);
+	}
+
+	/**
+	 * Save module toggle settings.
+	 *
+	 * Expects JSON body: { "modules": ["seo", "security", "commerce", ...] }
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_settings_modules( \WP_REST_Request $request ): \WP_REST_Response {
+		$params  = $request->get_json_params();
+		$modules = isset( $params['modules'] ) && is_array( $params['modules'] )
+			? array_map( 'sanitize_key', $params['modules'] )
+			: array();
+
+		// Validate against known module slugs (same list as class-wp-claw.php registry).
+		$known = array(
+			'seo', 'security', 'content', 'crm', 'commerce', 'performance',
+			'forms', 'analytics', 'backup', 'social', 'chat', 'audit',
+		);
+		$modules = array_values( array_intersect( $modules, $known ) );
+
+		update_option( 'wp_claw_enabled_modules', $modules );
+
+		return new \WP_REST_Response(
+			array(
+				'message' => __( 'Module settings saved.', 'claw-agent' ),
+				'modules' => $modules,
+			),
 			200
 		);
 	}

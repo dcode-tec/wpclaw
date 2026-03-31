@@ -1058,6 +1058,28 @@ class Admin {
 			return (string) get_option( 'wp_claw_api_key', '' );
 		}
 
+		$connection_mode = (string) get_option( 'wp_claw_connection_mode', 'managed' );
+
+		// In managed mode, treat the pasted value as a connection token
+		// and exchange it for a permanent API key via the verify handshake.
+		if ( 'managed' === $connection_mode ) {
+			$verified = $this->verify_connection_token( $raw_value );
+			if ( is_wp_error( $verified ) ) {
+				add_settings_error(
+					'wp_claw_api_key',
+					'verify_failed',
+					sprintf(
+						/* translators: %s: error message from verify endpoint */
+						__( 'Connection token verification failed: %s. Token saved as-is.', 'claw-agent' ),
+						$verified->get_error_message()
+					)
+				);
+				// Fall through to encrypt the raw token as fallback.
+			} else {
+				$raw_value = $verified;
+			}
+		}
+
 		$encrypted = wp_claw_encrypt( $raw_value );
 
 		if ( '' === $encrypted ) {
@@ -1070,6 +1092,69 @@ class Admin {
 		}
 
 		return $encrypted;
+	}
+
+	/**
+	 * Exchange a connection token for a permanent API key via wp-claw.ai.
+	 *
+	 * Calls POST wp-claw.ai/api/connect/verify with the token and site info.
+	 * On success, stores the webhook secret and instance endpoint, and
+	 * returns the permanent API key. On failure, returns a WP_Error.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string $token The connection token from the dashboard.
+	 *
+	 * @return string|\WP_Error Permanent API key on success, WP_Error on failure.
+	 */
+	private function verify_connection_token( string $token ) {
+		$site_url   = home_url();
+		$server_ip  = isset( $_SERVER['SERVER_ADDR'] ) ? sanitize_text_field( wp_unslash( $_SERVER['SERVER_ADDR'] ) ) : '0.0.0.0';
+		$site_hash  = hash( 'sha256', $site_url . $token . $server_ip );
+
+		$verify_url = 'https://wp-claw.ai/api/connect/verify';
+
+		$response = wp_remote_post( $verify_url, array(
+			'timeout' => 15,
+			'body'    => wp_json_encode( array(
+				'token'       => $token,
+				'site_url'    => $site_url,
+				'site_hash'   => $site_hash,
+				'wp_version'  => get_bloginfo( 'version' ),
+				'php_version' => PHP_VERSION,
+			) ),
+			'headers' => array(
+				'Content-Type'       => 'application/json',
+				'X-WPClaw-Site-Hash' => $site_hash,
+			),
+		) );
+
+		if ( is_wp_error( $response ) ) {
+			return $response;
+		}
+
+		$code = wp_remote_retrieve_response_code( $response );
+		$body = json_decode( wp_remote_retrieve_body( $response ), true );
+
+		if ( 200 !== $code || empty( $body['api_key'] ) ) {
+			$error_msg = isset( $body['error'] ) ? $body['error'] : "HTTP {$code}";
+			return new \WP_Error( 'verify_failed', $error_msg );
+		}
+
+		// Store webhook secret (encrypted).
+		if ( ! empty( $body['webhook_secret'] ) ) {
+			$encrypted_secret = wp_claw_encrypt( $body['webhook_secret'] );
+			if ( '' !== $encrypted_secret ) {
+				update_option( 'wp_claw_webhook_secret', $encrypted_secret );
+			}
+		}
+
+		// Store the Klawty proxy endpoint (the URL the plugin should talk to).
+		if ( ! empty( $body['klawty_endpoint'] ) ) {
+			update_option( 'wp_claw_instance_url', esc_url_raw( $body['klawty_endpoint'] ) );
+		}
+
+		return $body['api_key'];
 	}
 
 	/**
