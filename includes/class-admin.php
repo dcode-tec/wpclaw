@@ -2,7 +2,7 @@
 /**
  * Admin UI — menus, settings, asset loading, admin bar badge.
  *
- * Registers the WP-Claw top-level menu and five submenus, enqueues
+ * Registers the WP-Claw top-level menu and eight submenus, enqueues
  * admin assets only on WP-Claw pages, registers all plugin settings,
  * adds an admin bar status badge, and handles the post-activation redirect.
  *
@@ -22,7 +22,7 @@ defined( 'ABSPATH' ) || exit;
  * Manages all WordPress admin UI integration for WP-Claw.
  *
  * Responsibilities:
- *  - Register the top-level admin menu and five submenus with granular capabilities.
+ *  - Register the top-level admin menu and eight submenus with granular capabilities.
  *  - Enqueue admin CSS and JS only on WP-Claw pages (no leaking to other screens).
  *  - Register and sanitize all plugin settings via the WordPress Settings API.
  *  - Add a real-time status badge to the admin bar (green/yellow/red dot).
@@ -128,6 +128,36 @@ class Admin {
 			array( $this, 'render_proposals' )
 		);
 
+		// Security dashboard.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Security — WP-Claw', 'claw-agent' ),
+			__( 'Security', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-security',
+			array( $this, 'render_security' )
+		);
+
+		// Commerce & CRM dashboard.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Commerce & CRM — WP-Claw', 'claw-agent' ),
+			__( 'Commerce & CRM', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-commerce',
+			array( $this, 'render_commerce' )
+		);
+
+		// SEO & Content dashboard.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'SEO & Content — WP-Claw', 'claw-agent' ),
+			__( 'SEO & Content', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-seo',
+			array( $this, 'render_seo_content' )
+		);
+
 		// Settings page.
 		$this->page_hooks[] = add_submenu_page(
 			'claw-agent',
@@ -136,16 +166,6 @@ class Admin {
 			'wp_claw_manage_settings',
 			'wp-claw-settings',
 			array( $this, 'render_settings' )
-		);
-
-		// Modules management.
-		$this->page_hooks[] = add_submenu_page(
-			'claw-agent',
-			__( 'Modules — WP-Claw', 'claw-agent' ),
-			__( 'Modules', 'claw-agent' ),
-			'wp_claw_manage_modules',
-			'wp-claw-modules',
-			array( $this, 'render_modules' )
 		);
 
 		// Command Center.
@@ -428,6 +448,89 @@ class Admin {
 			'wp-claw-settings',
 			'wp_claw_analytics_section'
 		);
+
+		// ----- Security settings (v1.2.0) -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_brute_force_enabled',
+			array(
+				'type'              => 'boolean',
+				'sanitize_callback' => 'rest_sanitize_boolean',
+				'default'           => false,
+			)
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_brute_force_max_attempts',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 5,
+			)
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_brute_force_lockout_minutes',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 30,
+			)
+		);
+
+		// ----- Backup settings (v1.2.0) -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_backup_daily_retention',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 7,
+			)
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_backup_weekly_retention',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 30,
+			)
+		);
+
+		// ----- Chat GDPR settings (v1.2.0) -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_consent_text',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'sanitize_textarea_field',
+				'default'           => '',
+			)
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_privacy_url',
+			array(
+				'type'              => 'string',
+				'sanitize_callback' => 'esc_url_raw',
+				'default'           => '',
+			)
+		);
+
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_chat_sla_minutes',
+			array(
+				'type'              => 'integer',
+				'sanitize_callback' => 'absint',
+				'default'           => 60,
+			)
+		);
 	}
 
 	// -------------------------------------------------------------------------
@@ -637,6 +740,48 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/modules.php';
+	}
+
+	/**
+	 * Render the Security dashboard page.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @return void
+	 */
+	public function render_security(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/security.php';
+	}
+
+	/**
+	 * Render the Commerce & CRM dashboard page.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @return void
+	 */
+	public function render_commerce(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/commerce.php';
+	}
+
+	/**
+	 * Render the SEO & Content dashboard page.
+	 *
+	 * @since 1.2.0
+	 *
+	 * @return void
+	 */
+	public function render_seo_content(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/seo-content.php';
 	}
 
 	/**
