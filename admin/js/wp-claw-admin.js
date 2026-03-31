@@ -242,28 +242,30 @@
 		);
 	}
 
+
 	/* =========================================================================
-		2. Dashboard Auto-Refresh (every 60 s)
+		2. Dashboard Auto-Refresh & Module State Polling (every 60 s) — v1.2.0
 		========================================================================= */
 
 	/**
 	 * Fetch fresh agent data and update each agent card in the DOM.
+	 *
+	 * @since 1.0.0
+	 * @since 1.2.0 Improved health status dot mapping.
 	 */
 	function refreshAgentCards() {
 		fetch( wpClaw.restUrl + 'agents', buildFetchOptions( 'GET' ) )
 			.then(
 				function ( response ) {
 					if ( ! response.ok ) {
-							throw new Error( 'Agent refresh failed (' + response.status + ')' );
+						throw new Error( 'Agent refresh failed (' + response.status + ')' );
 					}
 					return response.json();
 				}
 			)
 			.then(
-				function ( agents ) {
-					if ( ! Array.isArray( agents ) ) {
-							return;
-					}
+				function ( data ) {
+					var agents = Array.isArray( data ) ? data : ( data.agents || [] );
 					agents.forEach(
 						function ( agent ) {
 							var card = document.querySelector(
@@ -277,7 +279,11 @@
 							var dot = card.querySelector( '.wpc-status-dot' );
 							if ( dot ) {
 								dot.className = 'wpc-status-dot';
-								dot.classList.add( 'wpc-status-dot--' + ( agent.health || 'offline' ) );
+								var health   = agent.health || 'offline';
+								var dotClass = ( health === 'ok' || health === 'healthy' )
+									? 'green'
+									: ( health === 'degraded' ? 'yellow' : 'red' );
+								dot.classList.add( 'wpc-status-dot--' + dotClass );
 							}
 
 							// Update current task.
@@ -297,15 +303,86 @@
 	}
 
 	/**
+	 * Fetch module states and update metric cards and constraint banners.
+	 *
+	 * @since 1.2.0
+	 */
+	function refreshModuleStates() {
+		fetch( wpClaw.restUrl + 'admin/module-states', buildFetchOptions( 'GET' ) )
+			.then(
+				function ( response ) {
+					if ( ! response.ok ) {
+						throw new Error( 'Module state refresh failed' );
+					}
+					return response.json();
+				}
+			)
+			.then(
+				function ( data ) {
+					if ( ! data.states ) {
+						return;
+					}
+
+					// Update constitutional constraint banners.
+					var constraints = data.states._constraints;
+					if ( constraints ) {
+						var haltBanner = document.querySelector( '.wpc-alert-banner--danger' );
+						if ( ! constraints.operations_halted && haltBanner ) {
+							haltBanner.remove();
+						}
+					}
+
+					// Update metric card values by data-module attribute.
+					var cards = document.querySelectorAll( '.wpc-metric-card[data-module]' );
+					cards.forEach(
+						function ( card ) {
+							var mod = card.getAttribute( 'data-module' );
+							if ( ! data.states[ mod ] ) {
+								return;
+							}
+							var rows = card.querySelectorAll( '.wpc-metric-card__row' );
+							rows.forEach(
+								function ( row ) {
+									var key = row.getAttribute( 'data-key' );
+									if ( key && data.states[ mod ][ key ] !== undefined ) {
+										var valueEl = row.querySelector( 'span:last-child' );
+										if ( valueEl ) {
+											valueEl.textContent = data.states[ mod ][ key ];
+										}
+									}
+								}
+							);
+						}
+					);
+				}
+			)
+			.catch(
+				function () {
+					// Silent — don't surface transient refresh errors.
+				}
+			);
+	}
+
+	/**
 	 * Start the dashboard auto-refresh loop.
 	 * Only runs if `.wpc-dashboard` is present in the DOM.
+	 * Polls both agent status and module states every 60 s.
+	 *
+	 * @since 1.0.0
+	 * @since 1.2.0 Enhanced with module state polling.
 	 */
 	function initDashboardRefresh() {
 		var dashboard = document.querySelector( '.wpc-dashboard' );
 		if ( ! dashboard ) {
 			return;
 		}
-		setInterval( refreshAgentCards, 60000 );
+		setInterval(
+			function () {
+				refreshModuleStates();
+				refreshAgentCards();
+			},
+			60000
+		);
 	}
 
 	/* =========================================================================
@@ -659,11 +736,330 @@
 	}
 
 	/* =========================================================================
+		9. Email Draft Approve / Reject — Commerce Page (v1.2.0)
+		========================================================================= */
+
+	/**
+	 * Attach delegated click handlers for email draft approve/reject buttons.
+	 * Only active on the commerce admin page.
+	 *
+	 * @since 1.2.0
+	 */
+	function initEmailDraftActions() {
+		if ( 'commerce' !== wpClaw.page ) {
+			return;
+		}
+
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var btn = e.target.closest( '.wpc-admin-email-approve, .wpc-admin-email-reject' );
+				if ( ! btn ) {
+					return;
+				}
+
+				var id     = btn.getAttribute( 'data-id' );
+				var action = btn.classList.contains( 'wpc-admin-email-approve' ) ? 'approve' : 'reject';
+				var row    = btn.closest( 'tr' );
+				var wrapEl = document.querySelector( '.wpc-wrap' ) || document.body;
+
+				if ( 'reject' === action && ! confirm( 'Are you sure you want to reject this email draft?' ) ) {
+					return;
+				}
+
+				btn.disabled    = true;
+				btn.textContent = '\u2026';
+
+				// Disable sibling button too.
+				if ( row ) {
+					var siblings = row.querySelectorAll( '.wpc-admin-email-approve, .wpc-admin-email-reject' );
+					siblings.forEach(
+						function ( s ) {
+							s.disabled = true;
+						}
+					);
+				}
+
+				fetch(
+					wpClaw.restUrl + 'admin/email-drafts/' + id + '/' + action,
+					buildFetchOptions( 'POST' )
+				)
+					.then(
+						function ( res ) {
+							if ( ! res.ok ) {
+								throw new Error( 'Request failed (' + res.status + ')' );
+							}
+							return res.json();
+						}
+					)
+					.then(
+						function ( data ) {
+							if ( data.status ) {
+								// Update the status cell in the row using safe DOM methods.
+								var statusCell = row ? row.querySelector( '.wpc-email-status' ) : null;
+								if ( statusCell ) {
+									while ( statusCell.firstChild ) {
+										statusCell.removeChild( statusCell.firstChild );
+									}
+									var badge       = document.createElement( 'span' );
+									var badgeClass  = action === 'approve' ? 'done' : 'failed';
+									badge.className = 'wpc-badge wpc-badge--' + badgeClass;
+									badge.textContent = data.status.charAt( 0 ).toUpperCase() + data.status.slice( 1 );
+									statusCell.appendChild( badge );
+								}
+								showNotice( wrapEl, data.message || ( 'Email draft ' + action + 'd.' ), 'success' );
+							}
+						}
+					)
+					.catch(
+						function () {
+							showNotice( wrapEl, wpClaw.i18n.error, 'error' );
+							if ( row ) {
+								var siblings = row.querySelectorAll( '.wpc-admin-email-approve, .wpc-admin-email-reject' );
+								siblings.forEach(
+									function ( s ) {
+										s.disabled = false;
+									}
+								);
+							}
+						}
+					);
+			}
+		);
+	}
+
+	/* =========================================================================
+		10. Run Scan Trigger — Security Page (v1.2.0)
+		========================================================================= */
+
+	/**
+	 * Attach delegated click handler for "Run Scan" buttons on the security page.
+	 *
+	 * @since 1.2.0
+	 */
+	function initRunScan() {
+		if ( 'security' !== wpClaw.page ) {
+			return;
+		}
+
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var btn = e.target.closest( '.wpc-admin-run-scan' );
+				if ( ! btn ) {
+					return;
+				}
+
+				var scanType = btn.getAttribute( 'data-scan-type' );
+				var wrapEl   = document.querySelector( '.wpc-wrap' ) || document.body;
+
+				btn.classList.add( 'wpc-scan-button--loading' );
+				btn.disabled = true;
+
+				fetch(
+					wpClaw.restUrl + 'admin/run-scan',
+					buildFetchOptions( 'POST', { scan_type: scanType } )
+				)
+					.then(
+						function ( res ) {
+							if ( ! res.ok ) {
+								throw new Error( 'Scan request failed (' + res.status + ')' );
+							}
+							return res.json();
+						}
+					)
+					.then(
+						function ( data ) {
+							btn.classList.remove( 'wpc-scan-button--loading' );
+							btn.disabled = false;
+							if ( data.message ) {
+								showNotice( wrapEl, data.message, 'success' );
+							}
+						}
+					)
+					.catch(
+						function () {
+							btn.classList.remove( 'wpc-scan-button--loading' );
+							btn.disabled = false;
+							showNotice( wrapEl, wpClaw.i18n.error, 'error' );
+						}
+					);
+			}
+		);
+	}
+
+	/* =========================================================================
+		11. Resume Operations — Dashboard & Settings (v1.2.0)
+		========================================================================= */
+
+	/**
+	 * Attach delegated click handler for the "Resume Operations" button.
+	 * Clears the health-fail halt and removes the danger banner.
+	 *
+	 * @since 1.2.0
+	 */
+	function initResumeOperations() {
+		if ( 'dashboard' !== wpClaw.page && 'settings' !== wpClaw.page ) {
+			return;
+		}
+
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var btn = e.target.closest( '.wpc-admin-resume-ops' );
+				if ( ! btn ) {
+					return;
+				}
+
+				var wrapEl  = document.querySelector( '.wpc-wrap' ) || document.body;
+				var restore = setButtonLoading( btn );
+
+				fetch(
+					wpClaw.restUrl + 'admin/resume-operations',
+					buildFetchOptions( 'POST' )
+				)
+					.then(
+						function ( res ) {
+							if ( ! res.ok ) {
+								throw new Error( 'Resume failed (' + res.status + ')' );
+							}
+							return res.json();
+						}
+					)
+					.then(
+						function ( data ) {
+							// Remove the alert banner with a fade-out.
+							var banner = document.querySelector( '.wpc-alert-banner--danger' );
+							if ( banner ) {
+								banner.style.transition = 'opacity 0.3s';
+								banner.style.opacity    = '0';
+								setTimeout(
+									function () {
+										banner.remove();
+									},
+									300
+								);
+							}
+							showNotice( wrapEl, data.message || 'Operations resumed.', 'success' );
+						}
+					)
+					.catch(
+						function () {
+							restore();
+							showNotice( wrapEl, wpClaw.i18n.error, 'error' );
+						}
+					);
+			}
+		);
+	}
+
+	/* =========================================================================
+		12. Expandable Rows — Commerce & Proposals (v1.2.0)
+		========================================================================= */
+
+	/**
+	 * Attach delegated click handler for expandable row toggles.
+	 * Supports both table-based (commerce email previews) and
+	 * block-based (proposal details) expandable content.
+	 *
+	 * @since 1.2.0
+	 */
+	function initExpandableRows() {
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var toggle = e.target.closest( '.wpc-expand-toggle' );
+				if ( ! toggle ) {
+					return;
+				}
+
+				// For table-based expandable rows.
+				var expandableRow = toggle.closest( 'tr' );
+				if ( expandableRow ) {
+					var nextRow = expandableRow.nextElementSibling;
+					if ( nextRow && nextRow.classList.contains( 'wpc-expandable-row' ) ) {
+						nextRow.classList.toggle( 'wpc-expandable-row--open' );
+						toggle.textContent = nextRow.classList.contains( 'wpc-expandable-row--open' )
+							? 'Hide'
+							: 'Preview';
+						return;
+					}
+				}
+
+				// For non-table expandable content (proposals).
+				var content = toggle.nextElementSibling;
+				if ( content && content.classList.contains( 'wpc-expandable-row__content' ) ) {
+					var isOpen          = content.style.display !== 'none';
+					content.style.display = isOpen ? 'none' : 'block';
+					toggle.textContent    = isOpen ? 'Show full details' : 'Hide details';
+				}
+			}
+		);
+	}
+
+	/* =========================================================================
+		13. Activity Feed Domain Filter — Dashboard (v1.2.0)
+		========================================================================= */
+
+	/**
+	 * Attach click handlers to activity feed filter tabs on the dashboard.
+	 * Filters `.wpc-activity-item` elements by their `data-module` attribute.
+	 *
+	 * @since 1.2.0
+	 */
+	function initActivityFilter() {
+		if ( 'dashboard' !== wpClaw.page ) {
+			return;
+		}
+
+		var feedTabs = document.querySelectorAll( '.wpc-activity-filter' );
+		if ( ! feedTabs.length ) {
+			return;
+		}
+
+		feedTabs.forEach(
+			function ( tab ) {
+				tab.addEventListener(
+					'click',
+					function ( e ) {
+						e.preventDefault();
+						var filter = this.getAttribute( 'data-filter' );
+
+						// Update active tab.
+						feedTabs.forEach(
+							function ( t ) {
+								t.classList.remove( 'wpc-nav-tabs__item--active' );
+							}
+						);
+						this.classList.add( 'wpc-nav-tabs__item--active' );
+
+						// Filter items.
+						var items = document.querySelectorAll( '.wpc-activity-item' );
+						items.forEach(
+							function ( item ) {
+								if ( filter === 'all' || item.getAttribute( 'data-module' ) === filter ) {
+									item.style.display = '';
+								} else {
+									item.style.display = 'none';
+								}
+							}
+						);
+					}
+				);
+			}
+		);
+	}
+
+	/* =========================================================================
 		Boot — initialise all components on DOMContentLoaded
 		========================================================================= */
 
 	/**
 	 * Main initialisation entry point.
+	 *
+	 * @since 1.0.0
+	 * @since 1.2.0 Added email draft actions, scan trigger, resume ops,
+	 *              expandable rows, and activity filter initialisation.
 	 */
 	function init() {
 		if ( typeof wpClaw === 'undefined' ) {
@@ -679,6 +1075,13 @@
 		initTabs();
 		initConnectionMode();
 		initPasswordToggles();
+
+		// v1.2.0 features.
+		initEmailDraftActions();
+		initRunScan();
+		initResumeOperations();
+		initExpandableRows();
+		initActivityFilter();
 	}
 
 	if ( document.readyState === 'loading' ) {
