@@ -23,7 +23,7 @@ $proposals_table = $wpdb->prefix . 'wp_claw_proposals';
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $proposals = $wpdb->get_results(
 	$wpdb->prepare(
-		'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC',
+		'SELECT proposal_id, agent, action, tier, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC',
 		$proposals_table,
 		'pending'
 	)
@@ -44,7 +44,7 @@ if ( 'all' === $current_filter ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$proposals = $wpdb->get_results(
 		$wpdb->prepare(
-			'SELECT proposal_id, agent, action, details, status, created_at FROM %i ORDER BY created_at DESC LIMIT %d',
+			'SELECT proposal_id, agent, action, tier, details, status, created_at FROM %i ORDER BY created_at DESC LIMIT %d',
 			$proposals_table,
 			50
 		)
@@ -53,7 +53,7 @@ if ( 'all' === $current_filter ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$proposals = $wpdb->get_results(
 		$wpdb->prepare(
-			'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status IN (%s, %s) ORDER BY created_at DESC LIMIT %d',
+			'SELECT proposal_id, agent, action, tier, details, status, created_at FROM %i WHERE status IN (%s, %s) ORDER BY created_at DESC LIMIT %d',
 			$proposals_table,
 			'approved',
 			'executed',
@@ -64,7 +64,7 @@ if ( 'all' === $current_filter ) {
 	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 	$proposals = $wpdb->get_results(
 		$wpdb->prepare(
-			'SELECT proposal_id, agent, action, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC LIMIT %d',
+			'SELECT proposal_id, agent, action, tier, details, status, created_at FROM %i WHERE status = %s ORDER BY created_at DESC LIMIT %d',
 			$proposals_table,
 			'rejected',
 			50
@@ -108,6 +108,15 @@ $wp_claw_proposal_badge = function ( $status ) {
 	$key = strtolower( sanitize_key( (string) $status ) );
 	return isset( $map[ $key ] ) ? $map[ $key ] : 'pending';
 };
+
+$wp_claw_agent_display_names = array(
+	'architect' => __( 'Karim — The Architect', 'claw-agent' ),
+	'scribe'    => __( 'Lina — The Scribe', 'claw-agent' ),
+	'sentinel'  => __( 'Bastien — The Sentinel', 'claw-agent' ),
+	'commerce'  => __( 'Hugo — Commerce Lead', 'claw-agent' ),
+	'analyst'   => __( 'Selma — The Analyst', 'claw-agent' ),
+	'concierge' => __( 'Marc — The Concierge', 'claw-agent' ),
+);
 ?>
 <div class="wpc-admin-wrap">
 
@@ -198,7 +207,12 @@ $wp_claw_proposal_badge = function ( $status ) {
 		>
 			<div class="wpc-proposal-card__header">
 				<span class="wpc-proposal-card__agent wpc-badge wpc-badge--active">
-					<?php echo esc_html( ucfirst( $proposal_agent ) ); ?>
+					<?php
+					$proposal_display_name = isset( $wp_claw_agent_display_names[ $proposal_agent ] )
+						? $wp_claw_agent_display_names[ $proposal_agent ]
+						: ucfirst( $proposal_agent );
+					echo esc_html( $proposal_display_name );
+					?>
 				</span>
 				<span class="wpc-proposal-card__action">
 					<code><?php echo esc_html( $proposal_action ); ?></code>
@@ -219,6 +233,16 @@ $wp_claw_proposal_badge = function ( $status ) {
 				<span class="wpc-badge wpc-badge--<?php echo esc_attr( $badge_class ); ?>">
 					<?php echo esc_html( ucfirst( str_replace( '_', ' ', $proposal_status ) ) ); ?>
 				</span>
+				<?php if ( ! empty( $proposal->tier ) ) : ?>
+					<?php
+					$tier_class_map = array( 'AUTO' => 'auto', 'AUTO+' => 'auto-plus', 'PROPOSE' => 'propose', 'CONFIRM' => 'confirm' );
+					$tier_val       = strtoupper( sanitize_text_field( (string) $proposal->tier ) );
+					$tier_css       = isset( $tier_class_map[ $tier_val ] ) ? $tier_class_map[ $tier_val ] : 'idle';
+					?>
+					<span class="wpc-badge wpc-badge--<?php echo esc_attr( $tier_css ); ?>">
+						<?php echo esc_html( $tier_val ); ?>
+					</span>
+				<?php endif; ?>
 				<?php if ( $is_pending ) : ?>
 				<span class="wpc-proposal-card__actions">
 					<button
@@ -242,9 +266,13 @@ $wp_claw_proposal_badge = function ( $status ) {
 			</div>
 
 			<div class="wpc-proposal-card__body">
-				<p title="<?php echo esc_attr( $proposal_raw ); ?>">
-					<?php echo esc_html( $proposal_excerpt ); ?>
-				</p>
+				<p><?php echo esc_html( $proposal_excerpt ); ?></p>
+				<?php if ( strlen( $proposal_raw ) > strlen( $proposal_excerpt ) ) : ?>
+					<button type="button" class="wpc-expand-toggle"><?php esc_html_e( 'Show full details', 'claw-agent' ); ?></button>
+					<div class="wpc-expandable-row__content" style="display:none; margin-top: 8px;">
+						<?php echo wp_kses_post( nl2br( $proposal_raw ) ); ?>
+					</div>
+				<?php endif; ?>
 			</div>
 
 		</article>
