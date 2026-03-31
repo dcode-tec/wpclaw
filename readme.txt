@@ -4,7 +4,7 @@ Donate link: https://wp-claw.ai
 Tags: ai, automation, seo, security, woocommerce
 Requires at least: 6.4
 Tested up to: 6.9
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -159,6 +159,19 @@ Email hello@wp-claw.ai or visit the [documentation](https://wp-claw.ai/docs) for
 6. Chat widget — AI-powered customer assistant on the frontend
 
 == Changelog ==
+
+= 1.2.0 =
+* New: Security operations dashboard with file integrity monitor, malware scan results, SSL status
+* New: Commerce & CRM dashboard with abandoned cart queue, email draft approval, lead pipeline
+* New: SEO & Content dashboard with A/B test results, stale content detection, broken link report
+* New: Module-aware main dashboard with constitutional constraint banners
+* New: Chat GDPR settings, Security brute force settings, Backup retention settings
+* New: System Status panel showing operations state and T3 daily counter
+* Enhanced: Agents page shows local module fallback when API disconnected
+* Enhanced: Proposals page shows agent display names, tier badges, expandable details
+* Enhanced: Dashboard auto-refresh includes module state polling
+* Enhanced: Admin panel border radius updated to 12px
+* Removed: Standalone Modules page (merged into Dashboard and domain dashboards)
 
 = 1.0.3 =
 * Security: Fixed all 21 $wpdb->prepare() SQL injection issues across 9 files
