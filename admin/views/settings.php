@@ -398,6 +398,31 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 					<td><?php esc_html_e( 'Plugin Version', 'claw-agent' ); ?></td>
 					<td><?php echo esc_html( defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0' ); ?></td>
 				</tr>
+				<?php
+				if ( function_exists( 'wp_claw_encryption_diagnostic' ) ) :
+					$enc_diag = wp_claw_encryption_diagnostic();
+				?>
+				<tr>
+					<td><?php esc_html_e( 'Encryption', 'claw-agent' ); ?></td>
+					<td>
+						<?php if ( $enc_diag['roundtrip'] ) : ?>
+							<span class="wpc-badge wpc-badge--active">
+								<span class="wpc-status-dot wpc-status-dot--green"></span>
+								<?php echo esc_html( $enc_diag['sodium'] ? 'Sodium' : 'OpenSSL' ); ?>
+							</span>
+						<?php else : ?>
+							<span class="wpc-badge wpc-badge--error">
+								<span class="wpc-status-dot wpc-status-dot--red"></span>
+								<?php esc_html_e( 'Failed', 'claw-agent' ); ?>
+							</span>
+							<?php if ( '' !== $enc_diag['error'] ) : ?>
+								<br><small><?php echo esc_html( $enc_diag['error'] ); ?></small>
+							<?php endif; ?>
+						<?php endif; ?>
+						<br><small><?php echo esc_html( 'Salt: ' . $enc_diag['salt_fingerprint'] ); ?></small>
+					</td>
+				</tr>
+				<?php endif; ?>
 			</tbody>
 		</table>
 	</section>

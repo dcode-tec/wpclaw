@@ -68,6 +68,7 @@ class Admin {
 		add_action( 'admin_enqueue_scripts', array( $this, 'enqueue_assets' ) );
 		add_action( 'admin_init', array( $this, 'register_settings' ) );
 		add_action( 'admin_init', array( $this, 'maybe_redirect_after_activation' ) );
+		add_action( 'admin_init', array( $this, 'maybe_recover_capabilities' ) );
 		add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_node' ), 100 );
 		add_action( 'admin_post_wp_claw_clear_local_data', array( $this, 'handle_clear_local_data' ) );
 	}
@@ -619,6 +620,32 @@ class Admin {
 		exit;
 	}
 
+	/**
+	 * Re-add capabilities if they are missing after a file-based upgrade.
+	 *
+	 * When plugin files are replaced without deactivate/activate (e.g. FTP upload
+	 * or auto-update), the activation hook never fires and new capabilities are
+	 * never registered. This method checks once per plugin version and adds any
+	 * missing capabilities.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @return void
+	 */
+	public function maybe_recover_capabilities(): void {
+		$cap_version = get_option( 'wp_claw_cap_version', '0' );
+
+		if ( version_compare( $cap_version, WP_CLAW_VERSION, '>=' ) ) {
+			return;
+		}
+
+		if ( function_exists( 'wp_claw_add_capabilities' ) ) {
+			wp_claw_add_capabilities();
+		}
+
+		update_option( 'wp_claw_cap_version', WP_CLAW_VERSION );
+	}
+
 	// -------------------------------------------------------------------------
 	// Clear local data handler
 	// -------------------------------------------------------------------------
@@ -729,17 +756,20 @@ class Admin {
 	}
 
 	/**
-	 * Render the Modules admin page.
+	 * Render the Modules admin page (removed in v1.2.0).
+	 *
+	 * Redirects to the main dashboard. The modules page was merged into the
+	 * dashboard and domain dashboards. This method is kept for users who have
+	 * bookmarked the old URL.
 	 *
 	 * @since 1.0.0
+	 * @deprecated 1.2.0 Merged into Dashboard.
 	 *
 	 * @return void
 	 */
 	public function render_modules(): void {
-		if ( ! current_user_can( 'wp_claw_manage_modules' ) ) {
-			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
-		}
-		include WP_CLAW_PLUGIN_DIR . 'admin/views/modules.php';
+		wp_safe_redirect( admin_url( 'admin.php?page=claw-agent' ) );
+		exit;
 	}
 
 	/**

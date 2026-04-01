@@ -180,18 +180,21 @@ $wp_claw_agent_dashboard = array(
 						</span>
 					</header>
 					<div>
-						<?php if ( $has_data ) : ?>
-							<p class="wpc-kpi-label">
-								<?php
-								printf(
-									/* translators: %s: comma-separated list of module names */
-									esc_html__( 'Modules: %s', 'claw-agent' ),
-									esc_html( implode( ', ', array_map( 'ucfirst', $module_slugs ) ) )
-								);
-								?>
-							</p>
-						<?php else : ?>
-							<p><em><?php esc_html_e( 'No enabled modules for this agent.', 'claw-agent' ); ?></em></p>
+						<p class="wpc-kpi-label">
+							<?php
+							$enabled_modules = (array) get_option( 'wp_claw_enabled_modules', array() );
+							$module_labels   = array();
+							foreach ( $module_slugs as $mod_slug ) {
+								$is_on = in_array( $mod_slug, $enabled_modules, true );
+								$module_labels[] = $is_on
+									? '<span class="wpc-badge wpc-badge--active" style="font-size:0.6875rem">' . esc_html( ucfirst( $mod_slug ) ) . '</span>'
+									: '<span class="wpc-badge wpc-badge--idle" style="font-size:0.6875rem">' . esc_html( ucfirst( $mod_slug ) ) . '</span>';
+							}
+							echo wp_kses_post( implode( ' ', $module_labels ) );
+							?>
+						</p>
+						<?php if ( ! $has_data ) : ?>
+							<p><small><?php esc_html_e( 'Enable modules in Settings to activate this agent.', 'claw-agent' ); ?></small></p>
 						<?php endif; ?>
 					</div>
 					<?php

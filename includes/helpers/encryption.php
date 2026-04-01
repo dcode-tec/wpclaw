@@ -38,7 +38,12 @@ function wp_claw_encrypt( string $plaintext ): string {
 	}
 
 	// Derive a 32-byte key from the site's auth salt.
-	$key = hash( 'sha256', wp_salt( 'auth' ), true );
+	// Guard: if wp_salt() returns empty or default placeholder, log and bail.
+	$salt = wp_salt( 'auth' );
+	if ( empty( $salt ) || 'put your unique phrase here' === $salt ) {
+		wp_claw_log_error( 'wp_salt(auth) returned empty or default value — encryption key is unsafe. Define AUTH_SALT in wp-config.php.' );
+	}
+	$key = hash( 'sha256', $salt, true );
 
 	if ( function_exists( 'sodium_crypto_secretbox' ) ) {
 		try {
@@ -95,7 +100,8 @@ function wp_claw_decrypt( string $ciphertext ): string {
 	}
 
 	// Derive the same 32-byte key.
-	$key = hash( 'sha256', wp_salt( 'auth' ), true );
+	$salt = wp_salt( 'auth' );
+	$key  = hash( 'sha256', $salt, true );
 
 	// OpenSSL fallback path — blob was produced by the fallback branch.
 	if ( str_starts_with( $ciphertext, 'ssl:' ) ) {
@@ -157,4 +163,51 @@ function wp_claw_decrypt( string $ciphertext ): string {
 		wp_claw_log_error( 'Sodium decrypt threw exception.', array( 'error' => $e->getMessage() ) );
 		return '';
 	}
+}
+
+/**
+ * Diagnose the encryption subsystem.
+ *
+ * Returns an associative array with availability flags, a roundtrip test result,
+ * and the salt fingerprint (first 8 chars of sha256). Used by the System Status
+ * section in admin settings to surface encryption issues.
+ *
+ * @since 1.2.2
+ *
+ * @return array{sodium: bool, openssl: bool, roundtrip: bool, salt_fingerprint: string, error: string}
+ */
+function wp_claw_encryption_diagnostic(): array {
+	$result = array(
+		'sodium'           => function_exists( 'sodium_crypto_secretbox' ),
+		'openssl'          => function_exists( 'openssl_encrypt' ),
+		'roundtrip'        => false,
+		'salt_fingerprint' => '',
+		'error'            => '',
+	);
+
+	$salt = wp_salt( 'auth' );
+	$result['salt_fingerprint'] = substr( hash( 'sha256', $salt ), 0, 8 );
+
+	if ( empty( $salt ) || 'put your unique phrase here' === $salt ) {
+		$result['error'] = 'AUTH_SALT is empty or set to default placeholder. Define it in wp-config.php.';
+		return $result;
+	}
+
+	$test_value = 'wp_claw_roundtrip_test_' . wp_rand();
+	$encrypted  = wp_claw_encrypt( $test_value );
+
+	if ( '' === $encrypted ) {
+		$result['error'] = 'Encryption returned empty string. Neither sodium nor OpenSSL is working.';
+		return $result;
+	}
+
+	$decrypted = wp_claw_decrypt( $encrypted );
+
+	if ( $decrypted === $test_value ) {
+		$result['roundtrip'] = true;
+	} else {
+		$result['error'] = 'Roundtrip failed: encrypt succeeded but decrypt returned different value. Salt may be unstable.';
+	}
+
+	return $result;
 }
