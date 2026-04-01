@@ -616,7 +616,7 @@ $wp_claw_badge_class = function ( $status ) {
 					</div>
 					<?php endif; ?>
 				</div>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-analytics' ) ); ?>" class="wpc-metric-card__link">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=claw-agent' ) ); ?>" class="wpc-metric-card__link">
 					<?php esc_html_e( 'Analytics Dashboard', 'claw-agent' ); ?> &rarr;
 				</a>
 			</div>
@@ -668,7 +668,7 @@ $wp_claw_badge_class = function ( $status ) {
 						?>
 					</div>
 				</div>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-audit' ) ); ?>" class="wpc-metric-card__link">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=claw-agent' ) ); ?>" class="wpc-metric-card__link">
 					<?php esc_html_e( 'Site Audit', 'claw-agent' ); ?> &rarr;
 				</a>
 			</div>
@@ -701,7 +701,7 @@ $wp_claw_badge_class = function ( $status ) {
 						<?php endif; ?>
 					</div>
 				</div>
-				<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-chat' ) ); ?>" class="wpc-metric-card__link">
+				<a href="<?php echo esc_url( admin_url( 'admin.php?page=claw-agent' ) ); ?>" class="wpc-metric-card__link">
 					<?php esc_html_e( 'Chat Settings', 'claw-agent' ); ?> &rarr;
 				</a>
 			</div>
