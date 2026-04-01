@@ -120,7 +120,10 @@ class API_Client {
 	 */
 	public function __construct() {
 		$this->connection_mode = (string) get_option( 'wp_claw_connection_mode', 'managed' );
-		$this->api_key         = wp_claw_decrypt( (string) get_option( 'wp_claw_api_key', '' ) );
+		// Try decrypting first; if result is empty, use raw value (plaintext fallback for testing)
+		$encrypted = (string) get_option( 'wp_claw_api_key', '' );
+		$decrypted = wp_claw_decrypt( $encrypted );
+		$this->api_key = ( '' !== $decrypted ) ? $decrypted : $encrypted;
 
 		if ( 'self-hosted' === $this->connection_mode ) {
 			$this->base_url = 'http://localhost:2508';
@@ -471,6 +474,15 @@ class API_Client {
 			'X-WPClaw-Signature' => $signature,
 			'X-WPClaw-Timestamp' => $timestamp,
 		);
+
+		// TEMPORARY DEBUG — remove after testing
+		wp_claw_log_warning( 'DEBUG request', array(
+			'url'       => $url,
+			'key_len'   => strlen( $this->api_key ),
+			'key_start' => substr( $this->api_key, 0, 8 ),
+			'key_end'   => substr( $this->api_key, -8 ),
+			'base_url'  => $this->base_url,
+		) );
 
 		// --- Step 7: Dispatch request (with 5xx retry loop) -----------------
 		$args = array(

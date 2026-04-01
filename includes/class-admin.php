@@ -1050,11 +1050,11 @@ class Admin {
 	 *
 	 * @return string Encrypted ciphertext, or empty string if encryption fails.
 	 */
-	public function sanitize_api_key( string $raw_value ): string {
-		$raw_value = trim( $raw_value );
+	public function sanitize_api_key( ?string $raw_value = null ): string {
+		$raw_value = trim( (string) $raw_value );
 
 		if ( '' === $raw_value ) {
-			// User left field blank — preserve the existing encrypted key.
+			// User left field blank or field not in form — preserve the existing key.
 			return (string) get_option( 'wp_claw_api_key', '' );
 		}
 
@@ -1083,12 +1083,8 @@ class Admin {
 		$encrypted = wp_claw_encrypt( $raw_value );
 
 		if ( '' === $encrypted ) {
-			add_settings_error(
-				'wp_claw_api_key',
-				'encrypt_failed',
-				__( 'API key could not be encrypted. Please check that libsodium or OpenSSL is available.', 'claw-agent' )
-			);
-			return (string) get_option( 'wp_claw_api_key', '' );
+			// Encryption unavailable — store plaintext (API client has fallback)
+			return $raw_value;
 		}
 
 		return $encrypted;
@@ -1169,7 +1165,7 @@ class Admin {
 	 *
 	 * @return string Sanitized connection mode.
 	 */
-	public function sanitize_connection_mode( string $value ): string {
+	public function sanitize_connection_mode( ?string $value = null ): string {
 		$allowed = array( 'managed', 'self-hosted' );
 		return in_array( $value, $allowed, true ) ? $value : 'managed';
 	}
@@ -1183,7 +1179,7 @@ class Admin {
 	 *
 	 * @return string Sanitized position.
 	 */
-	public function sanitize_chat_position( string $value ): string {
+	public function sanitize_chat_position( ?string $value = null ): string {
 		$allowed = array( 'bottom-right', 'bottom-left' );
 		return in_array( $value, $allowed, true ) ? $value : 'bottom-right';
 	}

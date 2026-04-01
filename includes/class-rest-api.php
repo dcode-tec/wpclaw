@@ -1510,6 +1510,12 @@ class REST_API {
 				array(
 					'status'  => 'error',
 					'message' => $response->get_error_message(),
+					'code'    => $response->get_error_code(),
+					'debug'   => array(
+						'base_url' => get_option( 'wp_claw_instance_url', '(not set)' ),
+						'mode'     => get_option( 'wp_claw_connection_mode', '(not set)' ),
+						'has_key'  => ! empty( get_option( 'wp_claw_api_key', '' ) ),
+					),
 				),
 				502
 			);
