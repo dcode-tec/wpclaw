@@ -18,12 +18,18 @@ defined( 'ABSPATH' ) || exit;
 // -------------------------------------------------------------------------
 $agents    = get_transient( 'wp_claw_agents_cache' );
 $api_error = false;
+$is_connected = $api_client->is_connected();
 
 if ( false === $agents ) {
 	$api_response = $api_client->get_agents();
 	if ( is_wp_error( $api_response ) ) {
-		$api_error = $api_response->get_error_message();
-		$agents    = array();
+		// If the instance is connected (health OK) but /api/agents returns 404,
+		// this is expected — the Klawty instance doesn't expose that route yet.
+		// Don't show a scary error, just fall through to local module data.
+		if ( ! $is_connected ) {
+			$api_error = $api_response->get_error_message();
+		}
+		$agents = array();
 	} elseif ( isset( $api_response['agents'] ) && is_array( $api_response['agents'] ) ) {
 		$agents = $api_response['agents'];
 		set_transient( 'wp_claw_agents_cache', $agents, 5 * MINUTE_IN_SECONDS );
@@ -143,18 +149,24 @@ $wp_claw_agent_dashboard = array(
 	</div>
 	<?php endif; ?>
 
-	<?php if ( empty( $agents ) && ! $api_error ) : ?>
-	<div class="wpc-empty-state">
-		<p><?php esc_html_e( 'No agents are currently reporting status. The Klawty instance may still be starting up.', 'claw-agent' ); ?></p>
-	</div>
-	<?php endif; ?>
-
-	<?php if ( empty( $agents ) && $api_error ) : ?>
-		<!-- Local module state fallback (v1.2.0) -->
+	<?php if ( empty( $agents ) ) : ?>
+		<?php if ( $is_connected ) : ?>
+		<!-- Connected but /api/agents not available — show local data with friendly message -->
+		<div class="wpc-connection-banner wpc-connection-banner--connected" style="margin-bottom: 16px;">
+			<span class="wpc-status-dot wpc-status-dot--green"></span>
+			<span><?php esc_html_e( 'Connected to Klawty instance. Showing local module configuration.', 'claw-agent' ); ?></span>
+		</div>
+		<?php elseif ( $api_error ) : ?>
 		<div class="wpc-connection-banner wpc-connection-banner--disconnected" style="margin-bottom: 16px;">
 			<span class="wpc-status-dot wpc-status-dot--yellow"></span>
 			<span><?php esc_html_e( 'Live agent status unavailable — showing local module data.', 'claw-agent' ); ?></span>
 		</div>
+		<?php else : ?>
+		<div class="wpc-connection-banner wpc-connection-banner--disconnected" style="margin-bottom: 16px;">
+			<span class="wpc-status-dot wpc-status-dot--yellow"></span>
+			<span><?php esc_html_e( 'Showing local module configuration.', 'claw-agent' ); ?></span>
+		</div>
+		<?php endif; ?>
 
 		<div class="wpc-module-grid">
 			<?php
