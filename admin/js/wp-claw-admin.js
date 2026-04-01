@@ -409,7 +409,12 @@
 					function ( response ) {
 						restore();
 						if ( ! response.ok ) {
+							return response.json().then( function ( body ) {
+								throw new Error( body.message || 'Connection failed (' + response.status + ')' );
+							} ).catch( function ( e ) {
+								if ( e.message ) { throw e; }
 								throw new Error( 'Connection failed (' + response.status + ')' );
+							} );
 						}
 						return response.json();
 					}

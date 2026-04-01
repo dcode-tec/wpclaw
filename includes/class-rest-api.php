@@ -1502,6 +1502,20 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_health( \WP_REST_Request $request ): \WP_REST_Response {
+		// Pre-flight: check if instance URL is configured at all.
+		$instance_url = get_option( 'wp_claw_instance_url', '' );
+		$mode         = get_option( 'wp_claw_connection_mode', 'managed' );
+		if ( '' === $instance_url && 'managed' === $mode ) {
+			return new \WP_REST_Response(
+				array(
+					'status'  => 'error',
+					'message' => __( 'Instance URL not set. Go to Settings → Instance URL and enter your managed instance URL.', 'claw-agent' ),
+					'code'    => 'no_instance_url',
+				),
+				400
+			);
+		}
+
 		$client   = new \WPClaw\API_Client();
 		$response = $client->health_check();
 
@@ -1512,8 +1526,8 @@ class REST_API {
 					'message' => $response->get_error_message(),
 					'code'    => $response->get_error_code(),
 					'debug'   => array(
-						'base_url' => get_option( 'wp_claw_instance_url', '(not set)' ),
-						'mode'     => get_option( 'wp_claw_connection_mode', '(not set)' ),
+						'base_url' => $instance_url ? $instance_url : '(not set)',
+						'mode'     => $mode,
 						'has_key'  => ! empty( get_option( 'wp_claw_api_key', '' ) ),
 					),
 				),
