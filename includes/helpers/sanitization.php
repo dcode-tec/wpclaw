@@ -56,6 +56,22 @@ function wp_claw_sanitize_api_response( array $response ): array {
 		}
 	}
 
+	// 'agents' is a nested array of agent status objects — pass through for
+	// the caller to sanitize per-field (admin views escape on output).
+	if ( array_key_exists( 'agents', $response ) && is_array( $response['agents'] ) ) {
+		$clean['agents'] = $response['agents'];
+	}
+
+	// 'proposals' is a nested array — same passthrough pattern.
+	if ( array_key_exists( 'proposals', $response ) && is_array( $response['proposals'] ) ) {
+		$clean['proposals'] = $response['proposals'];
+	}
+
+	// 'states' is used by the module-states admin AJAX endpoint.
+	if ( array_key_exists( 'states', $response ) && is_array( $response['states'] ) ) {
+		$clean['states'] = $response['states'];
+	}
+
 	// 'data' may be a nested array — recurse one level for simple scalar children,
 	// or preserve as-is for complex structures (callers must sanitize deeper).
 	if ( array_key_exists( 'data', $response ) && is_array( $response['data'] ) ) {
