@@ -241,7 +241,8 @@ class API_Client {
 
 		if ( ! is_wp_error( $response ) ) {
 			// Cache the health payload for is_connected() to read.
-			set_transient( self::TRANSIENT_LAST_HEALTH, $response, 70 );
+			// TTL must outlast the hourly cron interval — 2h gives safe margin.
+			set_transient( self::TRANSIENT_LAST_HEALTH, $response, 2 * HOUR_IN_SECONDS );
 		}
 
 		return $response;
