@@ -466,6 +466,7 @@ class API_Client {
 		// --- Step 6: Build headers ------------------------------------------
 		$headers = array(
 			'Content-Type'       => 'application/json',
+			'Authorization'      => 'Bearer ' . $this->api_key,
 			'X-WPClaw-Signature' => $signature,
 			'X-WPClaw-Timestamp' => $timestamp,
 		);
