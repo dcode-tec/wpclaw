@@ -293,7 +293,7 @@ class Admin {
 			'wp_claw_instance_url',
 			array(
 				'type'              => 'string',
-				'sanitize_callback' => 'esc_url_raw',
+				'sanitize_callback' => array( $this, 'sanitize_instance_url' ),
 				'default'           => '',
 			)
 		);
@@ -1196,6 +1196,29 @@ class Admin {
 	}
 
 	/**
+	 * Sanitize the instance URL setting.
+	 *
+	 * Preserves the existing value when the field is not present in the
+	 * submitted form (multiple forms share the same settings group).
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param string|null $value The raw submitted value.
+	 *
+	 * @return string Sanitized URL or existing value.
+	 */
+	public function sanitize_instance_url( ?string $value = null ): string {
+		$value = trim( (string) $value );
+
+		if ( '' === $value ) {
+			// Field was empty or not in the form — keep existing.
+			return (string) get_option( 'wp_claw_instance_url', '' );
+		}
+
+		return esc_url_raw( $value );
+	}
+
+	/**
 	 * Sanitize the connection mode setting.
 	 *
 	 * Only 'managed' and 'self-hosted' are accepted; any other value
@@ -1208,6 +1231,10 @@ class Admin {
 	 * @return string Sanitized connection mode.
 	 */
 	public function sanitize_connection_mode( ?string $value = null ): string {
+		$value = trim( (string) $value );
+		if ( '' === $value ) {
+			return (string) get_option( 'wp_claw_connection_mode', 'managed' );
+		}
 		$allowed = array( 'managed', 'self-hosted' );
 		return in_array( $value, $allowed, true ) ? $value : 'managed';
 	}
@@ -1239,6 +1266,10 @@ class Admin {
 	 * @return string[] Sanitized array of valid module slugs.
 	 */
 	public function sanitize_enabled_modules( $value ): array {
+		if ( null === $value ) {
+			// Field not in submitted form — keep existing modules.
+			return (array) get_option( 'wp_claw_enabled_modules', array() );
+		}
 		if ( ! is_array( $value ) ) {
 			return array();
 		}
