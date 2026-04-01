@@ -402,7 +402,7 @@ class Admin {
 
 		add_settings_field(
 			'wp_claw_instance_url',
-			__( 'Self-hosted Instance URL', 'claw-agent' ),
+			__( 'Instance URL', 'claw-agent' ),
 			array( $this, 'render_field_instance_url' ),
 			'wp-claw-settings',
 			'wp_claw_connection'
@@ -920,14 +920,19 @@ class Admin {
 	}
 
 	/**
-	 * Render the self-hosted instance URL settings field.
+	 * Render the instance URL settings field.
+	 *
+	 * Shows for both managed and self-hosted modes. In managed mode, this URL
+	 * is normally set automatically by the connection handshake. If empty, the
+	 * user can enter it manually (e.g. https://kl-{id}.ai-agent-builder.ai).
 	 *
 	 * @since 1.0.0
 	 *
 	 * @return void
 	 */
 	public function render_field_instance_url(): void {
-		$url = esc_url( (string) get_option( 'wp_claw_instance_url', '' ) );
+		$url  = esc_url( (string) get_option( 'wp_claw_instance_url', '' ) );
+		$mode = (string) get_option( 'wp_claw_connection_mode', 'managed' );
 		?>
 		<input
 			type="url"
@@ -935,10 +940,17 @@ class Admin {
 			name="wp_claw_instance_url"
 			value="<?php echo esc_attr( $url ); ?>"
 			class="regular-text"
-			placeholder="http://localhost:2508"
+			placeholder="<?php echo esc_attr( 'managed' === $mode ? 'https://kl-xxxx.ai-agent-builder.ai' : 'http://localhost:2508' ); ?>"
 		>
 		<p class="description">
-			<?php esc_html_e( 'Only used in Self-hosted mode. The base URL of your local Klawty instance.', 'claw-agent' ); ?>
+			<?php if ( 'managed' === $mode ) : ?>
+				<?php esc_html_e( 'Your managed Klawty instance URL. Normally set automatically during connection. If empty, enter it manually.', 'claw-agent' ); ?>
+				<?php if ( '' === $url ) : ?>
+					<br><strong style="color: #dc2626;"><?php esc_html_e( 'Instance URL is empty — agents cannot connect. Enter your instance URL above and save.', 'claw-agent' ); ?></strong>
+				<?php endif; ?>
+			<?php else : ?>
+				<?php esc_html_e( 'The base URL of your local Klawty instance.', 'claw-agent' ); ?>
+			<?php endif; ?>
 		</p>
 		<?php
 	}
