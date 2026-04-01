@@ -77,7 +77,7 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 		<p>
 			<button
 				type="button"
-				class="wpc-btn wpc-btn--primary wpc-admin-test-connection"
+				class="wpc-btn wpc-btn--primary wpc-test-connection"
 				id="wp-claw-test-connection"
 			>
 				<?php esc_html_e( 'Test Connection', 'claw-agent' ); ?>
