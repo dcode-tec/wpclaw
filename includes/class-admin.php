@@ -633,17 +633,25 @@ class Admin {
 	 * @return void
 	 */
 	public function maybe_recover_capabilities(): void {
-		$cap_version = get_option( 'wp_claw_cap_version', '0' );
-
-		if ( version_compare( $cap_version, WP_CLAW_VERSION, '>=' ) ) {
+		// Quick check: does the current admin have the core WP-Claw cap?
+		// If yes, caps are fine — skip the expensive role lookup.
+		$user = wp_get_current_user();
+		if ( $user->exists() && $user->has_cap( 'manage_options' ) && $user->has_cap( 'wp_claw_command_center' ) ) {
 			return;
 		}
 
+		// Caps are missing — add them now.
 		if ( function_exists( 'wp_claw_add_capabilities' ) ) {
 			wp_claw_add_capabilities();
 		}
 
-		update_option( 'wp_claw_cap_version', WP_CLAW_VERSION );
+		// Force refresh the current user's capabilities in this request.
+		// add_cap() writes to wp_options but the WP_User object was already
+		// loaded — without this, current_user_can() still returns false until
+		// the NEXT page load.
+		if ( $user->exists() ) {
+			$user->get_role_caps();
+		}
 	}
 
 	// -------------------------------------------------------------------------
