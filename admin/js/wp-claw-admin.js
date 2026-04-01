@@ -1160,7 +1160,7 @@
 					var restore    = ccSetButtonLoading( savePinBtn );
 
 					fetch(
-						wpClaw.restUrl + 'wp-claw/v1/command/setup-pin',
+						wpClaw.restUrl + 'command/setup-pin',
 						{
 							method: 'POST',
 							headers: {
@@ -1298,7 +1298,7 @@
 			var nonce      = nonceField ? nonceField.value : '';
 
 			fetch(
-				wpClaw.restUrl + 'wp-claw/v1/command',
+				wpClaw.restUrl + 'command',
 				{
 					method: 'POST',
 					headers: {
@@ -1410,7 +1410,7 @@
 			}
 
 			fetch(
-				wpClaw.restUrl + 'wp-claw/v1/command/history?limit=20',
+				wpClaw.restUrl + 'command/history?limit=20',
 				{
 					method: 'GET',
 					headers: { 'X-WP-Nonce': wpClaw.nonce },
