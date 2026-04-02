@@ -346,6 +346,20 @@ $wp_claw_agent_dashboard = array(
 			</p>
 			<?php endif; ?>
 
+			<?php if ( ! empty( $agent['latest_report_title'] ) ) : ?>
+			<div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--wpc-border, #e5e7eb);">
+				<span class="wpc-kpi-label"><?php esc_html_e( 'Latest report', 'claw-agent' ); ?></span>
+				<p style="margin: 4px 0 0; font-weight: 500; font-size: 0.875rem;">
+					<?php echo esc_html( $agent['latest_report_title'] ); ?>
+				</p>
+				<?php if ( ! empty( $agent['latest_report_time'] ) ) : ?>
+				<span class="wpc-badge wpc-badge--idle" style="margin-top: 4px; display: inline-block;">
+					<?php echo esc_html( human_time_diff( strtotime( $agent['latest_report_time'] ) ) ); ?> <?php esc_html_e( 'ago', 'claw-agent' ); ?>
+				</span>
+				<?php endif; ?>
+			</div>
+			<?php endif; ?>
+
 		</article>
 		<?php endforeach; ?>
 

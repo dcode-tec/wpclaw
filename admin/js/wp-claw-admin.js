@@ -1289,6 +1289,162 @@
 	}
 
 	/* =========================================================================
+		15. Live Activity Feed — Dashboard (v1.2.3)
+		========================================================================= */
+
+	/**
+	 * Format an ISO timestamp as a human-readable "X ago" string.
+	 * Local copy for use within the main IIFE — mirrors the one in the Reports module.
+	 *
+	 * @param {string} iso  ISO 8601 timestamp string.
+	 * @return {string}
+	 * @since 1.2.3
+	 */
+	function timeAgoLocal( iso ) {
+		var diff = Math.floor( ( Date.now() - new Date( iso ).getTime() ) / 1000 );
+		if ( diff < 60 ) {
+			return diff + 's ago';
+		}
+		if ( diff < 3600 ) {
+			return Math.floor( diff / 60 ) + 'm ago';
+		}
+		if ( diff < 86400 ) {
+			return Math.floor( diff / 3600 ) + 'h ago';
+		}
+		return Math.floor( diff / 86400 ) + 'd ago';
+	}
+
+	/**
+	 * Fetch recent agent activity from the REST API and render it into the feed container.
+	 *
+	 * @since 1.2.3
+	 */
+	function loadActivity() {
+		var feed = document.getElementById( 'wpc-activity-feed' );
+		if ( ! feed ) {
+			return;
+		}
+		fetch( wpClaw.restUrl + 'activity?since=6h&limit=30', buildFetchOptions( 'GET' ) )
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( data ) {
+				if ( ! data.activity || ! data.activity.length ) {
+					while ( feed.firstChild ) { feed.removeChild( feed.firstChild ); }
+					var empty = document.createElement( 'p' );
+					empty.className = 'wpc-empty-state';
+					empty.textContent = 'No recent activity. Agents will start working within 15 minutes.';
+					feed.appendChild( empty );
+					return;
+				}
+				while ( feed.firstChild ) { feed.removeChild( feed.firstChild ); }
+				data.activity.forEach( function ( item ) {
+					var div = document.createElement( 'div' );
+					div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--wpc-border,#e5e7eb);';
+
+					var left = document.createElement( 'div' );
+					var badge = document.createElement( 'span' );
+					badge.className = 'wpc-badge wpc-badge--' + ( item.type === 'task_completed' ? 'done' : item.type === 'task_failed' ? 'failed' : 'active' );
+					badge.textContent = ( item.agent_emoji || '' ) + ' ' + ( item.agent_name || item.agent || '' );
+					left.appendChild( badge );
+
+					var title = document.createElement( 'span' );
+					title.style.marginLeft = '8px';
+					title.textContent = item.title || '';
+					left.appendChild( title );
+					div.appendChild( left );
+
+					var time = document.createElement( 'span' );
+					time.className = 'wpc-kpi-label';
+					time.textContent = timeAgoLocal( item.timestamp );
+					div.appendChild( time );
+
+					feed.appendChild( div );
+				} );
+			} )
+			.catch( function () {} );
+	}
+
+	/**
+	 * Initialise the live activity feed on the dashboard page.
+	 * Loads immediately and refreshes every 30 seconds.
+	 *
+	 * @since 1.2.3
+	 */
+	function initActivityFeed() {
+		if ( 'dashboard' !== wpClaw.page ) {
+			return;
+		}
+		loadActivity();
+		setInterval( loadActivity, 30000 );
+	}
+
+	/* =========================================================================
+		16. Module Agent Reports — Security / SEO / Commerce (v1.2.3)
+		========================================================================= */
+
+	/**
+	 * Fetch and render agent reports for a module page.
+	 * Reads `data-agent` and `data-limit` from the `#wpc-module-reports` element.
+	 *
+	 * @since 1.2.3
+	 */
+	function initModuleReports() {
+		var container = document.getElementById( 'wpc-module-reports' );
+		if ( ! container ) {
+			return;
+		}
+		var agent = container.getAttribute( 'data-agent' );
+		var limit = container.getAttribute( 'data-limit' ) || '5';
+		fetch(
+			wpClaw.restUrl + 'reports?agent=' + encodeURIComponent( agent ) + '&limit=' + limit + '&since=30d',
+			buildFetchOptions( 'GET' )
+		)
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( data ) {
+				if ( ! data.reports || ! data.reports.length ) {
+					while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+					var empty = document.createElement( 'p' );
+					empty.className = 'wpc-empty-state';
+					empty.textContent = 'No reports yet. Agent will produce first report within 15 minutes.';
+					container.appendChild( empty );
+					return;
+				}
+				while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+				data.reports.forEach( function ( r ) {
+					var card = document.createElement( 'div' );
+					card.style.cssText = 'padding:12px 0;border-bottom:1px solid var(--wpc-border,#e5e7eb);';
+
+					var header = document.createElement( 'div' );
+					header.style.cssText = 'display:flex;justify-content:space-between;align-items:center;';
+					var titleEl = document.createElement( 'strong' );
+					titleEl.textContent = r.title || '';
+					header.appendChild( titleEl );
+					var timeEl = document.createElement( 'span' );
+					timeEl.className = 'wpc-kpi-label';
+					timeEl.textContent = timeAgoLocal( r.completed_at );
+					header.appendChild( timeEl );
+					card.appendChild( header );
+
+					if ( r.evidence ) {
+						var pre = document.createElement( 'pre' );
+						pre.style.cssText = 'margin:4px 0 0;font-size:0.8125rem;color:var(--wpc-muted,#9ca3af);white-space:pre-wrap;word-break:break-word;max-height:100px;overflow:hidden;';
+						var lines = r.evidence.split( '\n' ).filter( function ( l ) { return l.trim() && ! l.trim().match( /^#+\s/ ); } );
+						pre.textContent = lines.slice( 0, 4 ).join( '\n' );
+						card.appendChild( pre );
+					}
+
+					container.appendChild( card );
+				} );
+			} )
+			.catch( function () {
+				while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+				var err = document.createElement( 'p' );
+				err.className = 'wpc-empty-state';
+				err.textContent = 'Could not load reports.';
+				container.appendChild( err );
+			} );
+	}
+
+	/* =========================================================================
 		Boot — initialise all components on DOMContentLoaded
 		========================================================================= */
 
@@ -1299,6 +1455,7 @@
 	 * @since 1.2.0 Added email draft actions, scan trigger, resume ops,
 	 *              expandable rows, and activity filter initialisation.
 	 * @since 1.2.2 Added business profile form handler.
+	 * @since 1.2.3 Added live activity feed and module report sections.
 	 */
 	function init() {
 		if ( typeof wpClaw === 'undefined' ) {
@@ -1324,6 +1481,12 @@
 
 		// v1.2.2 features.
 		initBusinessProfile();
+
+		// v1.2.3 features.
+		initActivityFeed();
+		if ( 'security' === wpClaw.page || 'seo' === wpClaw.page || 'commerce' === wpClaw.page ) {
+			initModuleReports();
+		}
 	}
 
 	if ( document.readyState === 'loading' ) {

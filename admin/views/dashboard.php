@@ -834,7 +834,19 @@ $wp_claw_badge_class = function ( $status ) {
 	</section>
 	<?php endif; ?>
 
-	<!-- Recent Activity Feed -->
+	<!-- Live Agent Activity -->
+	<section class="wpc-card" style="margin-top: 20px;">
+		<header style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;">
+			<h3 class="wpc-section-heading" style="margin: 0;"><?php esc_html_e( 'Live Agent Activity', 'claw-agent' ); ?></h3>
+			<span class="wpc-status-dot wpc-status-dot--green" id="wpc-activity-pulse" style="animation: pulse 2s infinite;"></span>
+		</header>
+		<div id="wpc-activity-feed" class="wpc-activity-feed" style="max-height: 400px; overflow-y: auto;">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading agent activity...', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- Legacy static table below, live feed above -->
+	<!-- Recent Activity Feed (static fallback) -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Recent Activity', 'claw-agent' ); ?></h2>
 

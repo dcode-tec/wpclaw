@@ -455,4 +455,11 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 		</table>
 	</section>
 
+	<section class="wpc-card" style="margin-top: 20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( "Lina's SEO &amp; Content Reports", 'claw-agent' ); ?></h3>
+		<div id="wpc-module-reports" data-agent="lina" data-limit="5">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading reports...', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
 </div>

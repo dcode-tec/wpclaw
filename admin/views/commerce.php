@@ -416,4 +416,11 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 	</section>
 	<?php endif; ?>
 
+	<section class="wpc-card" style="margin-top: 20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( "Hugo's Commerce Reports", 'claw-agent' ); ?></h3>
+		<div id="wpc-module-reports" data-agent="hugo" data-limit="5">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading reports...', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
 </div>

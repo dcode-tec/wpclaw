@@ -433,4 +433,12 @@ if ( $ssl_valid && null !== $ssl_days ) {
 		</table>
 	</section>
 
+	<!-- Agent Reports -->
+	<section class="wpc-card" style="margin-top: 20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( "Bastien's Security Reports", 'claw-agent' ); ?></h3>
+		<div id="wpc-module-reports" data-agent="bastien" data-limit="5">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading reports...', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
 </div>
