@@ -387,7 +387,7 @@ class REST_API {
 			)
 		);
 
-		// ----- Proxy routes: reports, activity, profile (v1.3.0) -----
+		// ----- Proxy routes: reports, activity, profile, create-task (v1.3.0) -----
 
 		register_rest_route(
 			self::NAMESPACE,
@@ -431,6 +431,18 @@ class REST_API {
 						return current_user_can( 'wp_claw_manage_settings' );
 					},
 				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/create-task',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_create_task' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
 			)
 		);
 	}
@@ -1373,7 +1385,7 @@ class REST_API {
 				);
 			}
 			// Trigger the file integrity check directly.
-			do_action( 'wp_claw_cron_file_integrity' );
+			do_action( 'wp_claw_file_integrity' );
 			return new \WP_REST_Response(
 				array( 'message' => __( 'File integrity scan started.', 'claw-agent' ) ),
 				200
@@ -1389,7 +1401,7 @@ class REST_API {
 					array( 'status' => 400 )
 				);
 			}
-			do_action( 'wp_claw_cron_malware_scan' );
+			do_action( 'wp_claw_malware_scan' );
 			return new \WP_REST_Response(
 				array( 'message' => __( 'Malware scan started.', 'claw-agent' ) ),
 				200
@@ -1826,6 +1838,55 @@ class REST_API {
 
 		$client   = new \WPClaw\API_Client();
 		$response = $client->update_profile( $body );
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array( 'error' => $response->get_error_message() ),
+				502
+			);
+		}
+
+		return new \WP_REST_Response( $response, 200 );
+	}
+
+	// -------------------------------------------------------------------------
+	// Task creation proxy (v1.3.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Proxy POST /api/tasks to the Klawty instance.
+	 *
+	 * Accepts a JSON body with agent, title, description, priority, and tier.
+	 * Sanitizes all fields before forwarding to the instance. Returns the
+	 * created task_id on success, or a structured error on failure.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_create_task( \WP_REST_Request $request ): \WP_REST_Response {
+		$body = $request->get_json_params();
+		$body = is_array( $body ) ? $body : array();
+
+		// Sanitize all incoming fields.
+		$task = array(
+			'agent'       => sanitize_text_field( $body['agent'] ?? '' ),
+			'title'       => sanitize_text_field( $body['title'] ?? '' ),
+			'description' => sanitize_textarea_field( $body['description'] ?? '' ),
+			'priority'    => sanitize_text_field( $body['priority'] ?? 'high' ),
+			'tier'        => sanitize_text_field( $body['tier'] ?? 'AUTO' ),
+		);
+
+		if ( empty( $task['agent'] ) || empty( $task['title'] ) ) {
+			return new \WP_REST_Response(
+				array( 'error' => __( 'Agent and title are required.', 'claw-agent' ) ),
+				400
+			);
+		}
+
+		$client   = new \WPClaw\API_Client();
+		$response = $client->create_task( $task );
 
 		if ( is_wp_error( $response ) ) {
 			return new \WP_REST_Response(
