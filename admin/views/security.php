@@ -1,6 +1,6 @@
 <?php
 /**
- * Security dashboard admin view.
+ * Security dashboard admin view — agent-first layout centred on Bastien's reports.
  *
  * @package    WPClaw
  * @subpackage WPClaw/admin/views
@@ -50,7 +50,7 @@ $last_malware_scan  = isset( $sec['last_malware_scan'] ) ? sanitize_text_field( 
 $headers_active     = isset( $sec['security_headers_active'] ) ? (bool) $sec['security_headers_active'] : false;
 
 // -------------------------------------------------------------------------
-// Database queries.
+// Database queries (KPI data only — tables not displayed directly).
 // -------------------------------------------------------------------------
 
 $file_hashes_table = $wpdb->prefix . 'wp_claw_file_hashes';
@@ -77,7 +77,7 @@ $quarantined_files = $wpdb->get_results(
 	)
 );
 
-// Malware scan results from transient.
+// Malware scan results from transient (used for KPI count only).
 $malware_results = get_transient( 'wp_claw_malware_results' );
 if ( ! is_array( $malware_results ) ) {
 	$malware_results = array();
@@ -126,7 +126,32 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
-	<!-- KPI Cards -->
+	<!-- 1. Agent Status Bar -->
+	<div class="wpc-card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:20px;">
+		<div style="display:flex;align-items:center;gap:12px;">
+			<span style="font-size:1.5rem;" aria-hidden="true">🛡️</span>
+			<div>
+				<strong><?php esc_html_e( 'Bastien — The Sentinel', 'claw-agent' ); ?></strong>
+				<span class="wpc-badge wpc-badge--active" id="wpc-sentinel-status"><?php esc_html_e( 'Monitoring', 'claw-agent' ); ?></span>
+			</div>
+		</div>
+		<div style="display:flex;align-items:center;gap:12px;">
+			<span class="wpc-kpi-label" id="wpc-sentinel-last-scan"><?php esc_html_e( 'Loading\xe2\x80\xa6', 'claw-agent' ); ?></span>
+			<button class="wpc-btn wpc-btn--primary wpc-btn--sm" id="wpc-request-security-scan" type="button">
+				<?php esc_html_e( 'Request Scan Now', 'claw-agent' ); ?>
+			</button>
+		</div>
+	</div>
+
+	<!-- 2. Latest Security Report (hero) -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Latest Security Report', 'claw-agent' ); ?></h3>
+		<div id="wpc-security-report">
+			<p class="wpc-empty-state"><?php esc_html_e( "Loading Bastien\xe2\x80\x99s latest security analysis\xe2\x80\xa6", 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- 3. Quick Metrics (KPI row — live WordPress data) -->
 	<section class="wpc-kpi-grid wpc-kpi-grid--6">
 
 		<article class="wpc-kpi-card">
@@ -174,198 +199,15 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 	</section>
 
-	<!-- File Integrity Monitor -->
-	<section class="wpc-card">
-		<h2 class="wpc-section-heading">
-			<?php esc_html_e( 'File Integrity Monitor', 'claw-agent' ); ?>
-			<span class="wpc-badge wpc-badge--<?php echo esc_attr( $integrity_badge['class'] ); ?>">
-				<?php echo esc_html( $integrity_badge['label'] ); ?>
-			</span>
-		</h2>
-
-		<?php if ( '' !== $last_scan_time ) : ?>
-			<p>
-				<?php
-				printf(
-					/* translators: %s: human-readable time difference */
-					esc_html__( 'Last scan: %s ago', 'claw-agent' ),
-					esc_html( human_time_diff( strtotime( $last_scan_time ) ) )
-				);
-				?>
-			</p>
-		<?php endif; ?>
-
-		<p>
-			<button type="button" class="wpc-btn wpc-btn--primary wpc-scan-button wpc-admin-run-scan" data-scan-type="file_integrity">
-				<?php esc_html_e( 'Run Scan', 'claw-agent' ); ?>
-				<span class="wpc-spinner"></span>
-			</button>
-		</p>
-
-		<?php if ( empty( $flagged_files ) ) : ?>
-			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'All monitored files are clean.', 'claw-agent' ); ?></p>
-			</div>
-		<?php else : ?>
-			<table class="wpc-detail-table">
-				<thead>
-					<tr>
-						<th scope="col"><?php esc_html_e( 'File Path', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Scope', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Last Checked', 'claw-agent' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $flagged_files as $file ) : ?>
-						<?php
-						$file_status     = sanitize_key( (string) $file->status );
-						$status_badge    = 'pending';
-						if ( 'quarantined' === $file_status || 'suspicious' === $file_status ) {
-							$status_badge = 'failed';
-						} elseif ( 'modified' === $file_status ) {
-							$status_badge = 'pending';
-						}
-						?>
-						<tr>
-							<td><code><?php echo esc_html( sanitize_text_field( (string) $file->file_path ) ); ?></code></td>
-							<td><?php echo esc_html( ucfirst( sanitize_text_field( (string) $file->scope ) ) ); ?></td>
-							<td>
-								<span class="wpc-badge wpc-badge--<?php echo esc_attr( $status_badge ); ?>">
-									<?php echo esc_html( ucfirst( $file_status ) ); ?>
-								</span>
-							</td>
-							<td>
-								<?php if ( ! empty( $file->checked_at ) ) : ?>
-									<?php
-									echo esc_html(
-										sprintf(
-											/* translators: %s: human-readable time difference */
-											__( '%s ago', 'claw-agent' ),
-											human_time_diff( strtotime( $file->checked_at ) )
-										)
-									);
-									?>
-								<?php else : ?>
-									&mdash;
-								<?php endif; ?>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
+	<!-- 4. Scan History -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Security Scan History', 'claw-agent' ); ?></h3>
+		<div id="wpc-security-scan-history">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading scan history\xe2\x80\xa6', 'claw-agent' ); ?></p>
+		</div>
 	</section>
 
-	<!-- Quarantined Files -->
-	<section class="wpc-card">
-		<h2 class="wpc-section-heading"><?php esc_html_e( 'Quarantined Files', 'claw-agent' ); ?></h2>
-
-		<?php if ( empty( $quarantined_files ) ) : ?>
-			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'No quarantined files.', 'claw-agent' ); ?></p>
-			</div>
-		<?php else : ?>
-			<table class="wpc-detail-table">
-				<thead>
-					<tr>
-						<th scope="col"><?php esc_html_e( 'File Path', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Original Hash', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Quarantined At', 'claw-agent' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $quarantined_files as $qfile ) : ?>
-						<tr>
-							<td><code><?php echo esc_html( sanitize_text_field( (string) $qfile->file_path ) ); ?></code></td>
-							<td><code><?php echo esc_html( substr( sanitize_text_field( (string) $qfile->file_hash ), 0, 12 ) ); ?></code></td>
-							<td>
-								<?php if ( ! empty( $qfile->checked_at ) ) : ?>
-									<?php
-									echo esc_html(
-										sprintf(
-											/* translators: %s: human-readable time difference */
-											__( '%s ago', 'claw-agent' ),
-											human_time_diff( strtotime( $qfile->checked_at ) )
-										)
-									);
-									?>
-								<?php else : ?>
-									&mdash;
-								<?php endif; ?>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
-	</section>
-
-	<!-- Malware Scan Results -->
-	<section class="wpc-card">
-		<h2 class="wpc-section-heading"><?php esc_html_e( 'Malware Scan Results', 'claw-agent' ); ?></h2>
-
-		<?php if ( '' !== $last_malware_scan ) : ?>
-			<p>
-				<?php
-				printf(
-					/* translators: %s: human-readable time difference */
-					esc_html__( 'Last malware scan: %s ago', 'claw-agent' ),
-					esc_html( human_time_diff( strtotime( $last_malware_scan ) ) )
-				);
-				?>
-			</p>
-		<?php endif; ?>
-
-		<p>
-			<button type="button" class="wpc-btn wpc-btn--primary wpc-scan-button wpc-admin-run-scan" data-scan-type="malware">
-				<?php esc_html_e( 'Run Malware Scan', 'claw-agent' ); ?>
-				<span class="wpc-spinner"></span>
-			</button>
-		</p>
-
-		<?php if ( empty( $malware_results ) ) : ?>
-			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'No threats detected in last scan.', 'claw-agent' ); ?></p>
-			</div>
-		<?php else : ?>
-			<table class="wpc-detail-table">
-				<thead>
-					<tr>
-						<th scope="col"><?php esc_html_e( 'File', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Pattern Matched', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Severity', 'claw-agent' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $malware_results as $threat ) : ?>
-						<?php
-						if ( ! is_array( $threat ) ) {
-							continue;
-						}
-						$threat_file     = isset( $threat['file'] ) ? sanitize_text_field( (string) $threat['file'] ) : '';
-						$threat_pattern  = isset( $threat['pattern'] ) ? sanitize_text_field( (string) $threat['pattern'] ) : '';
-						$threat_severity = isset( $threat['severity'] ) ? sanitize_key( (string) $threat['severity'] ) : 'medium';
-						$severity_class  = in_array( $threat_severity, array( 'critical', 'high', 'medium' ), true )
-							? $threat_severity
-							: 'medium';
-						?>
-						<tr>
-							<td><code><?php echo esc_html( $threat_file ); ?></code></td>
-							<td><?php echo esc_html( $threat_pattern ); ?></td>
-							<td>
-								<span class="wpc-severity--<?php echo esc_attr( $severity_class ); ?>">
-									<?php echo esc_html( ucfirst( $threat_severity ) ); ?>
-								</span>
-							</td>
-						</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
-	</section>
-
-	<!-- SSL Certificate -->
+	<!-- 5. SSL Certificate -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'SSL Certificate', 'claw-agent' ); ?></h2>
 
@@ -404,7 +246,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 		</table>
 	</section>
 
-	<!-- Security Headers -->
+	<!-- 6. Security Headers -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Security Headers', 'claw-agent' ); ?></h2>
 
@@ -433,12 +275,268 @@ if ( $ssl_valid && null !== $ssl_days ) {
 		</table>
 	</section>
 
-	<!-- Agent Reports -->
-	<section class="wpc-card" style="margin-top: 20px;">
-		<h3 class="wpc-section-heading"><?php esc_html_e( "Bastien's Security Reports", 'claw-agent' ); ?></h3>
-		<div id="wpc-module-reports" data-agent="bastien" data-limit="5">
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading reports...', 'claw-agent' ); ?></p>
-		</div>
-	</section>
-
 </div>
+
+<script>
+( function () {
+	'use strict';
+
+	/* ------------------------------------------------------------------ */
+	/* Helpers                                                              */
+	/* ------------------------------------------------------------------ */
+
+	/**
+	 * Return a human-readable "X ago" string from an ISO / RFC date string.
+	 *
+	 * @param {string} dateStr
+	 * @return {string}
+	 */
+	function timeAgo( dateStr ) {
+		if ( ! dateStr ) { return ''; }
+		var diff = Math.floor( ( Date.now() - new Date( dateStr ).getTime() ) / 1000 );
+		if ( diff < 60 )   { return diff + 's ago'; }
+		if ( diff < 3600 ) { return Math.floor( diff / 60 ) + 'm ago'; }
+		if ( diff < 86400 ){ return Math.floor( diff / 3600 ) + 'h ago'; }
+		return Math.floor( diff / 86400 ) + 'd ago';
+	}
+
+	/**
+	 * Safely create a text node element.
+	 *
+	 * @param {string} tag
+	 * @param {string} text
+	 * @param {string} [className]
+	 * @return {HTMLElement}
+	 */
+	function el( tag, text, className ) {
+		var node = document.createElement( tag );
+		if ( text ) { node.textContent = text; }
+		if ( className ) { node.className = className; }
+		return node;
+	}
+
+	/**
+	 * Fetch wrapper that always resolves (never rejects to the caller).
+	 *
+	 * @param {string} url
+	 * @param {Object} [options]
+	 * @return {Promise<{ok: boolean, data: any}>}
+	 */
+	function apiFetch( url, options ) {
+		var headers = {
+			'Content-Type': 'application/json',
+			'X-WP-Nonce': ( window.wpApiSettings && window.wpApiSettings.nonce ) || ''
+		};
+		return fetch( url, Object.assign( { headers: headers }, options || {} ) )
+			.then( function ( res ) {
+				return res.json().then( function ( data ) {
+					return { ok: res.ok, data: data };
+				} );
+			} )
+			.catch( function () {
+				return { ok: false, data: null };
+			} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Config                                                               */
+	/* ------------------------------------------------------------------ */
+
+	var restUrl = ( window.wpClaw && window.wpClaw.restUrl ) ? window.wpClaw.restUrl : '';
+
+	/* ------------------------------------------------------------------ */
+	/* 1. Sentinel status + last scan time (from /agents)                  */
+	/* ------------------------------------------------------------------ */
+
+	function loadSentinelStatus() {
+		if ( ! restUrl ) { return; }
+		apiFetch( restUrl + 'agents' ).then( function ( res ) {
+			if ( ! res.ok || ! res.data ) { return; }
+			var agents = Array.isArray( res.data ) ? res.data : ( res.data.agents || [] );
+			var sentinel = null;
+			for ( var i = 0; i < agents.length; i++ ) {
+				var a = agents[ i ];
+				if ( a.name && a.name.toLowerCase().indexOf( 'sentinel' ) !== -1 ) {
+					sentinel = a;
+					break;
+				}
+				if ( a.name && a.name.toLowerCase().indexOf( 'bastien' ) !== -1 ) {
+					sentinel = a;
+					break;
+				}
+			}
+			if ( ! sentinel ) { return; }
+
+			var statusEl = document.getElementById( 'wpc-sentinel-status' );
+			if ( statusEl ) {
+				var statusText = sentinel.status || 'Monitoring';
+				statusEl.textContent = statusText.charAt( 0 ).toUpperCase() + statusText.slice( 1 );
+			}
+
+			var lastScanEl = document.getElementById( 'wpc-sentinel-last-scan' );
+			if ( lastScanEl ) {
+				var lastActive = sentinel.last_active || sentinel.updated_at || '';
+				lastScanEl.textContent = lastActive
+					? 'Last active: ' + timeAgo( lastActive )
+					: 'No recent activity';
+			}
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* 2. Latest security report                                            */
+	/* ------------------------------------------------------------------ */
+
+	function renderReport( container, report ) {
+		while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+
+		if ( ! report ) {
+			container.appendChild( el( 'p', 'No security reports yet — Bastien will post findings after his next scan.', 'wpc-empty-state' ) );
+			return;
+		}
+
+		/* Meta row */
+		var meta = document.createElement( 'div' );
+		meta.style.cssText = 'display:flex;align-items:center;gap:12px;margin-bottom:12px;flex-wrap:wrap;';
+
+		if ( report.created_at ) {
+			meta.appendChild( el( 'span', timeAgo( report.created_at ), 'wpc-kpi-label' ) );
+		}
+		if ( report.status ) {
+			var badge = el( 'span', report.status, 'wpc-badge wpc-badge--' + ( report.status === 'done' ? 'done' : 'pending' ) );
+			meta.appendChild( badge );
+		}
+		container.appendChild( meta );
+
+		/* Title */
+		if ( report.title ) {
+			container.appendChild( el( 'h4', report.title ) );
+		}
+
+		/* Summary */
+		if ( report.summary ) {
+			container.appendChild( el( 'p', report.summary ) );
+		}
+
+		/* Evidence / full result as pre */
+		var content = report.result || report.content || report.description || '';
+		if ( content ) {
+			var pre = document.createElement( 'pre' );
+			pre.textContent = content;
+			pre.style.cssText = 'background:#f6f7f7;border:1px solid #ddd;border-radius:4px;padding:12px;overflow:auto;font-size:0.8125rem;white-space:pre-wrap;word-break:break-word;max-height:320px;';
+			container.appendChild( pre );
+		}
+	}
+
+	function loadLatestReport() {
+		if ( ! restUrl ) { return; }
+		var container = document.getElementById( 'wpc-security-report' );
+		if ( ! container ) { return; }
+
+		apiFetch( restUrl + 'reports?agent=sentinel&limit=1' ).then( function ( res ) {
+			var reports = ( res.ok && res.data ) ? ( Array.isArray( res.data ) ? res.data : ( res.data.reports || [] ) ) : [];
+			renderReport( container, reports[0] || null );
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* 3. Scan history                                                      */
+	/* ------------------------------------------------------------------ */
+
+	function loadScanHistory() {
+		if ( ! restUrl ) { return; }
+		var container = document.getElementById( 'wpc-security-scan-history' );
+		if ( ! container ) { return; }
+
+		apiFetch( restUrl + 'reports?agent=sentinel&since=30d&limit=10' ).then( function ( res ) {
+			var reports = ( res.ok && res.data ) ? ( Array.isArray( res.data ) ? res.data : ( res.data.reports || [] ) ) : [];
+
+			while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+
+			if ( ! reports.length ) {
+				container.appendChild( el( 'p', 'No scans in the last 30 days.', 'wpc-empty-state' ) );
+				return;
+			}
+
+			var table = document.createElement( 'table' );
+			table.className = 'wpc-detail-table';
+
+			var thead = document.createElement( 'thead' );
+			var hrow  = document.createElement( 'tr' );
+			[ 'When', 'Title', 'Status' ].forEach( function ( h ) {
+				var th = document.createElement( 'th' );
+				th.scope = 'col';
+				th.textContent = h;
+				hrow.appendChild( th );
+			} );
+			thead.appendChild( hrow );
+			table.appendChild( thead );
+
+			var tbody = document.createElement( 'tbody' );
+			reports.forEach( function ( r ) {
+				var row    = document.createElement( 'tr' );
+				var tdWhen = document.createElement( 'td' );
+				tdWhen.textContent = r.created_at ? timeAgo( r.created_at ) : '—';
+
+				var tdTitle = document.createElement( 'td' );
+				tdTitle.textContent = r.title || '(untitled)';
+
+				var tdStatus = document.createElement( 'td' );
+				var statusStr = r.status || 'done';
+				var badge = el( 'span', statusStr, 'wpc-badge wpc-badge--' + ( statusStr === 'done' ? 'done' : 'pending' ) );
+				tdStatus.appendChild( badge );
+
+				row.appendChild( tdWhen );
+				row.appendChild( tdTitle );
+				row.appendChild( tdStatus );
+				tbody.appendChild( row );
+			} );
+			table.appendChild( tbody );
+			container.appendChild( table );
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* 4. Request scan button                                               */
+	/* ------------------------------------------------------------------ */
+
+	function initRequestScanButton() {
+		var btn = document.getElementById( 'wpc-request-security-scan' );
+		if ( ! btn ) { return; }
+
+		btn.addEventListener( 'click', function () {
+			if ( ! restUrl ) { return; }
+			btn.disabled = true;
+			btn.textContent = 'Requesting\u2026';
+
+			apiFetch( restUrl + 'create-task', {
+				method: 'POST',
+				body: JSON.stringify( {
+					agent: 'sentinel',
+					title: 'Manual security scan',
+					priority: 'high',
+					description: 'Admin requested a full security scan. Run file integrity check, malware scan, SSL check, login attempt review. Report all findings.'
+				} )
+			} ).then( function ( res ) {
+				if ( res.ok ) {
+					btn.textContent = 'Scan requested \u2014 Bastien will process it within 15 minutes.';
+				} else {
+					btn.textContent = 'Request failed \u2014 check agent connection.';
+					btn.disabled = false;
+				}
+			} );
+		} );
+	}
+
+	/* ------------------------------------------------------------------ */
+	/* Boot                                                                 */
+	/* ------------------------------------------------------------------ */
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		loadSentinelStatus();
+		loadLatestReport();
+		loadScanHistory();
+		initRequestScanButton();
+	} );
+}() );
+</script>
