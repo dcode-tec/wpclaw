@@ -337,6 +337,18 @@ class REST_API {
 			)
 		);
 
+		register_rest_route(
+			self::NAMESPACE,
+			'/admin/reset-circuit-breaker',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_admin_reset_circuit_breaker' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+			)
+		);
+
 		// ----- Dashboard proxy routes (v1.3.0) -----
 
 		register_rest_route(
@@ -372,6 +384,53 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+			)
+		);
+
+		// ----- Proxy routes: reports, activity, profile (v1.3.0) -----
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/reports',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_proxy_reports' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_view_dashboard' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/activity',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_proxy_activity' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_view_dashboard' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/profile',
+			array(
+				array(
+					'methods'             => 'GET',
+					'callback'            => array( $this, 'handle_proxy_profile_get' ),
+					'permission_callback' => static function () {
+						return current_user_can( 'wp_claw_manage_settings' );
+					},
+				),
+				array(
+					'methods'             => 'POST',
+					'callback'            => array( $this, 'handle_proxy_profile_post' ),
+					'permission_callback' => static function () {
+						return current_user_can( 'wp_claw_manage_settings' );
+					},
+				),
 			)
 		);
 	}
@@ -1487,6 +1546,28 @@ class REST_API {
 		);
 	}
 
+	/**
+	 * Reset the API client circuit breaker.
+	 *
+	 * Clears the failure counter and open-until transients so requests
+	 * to the Klawty instance resume immediately. Used when the underlying
+	 * connectivity issue has been resolved (e.g. plugin installed, DNS fixed).
+	 *
+	 * @since 1.2.2
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_admin_reset_circuit_breaker( \WP_REST_Request $request ): \WP_REST_Response {
+		delete_transient( \WPClaw\API_Client::TRANSIENT_FAILURES );
+		delete_transient( \WPClaw\API_Client::TRANSIENT_OPEN_UNTIL );
+
+		return new \WP_REST_Response(
+			array( 'message' => __( 'Circuit breaker reset. Connection to the Klawty instance will be retried on the next request.', 'claw-agent' ) ),
+			200
+		);
+	}
+
 	// -------------------------------------------------------------------------
 	// Dashboard proxy handlers (v1.3.0)
 	// -------------------------------------------------------------------------
@@ -1556,6 +1637,20 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_agents( \WP_REST_Request $request ): \WP_REST_Response {
+		$instance_url = get_option( 'wp_claw_instance_url', '' );
+		$mode         = get_option( 'wp_claw_connection_mode', 'managed' );
+		if ( '' === $instance_url && 'managed' === $mode ) {
+			return new \WP_REST_Response(
+				array(
+					'status'  => 'error',
+					'message' => __( 'Instance URL not set. Go to Settings → Instance URL and enter your managed instance URL.', 'claw-agent' ),
+					'code'    => 'no_instance_url',
+					'agents'  => array(),
+				),
+				400
+			);
+		}
+
 		$client   = new \WPClaw\API_Client();
 		$response = $client->get_agents();
 
@@ -1611,5 +1706,134 @@ class REST_API {
 			),
 			200
 		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Proxy handlers — reports, activity, profile (v1.3.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Proxy GET /api/reports from the Klawty instance.
+	 *
+	 * Forwards whitelisted query params (agent, since, limit, offset) and
+	 * caches the result in a 5-minute transient keyed by the query string hash
+	 * to avoid hammering the instance on repeated dashboard refreshes.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_proxy_reports( \WP_REST_Request $request ): \WP_REST_Response {
+		$allowed = array( 'agent', 'since', 'limit', 'offset' );
+		$params  = array_intersect_key( $request->get_query_params(), array_flip( $allowed ) );
+		$qs      = http_build_query( $params );
+
+		// 5-minute transient cache keyed by query string.
+		$cache_key = 'wp_claw_reports_' . md5( $qs );
+		$cached    = get_transient( $cache_key );
+		if ( false !== $cached ) {
+			return new \WP_REST_Response( $cached, 200 );
+		}
+
+		$client   = new \WPClaw\API_Client();
+		$response = $client->get_reports( $qs );
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array(
+					'reports' => array(),
+					'total'   => 0,
+				),
+				200
+			);
+		}
+
+		set_transient( $cache_key, $response, 5 * MINUTE_IN_SECONDS );
+		return new \WP_REST_Response( $response, 200 );
+	}
+
+	/**
+	 * Proxy GET /api/activity from the Klawty instance.
+	 *
+	 * Forwards whitelisted query params (since, limit). No caching — activity
+	 * feeds are expected to be fresh for live dashboard updates.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_proxy_activity( \WP_REST_Request $request ): \WP_REST_Response {
+		$allowed = array( 'since', 'limit' );
+		$params  = array_intersect_key( $request->get_query_params(), array_flip( $allowed ) );
+		$qs      = http_build_query( $params );
+
+		$client   = new \WPClaw\API_Client();
+		$response = $client->get_activity( $qs );
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array( 'activity' => array() ),
+				200
+			);
+		}
+
+		return new \WP_REST_Response( $response, 200 );
+	}
+
+	/**
+	 * Proxy GET /api/profile from the Klawty instance.
+	 *
+	 * Returns the agent profile / SOUL.md content. No caching — profile reads
+	 * should always reflect the current state in the instance.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function handle_proxy_profile_get(): \WP_REST_Response {
+		$client   = new \WPClaw\API_Client();
+		$response = $client->get_profile();
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array(
+					'content' => '',
+					'exists'  => false,
+				),
+				200
+			);
+		}
+
+		return new \WP_REST_Response( $response, 200 );
+	}
+
+	/**
+	 * Proxy POST /api/profile to the Klawty instance.
+	 *
+	 * Forwards the JSON request body to the instance profile endpoint.
+	 * Returns 502 on upstream failure so the client can surface a useful error.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param \WP_REST_Request $request REST request object.
+	 * @return \WP_REST_Response
+	 */
+	public function handle_proxy_profile_post( \WP_REST_Request $request ): \WP_REST_Response {
+		$body   = $request->get_json_params();
+		$body   = is_array( $body ) ? $body : array();
+
+		$client   = new \WPClaw\API_Client();
+		$response = $client->update_profile( $body );
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array( 'error' => $response->get_error_message() ),
+				502
+			);
+		}
+
+		return new \WP_REST_Response( $response, 200 );
 	}
 }

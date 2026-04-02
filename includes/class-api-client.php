@@ -475,15 +475,6 @@ class API_Client {
 			'X-WPClaw-Timestamp' => $timestamp,
 		);
 
-		// TEMPORARY DEBUG — remove after testing
-		wp_claw_log_warning( 'DEBUG request', array(
-			'url'       => $url,
-			'key_len'   => strlen( $this->api_key ),
-			'key_start' => substr( $this->api_key, 0, 8 ),
-			'key_end'   => substr( $this->api_key, -8 ),
-			'base_url'  => $this->base_url,
-		) );
-
 		// --- Step 7: Dispatch request (with 5xx retry loop) -----------------
 		$args = array(
 			'method'  => strtoupper( $method ),
@@ -727,6 +718,71 @@ class API_Client {
 				)
 			);
 		}
+	}
+
+	// -------------------------------------------------------------------------
+	// Public API — reports, activity, profile (v1.3.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Retrieve agent task reports from the Klawty instance.
+	 *
+	 * Forwards optional query params: agent, since, limit, offset. The caller
+	 * is responsible for assembling the query string before passing it here.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string $query_string URL-encoded query string (no leading '?').
+	 *
+	 * @return array|\WP_Error Sanitized response array on success, WP_Error on failure.
+	 */
+	public function get_reports( string $query_string = '' ) {
+		$endpoint = '/api/reports';
+		if ( '' !== $query_string ) {
+			$endpoint .= '?' . $query_string;
+		}
+		return $this->request( 'GET', $endpoint );
+	}
+
+	/**
+	 * Retrieve the live activity log from the Klawty instance.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param string $query_string URL-encoded query string (no leading '?').
+	 *
+	 * @return array|\WP_Error Sanitized response array on success, WP_Error on failure.
+	 */
+	public function get_activity( string $query_string = '' ) {
+		$endpoint = '/api/activity';
+		if ( '' !== $query_string ) {
+			$endpoint .= '?' . $query_string;
+		}
+		return $this->request( 'GET', $endpoint );
+	}
+
+	/**
+	 * Retrieve the agent profile / SOUL.md content from the Klawty instance.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return array|\WP_Error Sanitized response array on success, WP_Error on failure.
+	 */
+	public function get_profile() {
+		return $this->request( 'GET', '/api/profile' );
+	}
+
+	/**
+	 * Update the agent profile / SOUL.md content on the Klawty instance.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param array $data Profile payload (expected key: 'content').
+	 *
+	 * @return array|\WP_Error Sanitized response array on success, WP_Error on failure.
+	 */
+	public function update_profile( array $data ) {
+		return $this->request( 'POST', '/api/profile', $data );
 	}
 
 	/**
