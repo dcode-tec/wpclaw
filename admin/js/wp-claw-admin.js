@@ -386,8 +386,89 @@
 	}
 
 	/* =========================================================================
-		3. Settings: Connection Test Button
+		3. Settings: Connection Banner + Health Polling
 		========================================================================= */
+
+	/**
+	 * Update the connection banner to connected or disconnected state.
+	 *
+	 * @param {boolean} connected  Whether the instance is reachable.
+	 * @param {string}  message    Status text shown after the em-dash.
+	 */
+	function updateConnectionBanner( connected, message ) {
+		var banner = document.querySelector( '.wpc-connection-banner' );
+		if ( ! banner ) {
+			return;
+		}
+
+		banner.className = 'wpc-connection-banner ' +
+			( connected ? 'wpc-connection-banner--connected' : 'wpc-connection-banner--disconnected' );
+
+		while ( banner.firstChild ) {
+			banner.removeChild( banner.firstChild );
+		}
+
+		var dot = document.createElement( 'span' );
+		dot.className = 'wpc-status-dot ' + ( connected ? 'wpc-status-dot--green' : 'wpc-status-dot--red' );
+		banner.appendChild( dot );
+
+		var strong = document.createElement( 'strong' );
+		strong.textContent = connected ? 'Connected' : 'Not connected';
+		banner.appendChild( strong );
+
+		banner.appendChild( document.createTextNode( ' \u2014 ' + message ) );
+	}
+
+	/**
+	 * Fetch health status and update the banner.
+	 *
+	 * @param {boolean} silent  If true, skip toast notifications (used by auto-poll).
+	 */
+	function checkHealth( silent ) {
+		var wrapEl = document.querySelector( '.wpc-admin-wrap' ) || document.body;
+
+		fetch( wpClaw.restUrl + 'health', buildFetchOptions( 'GET' ) )
+			.then(
+				function ( response ) {
+					if ( ! response.ok ) {
+						return response.json().then( function ( body ) {
+							throw new Error( body.message || 'Connection failed (' + response.status + ')' );
+						} ).catch( function ( e ) {
+							if ( e.message ) { throw e; }
+							throw new Error( 'Connection failed (' + response.status + ')' );
+						} );
+					}
+					return response.json();
+				}
+			)
+			.then(
+				function ( data ) {
+					var isOk = data.status === 'ok';
+					var msg  = isOk
+						? 'WP-Claw is communicating with the Klawty instance.'
+						: 'Klawty reported status: ' + ( data.status || 'unknown' );
+
+					updateConnectionBanner( isOk, msg );
+
+					if ( ! silent ) {
+						showNotice(
+							wrapEl,
+							isOk ? 'Connection successful. Klawty instance is reachable.' : msg,
+							isOk ? 'success' : 'warning'
+						);
+					}
+				}
+			)
+			.catch(
+				function ( err ) {
+					updateConnectionBanner( false, err.message );
+
+					if ( ! silent ) {
+						showNotice( wrapEl, 'Connection error: ' + err.message, 'error' );
+					}
+				}
+			);
+	}
 
 	/**
 	 * Handle the "Test Connection" button click.
@@ -401,58 +482,18 @@
 		btn.addEventListener(
 			'click',
 			function () {
-				var wrapEl  = document.querySelector( '.wpc-wrap' ) || document.body;
 				var restore = setButtonLoading( btn );
-
-				fetch( wpClaw.restUrl + 'health', buildFetchOptions( 'GET' ) )
-				.then(
-					function ( response ) {
-						restore();
-						if ( ! response.ok ) {
-							return response.json().then( function ( body ) {
-								throw new Error( body.message || 'Connection failed (' + response.status + ')' );
-							} ).catch( function ( e ) {
-								if ( e.message ) { throw e; }
-								throw new Error( 'Connection failed (' + response.status + ')' );
-							} );
-						}
-						return response.json();
-					}
-				)
-				.then(
-					function ( data ) {
-						var msg  = data.status === 'ok'
-						? 'Connection successful. Klawty instance is reachable.'
-						: 'Connected but Klawty reported status: ' + ( data.status || 'unknown' );
-						var type = data.status === 'ok' ? 'success' : 'warning';
-						showNotice( wrapEl, msg, type );
-
-						// Update connection status dot if present.
-						var dot = document.querySelector( '.wpc-connection-status .wpc-status-dot' );
-						if ( dot ) {
-								dot.className = 'wpc-status-dot';
-								dot.classList.add(
-									data.status === 'ok'
-									? 'wpc-status-dot--connected'
-									: 'wpc-status-dot--warning'
-								);
-						}
-					}
-				)
-				.catch(
-					function ( err ) {
-						restore();
-						showNotice( wrapEl, 'Connection error: ' + err.message, 'error' );
-
-						// Update dot to offline.
-						var dot = document.querySelector( '.wpc-connection-status .wpc-status-dot' );
-						if ( dot ) {
-								dot.className = 'wpc-status-dot wpc-status-dot--offline';
-						}
-					}
-				);
+				checkHealth( false );
+				// Restore button state after a short delay (fetch is async).
+				setTimeout( restore, 1500 );
 			}
 		);
+
+		// Auto-poll every 30 seconds (silent — banner only, no toasts).
+		if ( 'settings' === wpClaw.page ) {
+			checkHealth( true );
+			setInterval( function () { checkHealth( true ); }, 30000 );
+		}
 	}
 
 	/* =========================================================================
@@ -933,7 +974,7 @@
 					)
 					.then(
 						function ( data ) {
-							// Remove the alert banner with a fade-out.
+							// Remove the alert banner with a fade-out (dashboard page).
 							var banner = document.querySelector( '.wpc-alert-banner--danger' );
 							if ( banner ) {
 								banner.style.transition = 'opacity 0.3s';
@@ -945,7 +986,79 @@
 									300
 								);
 							}
+
+							// Update the Operations Status row in-place (settings page).
+							var row = btn.closest( 'td' );
+							if ( row ) {
+								while ( row.firstChild ) {
+									row.removeChild( row.firstChild );
+								}
+								var badge = document.createElement( 'span' );
+								badge.className = 'wpc-badge wpc-badge--active';
+								var dot = document.createElement( 'span' );
+								dot.className = 'wpc-status-dot wpc-status-dot--green';
+								badge.appendChild( dot );
+								badge.appendChild( document.createTextNode( ' Normal' ) );
+								row.appendChild( badge );
+							}
+
 							showNotice( wrapEl, data.message || 'Operations resumed.', 'success' );
+						}
+					)
+					.catch(
+						function () {
+							restore();
+							showNotice( wrapEl, wpClaw.i18n.error, 'error' );
+						}
+					);
+			}
+		);
+	}
+
+	/* =========================================================================
+		11b. Reset Circuit Breaker — Settings page (v1.2.2)
+		========================================================================= */
+
+	if ( 'settings' === wpClaw.page ) {
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var btn = e.target.closest( '.wpc-admin-reset-circuit-breaker' );
+				if ( ! btn ) {
+					return;
+				}
+
+				var wrapEl  = document.querySelector( '.wpc-admin-wrap' ) || document.body;
+				var restore = setButtonLoading( btn );
+
+				fetch(
+					wpClaw.restUrl + 'admin/reset-circuit-breaker',
+					buildFetchOptions( 'POST' )
+				)
+					.then(
+						function ( res ) {
+							if ( ! res.ok ) {
+								throw new Error( 'Reset failed (' + res.status + ')' );
+							}
+							return res.json();
+						}
+					)
+					.then(
+						function ( data ) {
+							var row = btn.closest( 'td' );
+							if ( row ) {
+								while ( row.firstChild ) {
+									row.removeChild( row.firstChild );
+								}
+								var badge = document.createElement( 'span' );
+								badge.className = 'wpc-badge wpc-badge--active';
+								var dot = document.createElement( 'span' );
+								dot.className = 'wpc-status-dot wpc-status-dot--green';
+								badge.appendChild( dot );
+								badge.appendChild( document.createTextNode( ' Closed (healthy)' ) );
+								row.appendChild( badge );
+							}
+							showNotice( wrapEl, data.message || 'Circuit breaker reset.', 'success' );
 						}
 					)
 					.catch(
@@ -1056,6 +1169,126 @@
 	}
 
 	/* =========================================================================
+		14. Business Profile — Save + Sync (v1.2.2)
+		========================================================================= */
+
+	/**
+	 * Handle the Business Profile form submission.
+	 *
+	 * 1. Saves the profile to WP options via admin-ajax.php (local persistence).
+	 * 2. Syncs to the Klawty instance via REST POST /profile (USER.md update).
+	 * Shows a status message based on the combined outcome.
+	 *
+	 * @since 1.2.2
+	 */
+	function initBusinessProfile() {
+		var form = document.getElementById( 'wpc-business-profile-form' );
+		if ( ! form ) {
+			return;
+		}
+
+		form.addEventListener(
+			'submit',
+			function ( e ) {
+				e.preventDefault();
+
+				var btn       = document.getElementById( 'wpc-save-profile' );
+				var statusEl  = document.getElementById( 'wpc-profile-status' );
+				var restore   = setButtonLoading( btn );
+
+				// Collect field values.
+				var fields = [ 'business_name', 'industry', 'description', 'owner_role', 'top_goal', 'never_do', 'extra_context' ];
+				var data   = {};
+				fields.forEach(
+					function ( f ) {
+						var el = form.elements[ f ];
+						data[ f ] = el ? el.value : '';
+					}
+				);
+
+				// Retrieve the nonce from the hidden field WordPress injected.
+				var nonceEl = form.querySelector( '[name="wp_claw_profile_nonce"]' );
+				var nonce   = nonceEl ? nonceEl.value : '';
+
+				// Build form body for admin-ajax.php (URLSearchParams for WP AJAX).
+				var params = new URLSearchParams();
+				params.append( 'action', 'wp_claw_save_profile' );
+				params.append( '_wpnonce', nonce );
+				fields.forEach(
+					function ( f ) {
+						params.append( f, data[ f ] );
+					}
+				);
+
+				// --- Local save (admin-ajax.php) ---
+				var localSave = fetch(
+					wpClaw.ajaxUrl,
+					{
+						method: 'POST',
+						credentials: 'same-origin',
+						headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+						body: params.toString(),
+					}
+				).then(
+					function ( res ) {
+						return res.json();
+					}
+				).then(
+					function ( body ) {
+						if ( ! body.success ) {
+							throw new Error( 'Local save failed' );
+						}
+					}
+				);
+
+				// --- Klawty sync (REST POST /profile) ---
+				var syncSave = fetch(
+					wpClaw.restUrl + 'profile',
+					buildFetchOptions( 'POST', data )
+				).then(
+					function ( res ) {
+						if ( ! res.ok ) {
+							throw new Error( 'Sync failed (' + res.status + ')' );
+						}
+						return res.json();
+					}
+				);
+
+				// Resolve both and surface combined status.
+				Promise.allSettled( [ localSave, syncSave ] ).then(
+					function ( results ) {
+						restore();
+						var localOk = results[ 0 ].status === 'fulfilled';
+						var syncOk  = results[ 1 ].status === 'fulfilled';
+
+						statusEl.textContent = '';
+
+						if ( localOk && syncOk ) {
+							statusEl.textContent = 'Saved and synced.';
+							statusEl.style.color = '#3a8a3a';
+						} else if ( localOk ) {
+							statusEl.textContent = 'Saved locally, sync failed.';
+							statusEl.style.color = '#b45309';
+						} else {
+							statusEl.textContent = 'Save failed. Please try again.';
+							statusEl.style.color = '#b91c1c';
+						}
+
+						// Clear status message after 5 seconds.
+						setTimeout(
+							function () {
+								statusEl.textContent = '';
+								statusEl.style.color = '';
+							},
+							5000
+						);
+					}
+				);
+			}
+		);
+	}
+
+	/* =========================================================================
 		Boot — initialise all components on DOMContentLoaded
 		========================================================================= */
 
@@ -1065,6 +1298,7 @@
 	 * @since 1.0.0
 	 * @since 1.2.0 Added email draft actions, scan trigger, resume ops,
 	 *              expandable rows, and activity filter initialisation.
+	 * @since 1.2.2 Added business profile form handler.
 	 */
 	function init() {
 		if ( typeof wpClaw === 'undefined' ) {
@@ -1087,6 +1321,9 @@
 		initResumeOperations();
 		initExpandableRows();
 		initActivityFilter();
+
+		// v1.2.2 features.
+		initBusinessProfile();
 	}
 
 	if ( document.readyState === 'loading' ) {
@@ -1527,5 +1764,311 @@
 		document.addEventListener( 'DOMContentLoaded', initCommandCenter );
 	} else {
 		initCommandCenter();
+	}
+} )();
+
+/* =========================================================================
+	Reports Page
+	========================================================================= */
+
+( function () {
+	'use strict';
+
+	/**
+	 * Convert an ISO timestamp string to a relative "time ago" label.
+	 *
+	 * Returns strings like "2m ago", "3h ago", "1d ago".
+	 *
+	 * @param {string} iso  ISO 8601 timestamp string.
+	 * @return {string}
+	 */
+	function timeAgo( iso ) {
+		var diff = Math.floor( ( Date.now() - new Date( iso ).getTime() ) / 1000 );
+		if ( diff < 60 ) {
+			return diff + 's ago';
+		}
+		if ( diff < 3600 ) {
+			return Math.floor( diff / 60 ) + 'm ago';
+		}
+		if ( diff < 86400 ) {
+			return Math.floor( diff / 3600 ) + 'h ago';
+		}
+		return Math.floor( diff / 86400 ) + 'd ago';
+	}
+
+	/**
+	 * Map a priority value to a badge modifier class.
+	 *
+	 * @param {string} priority  'high', 'medium', or 'low'.
+	 * @return {string}  Badge modifier (without the 'wpc-badge--' prefix).
+	 */
+	function priorityBadgeClass( priority ) {
+		var map = {
+			high:   'failed',
+			medium: 'done',
+			low:    'idle',
+		};
+		var key = String( priority || '' ).toLowerCase();
+		return map[ key ] || 'idle';
+	}
+
+	/**
+	 * Extract the first 3 lines of evidence that do not start with '#'.
+	 *
+	 * @param {string} evidence  Full evidence/report text.
+	 * @return {string}
+	 */
+	function evidencePreview( evidence ) {
+		var lines   = String( evidence || '' ).split( '\n' );
+		var preview = [];
+		for ( var i = 0; i < lines.length && preview.length < 3; i++ ) {
+			var line = lines[ i ].trim();
+			if ( line && line.charAt( 0 ) !== '#' ) {
+				preview.push( lines[ i ] );
+			}
+		}
+		return preview.join( '\n' );
+	}
+
+	/**
+	 * Build a single report card element using safe DOM methods.
+	 *
+	 * @param {Object} report  Report data object from the REST API.
+	 * @return {HTMLElement}
+	 */
+	function buildReportCard( report ) {
+		var card       = document.createElement( 'div' );
+		card.className = 'wpc-card';
+		card.style.cssText = 'margin-bottom: 16px;';
+
+		// ----- Header -----
+		var header         = document.createElement( 'div' );
+		header.style.cssText = 'display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px;';
+
+		// Agent badge.
+		var agentBadge       = document.createElement( 'span' );
+		agentBadge.className = 'wpc-badge wpc-badge--active';
+		agentBadge.textContent = String( report.agent_emoji || '' ) + ' ' + String( report.agent || '' );
+		header.appendChild( agentBadge );
+
+		// Title.
+		var title       = document.createElement( 'strong' );
+		title.textContent = String( report.title || '' );
+		header.appendChild( title );
+
+		// Timestamp.
+		if ( report.created_at ) {
+			var timeSpan       = document.createElement( 'span' );
+			timeSpan.className = 'wpc-kpi-label';
+			timeSpan.style.cssText = 'margin-left: auto;';
+			timeSpan.textContent = timeAgo( report.created_at );
+			header.appendChild( timeSpan );
+		}
+
+		// Priority badge.
+		if ( report.priority ) {
+			var prioBadge       = document.createElement( 'span' );
+			prioBadge.className = 'wpc-badge wpc-badge--' + priorityBadgeClass( report.priority );
+			prioBadge.textContent = String( report.priority );
+			header.appendChild( prioBadge );
+		}
+
+		// Cost display.
+		if ( report.cost !== undefined && report.cost !== null ) {
+			var costSpan       = document.createElement( 'span' );
+			costSpan.className = 'wpc-kpi-label';
+			costSpan.textContent = '$' + Number( report.cost ).toFixed( 3 );
+			header.appendChild( costSpan );
+		}
+
+		card.appendChild( header );
+
+		// ----- Module badges -----
+		var modules = Array.isArray( report.modules ) ? report.modules : [];
+		if ( modules.length ) {
+			var modulesRow       = document.createElement( 'div' );
+			modulesRow.style.cssText = 'display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px;';
+			modules.forEach(
+				function ( mod ) {
+					var badge       = document.createElement( 'span' );
+					badge.className = 'wpc-badge wpc-badge--idle';
+					badge.textContent = String( mod );
+					modulesRow.appendChild( badge );
+				}
+			);
+			card.appendChild( modulesRow );
+		}
+
+		// ----- Evidence preview -----
+		var preview = evidencePreview( report.evidence );
+		if ( preview ) {
+			var pre       = document.createElement( 'pre' );
+			pre.style.cssText = 'font-size: 12px; background: #f6f7f7; padding: 10px; border-radius: 4px; overflow: auto; max-height: 120px; margin: 0 0 8px;';
+			pre.textContent = preview;
+			card.appendChild( pre );
+		}
+
+		// ----- "Show full report" toggle -----
+		var fullEvidence = String( report.evidence || '' );
+		if ( fullEvidence && fullEvidence !== preview ) {
+			var toggleBtn         = document.createElement( 'button' );
+			toggleBtn.type        = 'button';
+			toggleBtn.className   = 'wpc-expand-toggle';
+			toggleBtn.textContent = 'Show full report';
+
+			var fullPre       = document.createElement( 'pre' );
+			fullPre.style.cssText = 'font-size: 12px; background: #f6f7f7; padding: 10px; border-radius: 4px; overflow: auto; max-height: 360px; margin: 8px 0 0; display: none;';
+			fullPre.textContent = fullEvidence;
+
+			toggleBtn.addEventListener(
+				'click',
+				( function ( pre, btn ) {
+					return function () {
+						var isHidden = pre.style.display === 'none';
+						pre.style.display = isHidden ? 'block' : 'none';
+						btn.textContent   = isHidden ? 'Hide full report' : 'Show full report';
+					};
+				} )( fullPre, toggleBtn )
+			);
+
+			card.appendChild( toggleBtn );
+			card.appendChild( fullPre );
+		}
+
+		return card;
+	}
+
+	/**
+	 * Initialise the Reports page.
+	 *
+	 * Only runs when wpClaw.page === 'reports'.
+	 *
+	 * @since 1.2.2
+	 */
+	function initReportsPage() {
+		if ( typeof wpClaw === 'undefined' || wpClaw.page !== 'reports' ) {
+			return;
+		}
+
+		var agentSelect  = document.getElementById( 'wpc-report-agent' );
+		var sinceSelect  = document.getElementById( 'wpc-report-since' );
+		var filterBtn    = document.getElementById( 'wpc-report-filter' );
+		var reportsList  = document.getElementById( 'wpc-reports-list' );
+		var countDisplay = document.getElementById( 'wpc-report-count' );
+
+		if ( ! reportsList ) {
+			return;
+		}
+
+		/**
+		 * Fetch reports from the Klawty REST endpoint and render them.
+		 */
+		function loadReports() {
+			var agent = agentSelect ? agentSelect.value : '';
+			var since = sinceSelect ? sinceSelect.value : '7d';
+			var url   = wpClaw.restUrl + 'reports?agent=' + encodeURIComponent( agent ) +
+				'&since=' + encodeURIComponent( since ) + '&limit=20';
+
+			// Show loading state.
+			while ( reportsList.firstChild ) {
+				reportsList.removeChild( reportsList.firstChild );
+			}
+			var loadingP       = document.createElement( 'p' );
+			loadingP.className = 'wpc-empty-state';
+			loadingP.style.cssText = 'text-align: center; padding: 40px;';
+			loadingP.textContent = 'Loading reports\u2026';
+			reportsList.appendChild( loadingP );
+
+			if ( countDisplay ) {
+				countDisplay.textContent = '';
+			}
+
+			fetch(
+				url,
+				{
+					method: 'GET',
+					headers: {
+						'X-WP-Nonce': wpClaw.nonce,
+					},
+					credentials: 'same-origin',
+				}
+			)
+				.then(
+					function ( response ) {
+						if ( ! response.ok ) {
+							return response.json().then(
+								function ( data ) {
+									throw new Error( data.message || 'Request failed (' + response.status + ')' );
+								}
+							);
+						}
+						return response.json();
+					}
+				)
+				.then(
+					function ( data ) {
+						// Clear loading state.
+						while ( reportsList.firstChild ) {
+							reportsList.removeChild( reportsList.firstChild );
+						}
+
+						var reports = Array.isArray( data.reports ) ? data.reports : [];
+						var total   = typeof data.total === 'number' ? data.total : reports.length;
+
+						if ( ! reports.length ) {
+							var emptyP       = document.createElement( 'p' );
+							emptyP.className = 'wpc-empty-state';
+							emptyP.style.cssText = 'text-align: center; padding: 40px;';
+							emptyP.textContent = 'No reports found for the selected filters.';
+							reportsList.appendChild( emptyP );
+
+							if ( countDisplay ) {
+								countDisplay.textContent = '';
+							}
+							return;
+						}
+
+						reports.forEach(
+							function ( report ) {
+								reportsList.appendChild( buildReportCard( report ) );
+							}
+						);
+
+						if ( countDisplay ) {
+							countDisplay.textContent = 'Showing ' + reports.length + ' of ' + total + ' reports';
+						}
+					}
+				)
+				.catch(
+					function ( err ) {
+						while ( reportsList.firstChild ) {
+							reportsList.removeChild( reportsList.firstChild );
+						}
+						var errP       = document.createElement( 'p' );
+						errP.className = 'wpc-empty-state';
+						errP.style.cssText = 'text-align: center; padding: 40px; color: #d63638;';
+						errP.textContent = 'Failed to load reports: ' + err.message;
+						reportsList.appendChild( errP );
+
+						if ( countDisplay ) {
+							countDisplay.textContent = '';
+						}
+					}
+				);
+		}
+
+		// Attach filter button.
+		if ( filterBtn ) {
+			filterBtn.addEventListener( 'click', loadReports );
+		}
+
+		// Initial load.
+		loadReports();
+	}
+
+	if ( document.readyState === 'loading' ) {
+		document.addEventListener( 'DOMContentLoaded', initReportsPage );
+	} else {
+		initReportsPage();
 	}
 } )();

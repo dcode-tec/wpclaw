@@ -90,6 +90,52 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 		</p>
 	</section>
 
+	<!-- Business Profile -->
+	<section class="wpc-card" style="margin-top: 20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Your Business', 'claw-agent' ); ?></h2>
+		<p class="wpc-kpi-label" style="margin-bottom: 16px;">
+			<?php esc_html_e( 'Help your AI agents understand your business. This is synced to your Klawty instance.', 'claw-agent' ); ?>
+		</p>
+		<?php $profile = get_option( 'wp_claw_business_profile', array() ); ?>
+		<form id="wpc-business-profile-form">
+			<?php wp_nonce_field( 'wp_claw_save_profile', 'wp_claw_profile_nonce' ); ?>
+			<table class="wpc-agent-table" style="margin-bottom: 16px;">
+				<tbody>
+					<tr>
+						<td style="width: 200px;"><label for="wpc-biz-name"><strong><?php esc_html_e( 'Business Name', 'claw-agent' ); ?></strong></label></td>
+						<td><input type="text" id="wpc-biz-name" name="business_name" value="<?php echo esc_attr( isset( $profile['business_name'] ) ? $profile['business_name'] : '' ); ?>" maxlength="200" style="width: 100%;"></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-industry"><strong><?php esc_html_e( 'Industry / Sector', 'claw-agent' ); ?></strong></label></td>
+						<td><input type="text" id="wpc-biz-industry" name="industry" value="<?php echo esc_attr( isset( $profile['industry'] ) ? $profile['industry'] : '' ); ?>" maxlength="200" style="width: 100%;"></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-desc"><strong><?php esc_html_e( 'What does your business do?', 'claw-agent' ); ?></strong></label></td>
+						<td><textarea id="wpc-biz-desc" name="description" rows="3" maxlength="1000" style="width: 100%;"><?php echo esc_textarea( isset( $profile['description'] ) ? $profile['description'] : '' ); ?></textarea></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-role"><strong><?php esc_html_e( 'Your role', 'claw-agent' ); ?></strong></label></td>
+						<td><input type="text" id="wpc-biz-role" name="owner_role" value="<?php echo esc_attr( isset( $profile['owner_role'] ) ? $profile['owner_role'] : '' ); ?>" maxlength="200" style="width: 100%;"></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-goal"><strong><?php esc_html_e( 'Top goal for your AI team', 'claw-agent' ); ?></strong></label></td>
+						<td><textarea id="wpc-biz-goal" name="top_goal" rows="2" maxlength="500" style="width: 100%;"><?php echo esc_textarea( isset( $profile['top_goal'] ) ? $profile['top_goal'] : '' ); ?></textarea></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-never"><strong><?php esc_html_e( 'What should agents NEVER do?', 'claw-agent' ); ?></strong></label></td>
+						<td><textarea id="wpc-biz-never" name="never_do" rows="2" maxlength="500" style="width: 100%;"><?php echo esc_textarea( isset( $profile['never_do'] ) ? $profile['never_do'] : '' ); ?></textarea></td>
+					</tr>
+					<tr>
+						<td><label for="wpc-biz-extra"><strong><?php esc_html_e( 'Anything else agents should know?', 'claw-agent' ); ?></strong></label></td>
+						<td><textarea id="wpc-biz-extra" name="extra_context" rows="3" maxlength="1000" style="width: 100%;"><?php echo esc_textarea( isset( $profile['extra_context'] ) ? $profile['extra_context'] : '' ); ?></textarea></td>
+					</tr>
+				</tbody>
+			</table>
+			<button type="submit" class="wpc-btn wpc-btn--primary" id="wpc-save-profile"><?php esc_html_e( 'Save Business Profile', 'claw-agent' ); ?></button>
+			<span id="wpc-profile-status" style="margin-left: 12px;" aria-live="polite"></span>
+		</form>
+	</section>
+
 	<!-- Modules Section -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Modules', 'claw-agent' ); ?></h2>
@@ -361,12 +407,54 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'System Status', 'claw-agent' ); ?></h2>
 
 		<?php
-		$is_halted = (bool) get_option( 'wp_claw_operations_halted' );
-		$t3_count  = (int) get_transient( 'wp_claw_t3_daily_count' );
+		$is_halted     = (bool) get_option( 'wp_claw_operations_halted' );
+		$t3_count      = (int) get_transient( 'wp_claw_t3_daily_count' );
+		$cb_failures   = (int) get_transient( 'wp_claw_circuit_failures' );
+		$cb_open_until = (int) get_transient( 'wp_claw_circuit_open_until' );
+		$cb_is_open    = $cb_open_until > time();
 		?>
 
 		<table class="wpc-agent-table">
 			<tbody>
+				<tr>
+					<td><?php esc_html_e( 'Circuit Breaker', 'claw-agent' ); ?></td>
+					<td>
+						<?php if ( $cb_is_open ) : ?>
+							<span class="wpc-badge wpc-badge--error">
+								<span class="wpc-status-dot wpc-status-dot--red"></span>
+								<?php
+								printf(
+									/* translators: %s: number of seconds remaining */
+									esc_html__( 'Open — retries in %s s', 'claw-agent' ),
+									esc_html( (string) ( $cb_open_until - time() ) )
+								);
+								?>
+							</span>
+							<button type="button" class="wpc-btn wpc-btn--sm wpc-btn--ghost wpc-admin-reset-circuit-breaker">
+								<?php esc_html_e( 'Reset Circuit Breaker', 'claw-agent' ); ?>
+							</button>
+						<?php elseif ( $cb_failures > 0 ) : ?>
+							<span class="wpc-badge wpc-badge--pending">
+								<span class="wpc-status-dot wpc-status-dot--yellow"></span>
+								<?php
+								printf(
+									/* translators: %d: number of consecutive failures */
+									esc_html__( '%d consecutive failure(s)', 'claw-agent' ),
+									$cb_failures
+								);
+								?>
+							</span>
+							<button type="button" class="wpc-btn wpc-btn--sm wpc-btn--ghost wpc-admin-reset-circuit-breaker">
+								<?php esc_html_e( 'Reset', 'claw-agent' ); ?>
+							</button>
+						<?php else : ?>
+							<span class="wpc-badge wpc-badge--active">
+								<span class="wpc-status-dot wpc-status-dot--green"></span>
+								<?php esc_html_e( 'Closed (healthy)', 'claw-agent' ); ?>
+							</span>
+						<?php endif; ?>
+					</td>
+				</tr>
 				<tr>
 					<td><?php esc_html_e( 'Operations Status', 'claw-agent' ); ?></td>
 					<td>

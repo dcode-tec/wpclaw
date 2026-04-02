@@ -71,6 +71,7 @@ class Admin {
 		add_action( 'admin_init', array( $this, 'maybe_recover_capabilities' ) );
 		add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_node' ), 100 );
 		add_action( 'admin_post_wp_claw_clear_local_data', array( $this, 'handle_clear_local_data' ) );
+		add_action( 'wp_ajax_wp_claw_save_profile', array( $this, 'ajax_save_profile' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -177,6 +178,16 @@ class Admin {
 			'wp_claw_command_center',
 			'wp-claw-command-center',
 			array( $this, 'render_command_center_page' )
+		);
+
+		// Reports.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Reports — WP-Claw', 'claw-agent' ),
+			__( 'Reports', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-reports',
+			array( $this, 'render_reports' )
 		);
 	}
 
@@ -839,6 +850,24 @@ class Admin {
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/command-center.php';
 	}
 
+	/**
+	 * Render the Reports admin page.
+	 *
+	 * Displays a filterable timeline of agent activity reports fetched from
+	 * the Klawty REST API. Actual data is loaded asynchronously by the JS
+	 * initReportsPage() function.
+	 *
+	 * @since 1.2.2
+	 *
+	 * @return void
+	 */
+	public function render_reports(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/reports.php';
+	}
+
 	// -------------------------------------------------------------------------
 	// Settings section descriptions
 	// -------------------------------------------------------------------------
@@ -1306,6 +1335,44 @@ class Admin {
 		}
 
 		return array_unique( $sanitized );
+	}
+
+	// -------------------------------------------------------------------------
+	// AJAX handlers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * AJAX handler — save the Business Profile to WP options.
+	 *
+	 * Accepts the 7 business profile fields, sanitizes each, persists to the
+	 * `wp_claw_business_profile` option, and returns JSON success/error.
+	 *
+	 * Called via: wp_ajax_wp_claw_save_profile (admin only).
+	 *
+	 * @since 1.2.2
+	 *
+	 * @return void
+	 */
+	public function ajax_save_profile(): void {
+		check_ajax_referer( 'wp_claw_save_profile', '_wpnonce' );
+
+		if ( ! current_user_can( 'wp_claw_manage_settings' ) ) {
+			wp_send_json_error( 'Unauthorized', 403 );
+		}
+
+		$fields  = array( 'business_name', 'industry', 'description', 'owner_role', 'top_goal', 'never_do', 'extra_context' );
+		$profile = array();
+
+		foreach ( $fields as $f ) {
+			// phpcs:ignore WordPress.Security.NonceVerification.Missing -- nonce verified above via check_ajax_referer.
+			$profile[ $f ] = isset( $_POST[ $f ] ) ? sanitize_textarea_field( wp_unslash( (string) $_POST[ $f ] ) ) : '';
+		}
+
+		$profile['updated_at'] = current_time( 'c' );
+
+		update_option( 'wp_claw_business_profile', $profile );
+
+		wp_send_json_success();
 	}
 
 	// -------------------------------------------------------------------------
