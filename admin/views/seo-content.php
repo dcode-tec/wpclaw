@@ -97,6 +97,28 @@ if ( 'all' === $ab_filter ) {
 }
 
 // -------------------------------------------------------------------------
+// Stale content.
+// -------------------------------------------------------------------------
+$stale_posts = get_transient( 'wp_claw_stale_content' );
+if ( ! is_array( $stale_posts ) ) {
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$stale_posts = $wpdb->get_results(
+		$wpdb->prepare(
+			"SELECT ID, post_title, post_modified FROM {$wpdb->posts} WHERE post_status = %s AND post_type = %s AND post_modified < %s ORDER BY post_modified ASC LIMIT %d",
+			'publish',
+			'post',
+			gmdate( 'Y-m-d H:i:s', strtotime( '-12 months' ) ),
+			20
+		)
+	);
+}
+
+// -------------------------------------------------------------------------
+// Broken links.
+// -------------------------------------------------------------------------
+$broken_links = get_transient( 'wp_claw_broken_links' );
+
+// -------------------------------------------------------------------------
 // Helpers.
 // -------------------------------------------------------------------------
 $wp_claw_ctr = function ( $clicks, $impressions ) {
@@ -138,8 +160,11 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 		</div>
 		<div class="wpc-agent-status-bar__actions">
 			<button type="button"
-				class="wpc-btn wpc-btn--primary"
+				class="wpc-btn wpc-btn--primary wpc-request-scan"
 				id="wpc-seo-request-audit"
+				data-agent="scribe"
+				data-title="<?php esc_attr_e( 'Manual SEO audit', 'claw-agent' ); ?>"
+				data-description="<?php esc_attr_e( 'Admin requested full SEO audit. Run seo_detect_stale_content, seo_find_broken_links, seo_analyze_content, content_check_content_freshness. Report issues ranked by SEO impact.', 'claw-agent' ); ?>"
 				aria-label="<?php esc_attr_e( 'Request an SEO audit from Lina', 'claw-agent' ); ?>">
 				<?php esc_html_e( 'Request SEO Audit', 'claw-agent' ); ?>
 				<span class="wpc-spinner" id="wpc-seo-audit-spinner" style="display:none;"></span>
@@ -230,7 +255,17 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 		</div>
 	</section>
 
-	<!-- ===== 5. A/B Tests ===== -->
+	<!-- ===== 5. Recent Actions — last 15 in 24h ===== -->
+	<section class="wpc-card">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Recent Actions', 'claw-agent' ); ?></h3>
+		<div id="wpc-seo-recent-actions">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading recent actions…', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- ===== 6. Detailed Data (de-emphasised) ===== -->
+
+	<!-- A/B Tests -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'A/B Tests', 'claw-agent' ); ?></h2>
 		<nav class="wpc-nav-tabs">
@@ -317,6 +352,133 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 								<?php else : ?>
 									&mdash;
 								<?php endif; ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+	</section>
+
+	<!-- Stale Content -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Stale Content', 'claw-agent' ); ?></h2>
+		<?php if ( empty( $stale_posts ) ) : ?>
+			<div class="wpc-empty-state">
+				<p><?php esc_html_e( 'No stale content detected. All posts updated within 12 months.', 'claw-agent' ); ?></p>
+			</div>
+		<?php else : ?>
+			<table class="wpc-detail-table">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Post Title', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Last Modified', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Age', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Word Count', 'claw-agent' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $stale_posts as $stale ) : ?>
+						<?php
+						$stale_id    = isset( $stale->ID ) ? (int) $stale->ID : ( isset( $stale->id ) ? (int) $stale->id : 0 );
+						$stale_title = $stale_id > 0 ? get_the_title( $stale_id ) : sanitize_text_field( (string) ( $stale->post_title ?? '' ) );
+						$stale_edit  = $stale_id > 0 ? get_edit_post_link( $stale_id ) : '';
+						$stale_mod   = isset( $stale->post_modified ) ? sanitize_text_field( (string) $stale->post_modified ) : '';
+						$word_count  = $stale_id > 0 ? (int) get_post_meta( $stale_id, '_wp_claw_word_count', true ) : 0;
+						?>
+						<tr>
+							<td>
+								<?php if ( $stale_edit ) : ?>
+									<a href="<?php echo esc_url( $stale_edit ); ?>"><?php echo esc_html( $stale_title ); ?></a>
+								<?php else : ?>
+									<?php echo esc_html( $stale_title ); ?>
+								<?php endif; ?>
+							</td>
+							<td>
+								<?php if ( '' !== $stale_mod ) : ?>
+									<?php echo esc_html( wp_date( get_option( 'date_format' ), strtotime( $stale_mod ) ) ); ?>
+								<?php else : ?>
+									&mdash;
+								<?php endif; ?>
+							</td>
+							<td>
+								<?php if ( '' !== $stale_mod ) : ?>
+									<?php
+									echo esc_html(
+										sprintf(
+											/* translators: %s: human-readable time difference */
+											__( '%s ago', 'claw-agent' ),
+											human_time_diff( strtotime( $stale_mod ) )
+										)
+									);
+									?>
+								<?php else : ?>
+									&mdash;
+								<?php endif; ?>
+							</td>
+							<td>
+								<?php echo esc_html( $word_count > 0 ? number_format_i18n( $word_count ) : '—' ); ?>
+							</td>
+						</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
+	</section>
+
+	<!-- Broken Links -->
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Broken Links', 'claw-agent' ); ?></h2>
+		<?php if ( ! is_array( $broken_links ) || empty( $broken_links ) ) : ?>
+			<div class="wpc-empty-state">
+				<p><?php esc_html_e( 'Run an SEO audit to detect broken links.', 'claw-agent' ); ?></p>
+			</div>
+		<?php else : ?>
+			<table class="wpc-detail-table">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Source Post', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Target URL', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'HTTP Status', 'claw-agent' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $broken_links as $link ) : ?>
+						<?php
+						if ( ! is_array( $link ) ) {
+							continue;
+						}
+						$link_post_id  = isset( $link['post_id'] ) ? (int) $link['post_id'] : 0;
+						$link_title    = $link_post_id > 0 ? get_the_title( $link_post_id ) : __( 'Unknown', 'claw-agent' );
+						$link_edit     = $link_post_id > 0 ? get_edit_post_link( $link_post_id ) : '';
+						$link_url      = isset( $link['url'] ) ? esc_url( $link['url'] ) : '';
+						$link_url_disp = mb_strlen( $link_url ) > 60 ? mb_substr( $link_url, 0, 57 ) . '...' : $link_url;
+						$link_status   = isset( $link['http_status'] ) ? sanitize_text_field( (string) $link['http_status'] ) : '';
+						$status_lower  = strtolower( $link_status );
+
+						if ( '404' === $link_status || 'timeout' === $status_lower ) {
+							$link_badge = 'error';
+						} elseif ( '301' === $link_status || '302' === $link_status ) {
+							$link_badge = 'pending';
+						} else {
+							$link_badge = 'idle';
+						}
+						?>
+						<tr>
+							<td>
+								<?php if ( $link_edit ) : ?>
+									<a href="<?php echo esc_url( $link_edit ); ?>"><?php echo esc_html( $link_title ); ?></a>
+								<?php else : ?>
+									<?php echo esc_html( $link_title ); ?>
+								<?php endif; ?>
+							</td>
+							<td title="<?php echo esc_attr( $link_url ); ?>">
+								<code><?php echo esc_html( $link_url_disp ); ?></code>
+							</td>
+							<td>
+								<span class="wpc-badge wpc-badge--<?php echo esc_attr( $link_badge ); ?>">
+									<?php echo esc_html( $link_status ); ?>
+								</span>
 							</td>
 						</tr>
 					<?php endforeach; ?>
@@ -643,7 +805,90 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 	}
 
 	/* -------------------------------------------------------------------
-	 * 4. "Request SEO Audit" button
+	 * 4. Recent actions — /api/activity?agent=scribe&since=24h&limit=15
+	 * ----------------------------------------------------------------- */
+	function loadRecentActions() {
+		var container = document.getElementById( 'wpc-seo-recent-actions' );
+		if ( ! container ) { return; }
+
+		fetch(
+			wpClaw.restUrl + 'activity?agent=scribe&since=24h&limit=15',
+			fetchOpts( 'GET' )
+		)
+			.then( function ( r ) { return r.json(); } )
+			.then( function ( data ) {
+				while ( container.firstChild ) { container.removeChild( container.firstChild ); }
+
+				var actions = ( data && Array.isArray( data.activity ) ) ? data.activity
+					: ( data && Array.isArray( data.actions ) ) ? data.actions : [];
+
+				if ( ! actions.length ) {
+					showMessage(
+						container,
+						<?php echo wp_json_encode( __( 'No actions in the last 24 hours.', 'claw-agent' ) ); ?>
+					);
+					return;
+				}
+
+				var list = document.createElement( 'div' );
+
+				actions.forEach( function ( a ) {
+					var row = document.createElement( 'div' );
+					row.style.cssText = 'padding:8px 0;border-bottom:1px solid var(--wpc-border,#e5e7eb);display:flex;justify-content:space-between;align-items:center;gap:12px;';
+
+					var left = document.createElement( 'div' );
+					left.style.flex = '1';
+
+					var action = document.createElement( 'span' );
+					action.style.display = 'block';
+					action.textContent = a.action || a.title || a.description || '';
+					left.appendChild( action );
+
+					if ( a.result ) {
+						var resultEl = document.createElement( 'span' );
+						resultEl.className = 'wpc-kpi-label';
+						resultEl.style.display = 'block';
+						resultEl.style.marginTop = '2px';
+						resultEl.textContent = a.result;
+						left.appendChild( resultEl );
+					}
+
+					row.appendChild( left );
+
+					var right = document.createElement( 'div' );
+					right.style.cssText = 'white-space:nowrap;text-align:right;';
+
+					var statusBadge = document.createElement( 'span' );
+					var statusMap = { done: 'done', failed: 'failed', error: 'failed', ok: 'done', success: 'done' };
+					var statusKey  = ( a.status || '' ).toLowerCase();
+					var statusCls  = statusMap[ statusKey ] || 'idle';
+					statusBadge.className = 'wpc-badge wpc-badge--' + statusCls;
+					statusBadge.textContent = a.status || '';
+					right.appendChild( statusBadge );
+
+					var timeEl = document.createElement( 'span' );
+					timeEl.className = 'wpc-kpi-label';
+					timeEl.style.display = 'block';
+					timeEl.style.marginTop = '4px';
+					timeEl.textContent = a.created_at ? timeAgo( a.created_at ) : '';
+					right.appendChild( timeEl );
+
+					row.appendChild( right );
+					list.appendChild( row );
+				} );
+
+				container.appendChild( list );
+			} )
+			.catch( function () {
+				showMessage(
+					container,
+					<?php echo wp_json_encode( __( 'Could not load recent actions.', 'claw-agent' ) ); ?>
+				);
+			} );
+	}
+
+	/* -------------------------------------------------------------------
+	 * 5. "Request SEO Audit" button
 	 * ----------------------------------------------------------------- */
 	function initRequestAuditButton() {
 		var btn     = document.getElementById( 'wpc-seo-request-audit' );
@@ -704,6 +949,7 @@ $current_page_url = admin_url( 'admin.php?page=wp-claw-seo-content' );
 		loadAgentStatus();
 		loadLatestReport();
 		loadAuditHistory();
+		loadRecentActions();
 		initRequestAuditButton();
 	}
 
