@@ -78,27 +78,6 @@ $pending_drafts = (int) $wpdb->get_var(
 	)
 );
 
-$carts_table = $wpdb->prefix . 'wp_claw_abandoned_carts';
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-$abandoned_carts = $wpdb->get_results(
-	$wpdb->prepare(
-		'SELECT * FROM %i WHERE status = %s ORDER BY created_at DESC LIMIT %d',
-		$carts_table,
-		'abandoned',
-		20
-	)
-);
-
-// Recovered count for badge.
-// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-$recovered_count = (int) $wpdb->get_var(
-	$wpdb->prepare(
-		'SELECT COUNT(*) FROM %i WHERE status = %s',
-		$carts_table,
-		'recovered'
-	)
-);
-
 // phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 $email_drafts = $wpdb->get_results(
 	$wpdb->prepare(
@@ -113,8 +92,12 @@ $pipeline_stages   = isset( $crm['pipeline_stages'] ) ? (array) $crm['pipeline_s
 $total_leads       = isset( $crm['total_leads'] ) ? (int) $crm['total_leads'] : 0;
 $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer_segments'] : array();
 
+// Nonce for "Request CRM Review" button.
+$crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 ?>
 <div class="wpc-admin-wrap">
+
+	<h1 class="wpc-section-heading"><?php esc_html_e( 'Commerce & CRM', 'claw-agent' ); ?></h1>
 
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
@@ -134,38 +117,32 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 	<?php endif; ?>
 
 	<!-- 1. Agent Status Bar -->
-	<div class="wpc-card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:20px;">
-		<div style="display:flex;align-items:center;gap:12px;">
-			<span style="font-size:1.5rem;" aria-hidden="true">💼</span>
-			<div>
-				<strong><?php esc_html_e( 'Hugo — Commerce Lead', 'claw-agent' ); ?></strong>
-				<span class="wpc-badge wpc-badge--active" id="wpc-commerce-status"><?php esc_html_e( 'Active', 'claw-agent' ); ?></span>
-			</div>
+	<section class="wpc-agent-status-bar">
+		<div class="wpc-agent-status-bar__identity">
+			<span class="wpc-agent-status-bar__emoji" aria-hidden="true">&#x1F4BC;</span>
+			<span class="wpc-agent-status-bar__name"><?php esc_html_e( 'Hugo — Commerce Lead', 'claw-agent' ); ?></span>
+			<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Active', 'claw-agent' ); ?></span>
 		</div>
-		<div style="display:flex;align-items:center;gap:12px;">
-			<span class="wpc-kpi-label" id="wpc-commerce-last-review"><?php esc_html_e( 'Loading\xe2\x80\xa6', 'claw-agent' ); ?></span>
+		<div class="wpc-agent-status-bar__meta">
+			<span class="wpc-agent-status-bar__last-check" id="wpc-commerce-last-check">
+				<?php esc_html_e( 'Checking status...', 'claw-agent' ); ?>
+			</span>
 			<button
 				type="button"
-				class="wpc-btn wpc-btn--primary wpc-btn--sm wpc-request-scan"
-				data-agent="commerce"
-				data-title="<?php esc_attr_e( 'Manual pipeline review', 'claw-agent' ); ?>"
-				data-description="<?php esc_attr_e( 'Admin requested CRM and commerce review. Run commerce_get_abandoned_carts, commerce_get_daily_order_summary, crm_get_leads, crm_get_pipeline_health. Report recovery rate and pipeline status.', 'claw-agent' ); ?>"
+				id="wpc-commerce-request-review"
+				class="wpc-btn wpc-btn--sm wpc-btn--primary"
+				data-nonce="<?php echo esc_attr( $crm_review_nonce ); ?>"
 			>
-				<?php esc_html_e( 'Request Pipeline Review', 'claw-agent' ); ?>
+				<?php esc_html_e( 'Request CRM Review', 'claw-agent' ); ?>
 			</button>
 		</div>
-	</div>
+	</section>
 
 	<!-- 2. Latest Commerce Report (hero) -->
-	<section class="wpc-card" style="margin-bottom:20px;">
-		<h3 class="wpc-section-heading"><?php esc_html_e( 'Latest Commerce Report', 'claw-agent' ); ?></h3>
-		<div
-			id="wpc-commerce-latest-report"
-			data-agent="commerce"
-			data-endpoint="reports"
-			data-limit="1"
-		>
-			<p class="wpc-empty-state"><?php esc_html_e( "Loading Hugo\xe2\x80\x99s latest commerce analysis\xe2\x80\xa6", 'claw-agent' ); ?></p>
+	<section class="wpc-card">
+		<h3><?php esc_html_e( 'Latest Commerce & CRM Report', 'claw-agent' ); ?></h3>
+		<div id="wpc-commerce-report">
+			<p class="wpc-empty-state"><?php esc_html_e( "Loading Hugo's latest analysis...", 'claw-agent' ); ?></p>
 		</div>
 	</section>
 
@@ -209,103 +186,15 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 
 	</section>
 
-	<!-- 4. Review History (last 10 reports, 30d) -->
-	<section class="wpc-card" style="margin-bottom:20px;">
-		<h3 class="wpc-section-heading"><?php esc_html_e( 'Review History', 'claw-agent' ); ?></h3>
-		<div
-			id="wpc-commerce-review-history"
-			data-agent="commerce"
-			data-endpoint="reports"
-			data-limit="10"
-			data-since="30d"
-		>
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading review history\xe2\x80\xa6', 'claw-agent' ); ?></p>
-		</div>
-	</section>
-
-	<!-- 5. Recent Actions (last 24h) -->
-	<section class="wpc-card" style="margin-bottom:20px;">
-		<h3 class="wpc-section-heading"><?php esc_html_e( 'Recent Actions', 'claw-agent' ); ?></h3>
-		<div
-			id="wpc-commerce-recent-actions"
-			data-agent="commerce"
-			data-endpoint="activity"
-			data-since="24h"
-			data-limit="15"
-		>
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading recent activity\xe2\x80\xa6', 'claw-agent' ); ?></p>
-		</div>
-	</section>
-
-	<!-- 6. Detailed Data -->
-
-	<!-- Abandoned Cart Queue -->
-	<?php if ( $woo_active ) : ?>
+	<!-- 4. Commerce Activity History -->
 	<section class="wpc-card">
-		<h2 class="wpc-section-heading">
-			<?php esc_html_e( 'Abandoned Cart Queue', 'claw-agent' ); ?>
-			<?php if ( $recovered_count > 0 ) : ?>
-				<span class="wpc-badge wpc-badge--done">
-					<?php
-					printf(
-						/* translators: %d: number of recovered carts */
-						esc_html__( '%d recovered', 'claw-agent' ),
-						$recovered_count
-					);
-					?>
-				</span>
-			<?php endif; ?>
-		</h2>
-
-		<?php if ( empty( $abandoned_carts ) ) : ?>
-			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'No abandoned carts detected.', 'claw-agent' ); ?></p>
-			</div>
-		<?php else : ?>
-			<table class="wpc-detail-table">
-				<thead>
-					<tr>
-						<th scope="col"><?php esc_html_e( 'Session', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Email', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Cart Total', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Currency', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Age', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Email Step', 'claw-agent' ); ?></th>
-						<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
-					</tr>
-				</thead>
-				<tbody>
-					<?php foreach ( $abandoned_carts as $cart ) : ?>
-						<?php
-						$cart_session  = isset( $cart->session_id ) ? substr( sanitize_text_field( (string) $cart->session_id ), 0, 8 ) : '---';
-						$cart_email    = isset( $cart->email ) ? sanitize_email( (string) $cart->email ) : '';
-						$cart_total    = isset( $cart->cart_total ) ? (float) $cart->cart_total : 0.0;
-						$cart_currency = isset( $cart->currency ) ? sanitize_text_field( (string) $cart->currency ) : 'EUR';
-						$cart_step     = isset( $cart->email_step ) ? (int) $cart->email_step : 0;
-						$cart_status   = isset( $cart->status ) ? sanitize_key( (string) $cart->status ) : 'unknown';
-						$cart_created  = isset( $cart->created_at ) ? strtotime( $cart->created_at ) : 0;
-						?>
-					<tr>
-						<td><code><?php echo esc_html( $cart_session ); ?></code></td>
-						<td><?php echo esc_html( $cart_email ? $cart_email : '---' ); ?></td>
-						<td><?php echo esc_html( number_format( $cart_total, 2 ) ); ?></td>
-						<td><?php echo esc_html( strtoupper( $cart_currency ) ); ?></td>
-						<td><?php echo esc_html( $wp_claw_time_ago( $cart_created ) ); ?></td>
-						<td><?php echo esc_html( $cart_step ); ?></td>
-						<td>
-							<span class="wpc-badge wpc-badge--<?php echo esc_attr( 'recovered' === $cart_status ? 'done' : 'pending' ); ?>">
-								<?php echo esc_html( ucfirst( $cart_status ) ); ?>
-							</span>
-						</td>
-					</tr>
-					<?php endforeach; ?>
-				</tbody>
-			</table>
-		<?php endif; ?>
+		<h3><?php esc_html_e( 'Commerce & CRM Activity', 'claw-agent' ); ?></h3>
+		<div id="wpc-commerce-history">
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading activity...', 'claw-agent' ); ?></p>
+		</div>
 	</section>
-	<?php endif; ?>
 
-	<!-- Email Draft Approval -->
+	<!-- 5. Email Draft Approval -->
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading">
 			<?php esc_html_e( 'Email Draft Approval', 'claw-agent' ); ?>
@@ -480,5 +369,236 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 	</section>
 	<?php endif; ?>
 
-
 </div>
+
+<script>
+( function () {
+	'use strict';
+
+	var wpClawCommerceConfig = {
+		apiBase:   <?php echo wp_json_encode( esc_url_raw( rest_url( 'wp-claw/v1' ) ) ); ?>,
+		nonce:     <?php echo wp_json_encode( wp_create_nonce( 'wp_rest' ) ); ?>,
+		taskNonce: <?php echo wp_json_encode( $crm_review_nonce ); ?>
+	};
+
+	/** Set the text content of an element by ID. */
+	function setText( id, val ) {
+		var el = document.getElementById( id );
+		if ( el ) { el.textContent = String( val == null ? '' : val ); }
+	}
+
+	/** Replace element children with a DocumentFragment. */
+	function setContent( id, frag ) {
+		var el = document.getElementById( id );
+		if ( ! el ) { return; }
+		while ( el.firstChild ) { el.removeChild( el.firstChild ); }
+		el.appendChild( frag );
+	}
+
+	/** Build an empty-state paragraph node. */
+	function emptyState( msg ) {
+		var frag = document.createDocumentFragment();
+		var p    = document.createElement( 'p' );
+		p.className   = 'wpc-empty-state';
+		p.textContent = msg;
+		frag.appendChild( p );
+		return frag;
+	}
+
+	/** Shared fetch with WP REST nonce. */
+	function wpClawFetch( path, opts ) {
+		return fetch(
+			wpClawCommerceConfig.apiBase + path,
+			Object.assign(
+				{ headers: { 'X-WP-Nonce': wpClawCommerceConfig.nonce, 'Content-Type': 'application/json' } },
+				opts || {}
+			)
+		);
+	}
+
+	/** Build a report card using safe DOM — no innerHTML on data. */
+	function buildReportCard( report ) {
+		var frag = document.createDocumentFragment();
+		var card = document.createElement( 'div' );
+		card.className = 'wpc-report-card';
+
+		var header = document.createElement( 'div' );
+		header.className = 'wpc-report-card__header';
+
+		var titleEl = document.createElement( 'strong' );
+		titleEl.className   = 'wpc-report-card__title';
+		titleEl.textContent = report.title || '';
+		header.appendChild( titleEl );
+
+		if ( report.status ) {
+			var badge = document.createElement( 'span' );
+			badge.className   = 'wpc-badge wpc-badge--done';
+			badge.textContent = report.status;
+			header.appendChild( badge );
+		}
+
+		if ( report.created_at ) {
+			var dateEl = document.createElement( 'span' );
+			dateEl.className   = 'wpc-report-card__date';
+			dateEl.textContent = new Date( report.created_at ).toLocaleString();
+			header.appendChild( dateEl );
+		}
+		card.appendChild( header );
+
+		var body = report.content || report.summary || '';
+		if ( body ) {
+			var bodyDiv = document.createElement( 'div' );
+			bodyDiv.className = 'wpc-report-card__body';
+			var pre = document.createElement( 'pre' );
+			pre.className   = 'wpc-report-pre';
+			pre.textContent = body;
+			bodyDiv.appendChild( pre );
+			card.appendChild( bodyDiv );
+		}
+
+		frag.appendChild( card );
+		return frag;
+	}
+
+	/** Build activity history table using safe DOM — no innerHTML on data. */
+	function buildHistoryTable( reports ) {
+		var frag  = document.createDocumentFragment();
+		var table = document.createElement( 'table' );
+		table.className = 'wpc-detail-table';
+
+		var thead = document.createElement( 'thead' );
+		var hrow  = document.createElement( 'tr' );
+		[
+			<?php echo wp_json_encode( __( 'Date', 'claw-agent' ) ); ?>,
+			<?php echo wp_json_encode( __( 'Report', 'claw-agent' ) ); ?>,
+			<?php echo wp_json_encode( __( 'Status', 'claw-agent' ) ); ?>
+		].forEach( function ( label ) {
+			var th = document.createElement( 'th' );
+			th.setAttribute( 'scope', 'col' );
+			th.textContent = label;
+			hrow.appendChild( th );
+		} );
+		thead.appendChild( hrow );
+		table.appendChild( thead );
+
+		var tbody = document.createElement( 'tbody' );
+		reports.forEach( function ( r ) {
+			var row = document.createElement( 'tr' );
+
+			var tdDate = document.createElement( 'td' );
+			tdDate.textContent = r.created_at ? new Date( r.created_at ).toLocaleString() : '---';
+			row.appendChild( tdDate );
+
+			var tdTitle = document.createElement( 'td' );
+			tdTitle.textContent = r.title || '---';
+			row.appendChild( tdTitle );
+
+			var tdStatus = document.createElement( 'td' );
+			var cls  = 'done' === r.status ? 'wpc-badge--done' : ( 'failed' === r.status ? 'wpc-badge--error' : 'wpc-badge--pending' );
+			var sbadge = document.createElement( 'span' );
+			sbadge.className   = 'wpc-badge ' + cls;
+			sbadge.textContent = r.status || '---';
+			tdStatus.appendChild( sbadge );
+			row.appendChild( tdStatus );
+
+			tbody.appendChild( row );
+		} );
+		table.appendChild( tbody );
+		frag.appendChild( table );
+		return frag;
+	}
+
+	function loadCommerceReport() {
+		wpClawFetch( '/reports?agent=commerce&limit=1' )
+			.then( function ( res ) { return res.ok ? res.json() : Promise.reject( res.status ); } )
+			.then( function ( data ) {
+				var list = Array.isArray( data ) ? data : ( data.reports || [] );
+				setContent( 'wpc-commerce-report', list.length
+					? buildReportCard( list[0] )
+					: emptyState( <?php echo wp_json_encode( __( 'No reports yet. Hugo will publish his first analysis shortly.', 'claw-agent' ) ); ?> )
+				);
+			} )
+			.catch( function () {
+				setContent( 'wpc-commerce-report', emptyState( <?php echo wp_json_encode( __( 'Could not load report — check gateway connection.', 'claw-agent' ) ); ?> ) );
+			} );
+	}
+
+	function loadCommerceHistory() {
+		wpClawFetch( '/reports?agent=commerce&since=30d&limit=10' )
+			.then( function ( res ) { return res.ok ? res.json() : Promise.reject( res.status ); } )
+			.then( function ( data ) {
+				var list = Array.isArray( data ) ? data : ( data.reports || [] );
+				setContent( 'wpc-commerce-history', list.length
+					? buildHistoryTable( list )
+					: emptyState( <?php echo wp_json_encode( __( 'No activity recorded yet.', 'claw-agent' ) ); ?> )
+				);
+			} )
+			.catch( function () {
+				setContent( 'wpc-commerce-history', emptyState( <?php echo wp_json_encode( __( 'Could not load activity — check gateway connection.', 'claw-agent' ) ); ?> ) );
+			} );
+	}
+
+	function loadAgentStatus() {
+		wpClawFetch( '/agents' )
+			.then( function ( res ) { return res.ok ? res.json() : Promise.reject( res.status ); } )
+			.then( function ( data ) {
+				var agents = Array.isArray( data ) ? data : ( data.agents || [] );
+				var hugo   = null;
+				for ( var i = 0; i < agents.length; i++ ) {
+					var a = agents[ i ];
+					if ( a && ( 'commerce' === a.id || 'hugo' === a.id || ( a.name && /hugo/i.test( a.name ) ) ) ) {
+						hugo = a;
+						break;
+					}
+				}
+				if ( hugo && hugo.last_active ) {
+					var ago = Math.round( ( Date.now() - new Date( hugo.last_active ).getTime() ) / 60000 );
+					var label = ago < 1
+						? <?php echo wp_json_encode( __( 'just now', 'claw-agent' ) ); ?>
+						: ago + ' ' + <?php echo wp_json_encode( __( 'min ago', 'claw-agent' ) ); ?>;
+					setText( 'wpc-commerce-last-check', <?php echo wp_json_encode( __( 'Last check: ', 'claw-agent' ) ); ?> + label );
+				} else {
+					setText( 'wpc-commerce-last-check', <?php echo wp_json_encode( __( 'Status unknown', 'claw-agent' ) ); ?> );
+				}
+			} )
+			.catch( function () {
+				setText( 'wpc-commerce-last-check', <?php echo wp_json_encode( __( 'Gateway offline', 'claw-agent' ) ); ?> );
+			} );
+	}
+
+	var reviewBtn = document.getElementById( 'wpc-commerce-request-review' );
+	if ( reviewBtn ) {
+		reviewBtn.addEventListener( 'click', function () {
+			reviewBtn.disabled    = true;
+			reviewBtn.textContent = <?php echo wp_json_encode( __( 'Sending...', 'claw-agent' ) ); ?>;
+
+			wpClawFetch( '/create-task', {
+				method: 'POST',
+				body: JSON.stringify( {
+					agent:       'commerce',
+					title:       <?php echo wp_json_encode( __( 'Manual CRM review', 'claw-agent' ) ); ?>,
+					priority:    'high',
+					description: <?php echo wp_json_encode( __( 'Admin requested a CRM and commerce review. Check abandoned carts, review lead pipeline health, score unscored leads, check order trends. Report all findings.', 'claw-agent' ) ); ?>,
+					_wpnonce:    wpClawCommerceConfig.taskNonce
+				} )
+			} )
+				.then( function ( res ) { return res.ok ? res.json() : Promise.reject( res.status ); } )
+				.then( function () {
+					reviewBtn.textContent = <?php echo wp_json_encode( __( 'Task created', 'claw-agent' ) ); ?>;
+					setTimeout( function () {
+						reviewBtn.disabled    = false;
+						reviewBtn.textContent = <?php echo wp_json_encode( __( 'Request CRM Review', 'claw-agent' ) ); ?>;
+					}, 3000 );
+				} )
+				.catch( function () {
+					reviewBtn.textContent = <?php echo wp_json_encode( __( 'Failed — retry?', 'claw-agent' ) ); ?>;
+					reviewBtn.disabled    = false;
+				} );
+		} );
+	}
+
+	loadCommerceReport();
+	loadCommerceHistory();
+	loadAgentStatus();
+}() );
+</script>
