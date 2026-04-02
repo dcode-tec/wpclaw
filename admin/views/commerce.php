@@ -1,6 +1,6 @@
 <?php
 /**
- * Commerce & CRM dashboard admin view.
+ * Commerce & CRM dashboard admin view — agent-first layout centred on Hugo's reports.
  *
  * @package    WPClaw
  * @subpackage WPClaw/admin/views
@@ -109,14 +109,12 @@ $email_drafts = $wpdb->get_results(
 	)
 );
 
-$pipeline_stages = isset( $crm['pipeline_stages'] ) ? (array) $crm['pipeline_stages'] : array();
-$total_leads     = isset( $crm['total_leads'] ) ? (int) $crm['total_leads'] : 0;
-
+$pipeline_stages   = isset( $crm['pipeline_stages'] ) ? (array) $crm['pipeline_stages'] : array();
+$total_leads       = isset( $crm['total_leads'] ) ? (int) $crm['total_leads'] : 0;
 $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer_segments'] : array();
+
 ?>
 <div class="wpc-admin-wrap">
-
-	<h1 class="wpc-section-heading"><?php esc_html_e( 'Commerce & CRM', 'claw-agent' ); ?></h1>
 
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
@@ -135,7 +133,43 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 	</div>
 	<?php endif; ?>
 
-	<!-- KPI Cards -->
+	<!-- 1. Agent Status Bar -->
+	<div class="wpc-card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:20px;">
+		<div style="display:flex;align-items:center;gap:12px;">
+			<span style="font-size:1.5rem;" aria-hidden="true">💼</span>
+			<div>
+				<strong><?php esc_html_e( 'Hugo — Commerce Lead', 'claw-agent' ); ?></strong>
+				<span class="wpc-badge wpc-badge--active" id="wpc-commerce-status"><?php esc_html_e( 'Active', 'claw-agent' ); ?></span>
+			</div>
+		</div>
+		<div style="display:flex;align-items:center;gap:12px;">
+			<span class="wpc-kpi-label" id="wpc-commerce-last-review"><?php esc_html_e( 'Loading\xe2\x80\xa6', 'claw-agent' ); ?></span>
+			<button
+				type="button"
+				class="wpc-btn wpc-btn--primary wpc-btn--sm wpc-request-scan"
+				data-agent="commerce"
+				data-title="<?php esc_attr_e( 'Manual pipeline review', 'claw-agent' ); ?>"
+				data-description="<?php esc_attr_e( 'Admin requested CRM and commerce review. Run commerce_get_abandoned_carts, commerce_get_daily_order_summary, crm_get_leads, crm_get_pipeline_health. Report recovery rate and pipeline status.', 'claw-agent' ); ?>"
+			>
+				<?php esc_html_e( 'Request Pipeline Review', 'claw-agent' ); ?>
+			</button>
+		</div>
+	</div>
+
+	<!-- 2. Latest Commerce Report (hero) -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Latest Commerce Report', 'claw-agent' ); ?></h3>
+		<div
+			id="wpc-commerce-latest-report"
+			data-agent="commerce"
+			data-endpoint="reports"
+			data-limit="1"
+		>
+			<p class="wpc-empty-state"><?php esc_html_e( "Loading Hugo\xe2\x80\x99s latest commerce analysis\xe2\x80\xa6", 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- 3. KPI Cards -->
 	<section class="wpc-kpi-grid--6">
 
 		<article class="wpc-kpi-card">
@@ -174,6 +208,36 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 		</article>
 
 	</section>
+
+	<!-- 4. Review History (last 10 reports, 30d) -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Review History', 'claw-agent' ); ?></h3>
+		<div
+			id="wpc-commerce-review-history"
+			data-agent="commerce"
+			data-endpoint="reports"
+			data-limit="10"
+			data-since="30d"
+		>
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading review history\xe2\x80\xa6', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- 5. Recent Actions (last 24h) -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'Recent Actions', 'claw-agent' ); ?></h3>
+		<div
+			id="wpc-commerce-recent-actions"
+			data-agent="commerce"
+			data-endpoint="activity"
+			data-since="24h"
+			data-limit="15"
+		>
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading recent activity\xe2\x80\xa6', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+
+	<!-- 6. Detailed Data -->
 
 	<!-- Abandoned Cart Queue -->
 	<?php if ( $woo_active ) : ?>
@@ -416,11 +480,5 @@ $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer
 	</section>
 	<?php endif; ?>
 
-	<section class="wpc-card" style="margin-top: 20px;">
-		<h3 class="wpc-section-heading"><?php esc_html_e( "Hugo's Commerce Reports", 'claw-agent' ); ?></h3>
-		<div id="wpc-module-reports" data-agent="hugo" data-limit="5">
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading reports...', 'claw-agent' ); ?></p>
-		</div>
-	</section>
 
 </div>
