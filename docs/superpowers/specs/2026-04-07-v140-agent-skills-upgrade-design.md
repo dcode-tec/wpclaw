@@ -15,7 +15,7 @@ Delivered as 7 feature slices, each bundling a new capability with related harde
 
 ## Motivation
 
-1. **REST arg schemas**: Only 7 of 26 routes have `validate_callback`/`sanitize_callback` — the rest rely on manual sanitization in handlers. Official `agent-skills` patterns require schemas on all endpoints.
+1. **REST arg schemas**: Only 5 of 26 routes have `validate_callback`/`sanitize_callback` — the rest rely on manual sanitization in handlers. Official `agent-skills` patterns require schemas on all endpoints.
 2. **Uninstall gap**: `wp_claw_daily_digest` and `wp_claw_weekly_report` cron hooks missing from `uninstall.php`.
 3. **Performance module is thin**: Stores CWV/PSI transients and does revision cleanup, but no autoload bloat detection, no object cache inspection, no structured diagnostics.
 4. **No task chaining**: Every cron event is fire-and-forget. Agents cannot self-schedule follow-up work for multi-phase workflows.
@@ -216,40 +216,79 @@ CREATE TABLE {prefix}wp_claw_task_chains (
 - Fix missing `wp_claw_daily_digest` and `wp_claw_weekly_report` in `uninstall.php` cron list
 - New table in `class-activator.php` (create) and `uninstall.php` (drop)
 
+### Webhook handler modification
+
+The existing `handle_webhook()` in `class-rest-api.php` only processes `task_id` + `status` updates. Add event-type routing:
+
+```php
+public function handle_webhook( WP_REST_Request $request ) {
+    $body = $request->get_json_params();
+    $event = $body['event'] ?? 'task_update'; // backwards-compatible default
+
+    switch ( $event ) {
+        case 'task_chain':
+            return $this->handle_chain_webhook( $body );
+        case 'task_update':
+        default:
+            // existing task status update logic
+    }
+}
+```
+
 ### Files touched
 
 - `class-activator.php` — new table
-- `class-rest-api.php` — 4 new routes + arg schemas on existing routes
+- `class-rest-api.php` — 4 new chain routes + webhook event routing + arg schemas on existing routes
 - `class-cron.php` — chain dispatch logic
 - `admin/views/dashboard.php` — Active Chains card
+- `admin/views/proposals.php` — chain breadcrumb on linked proposals
 - `admin/js/wp-claw-admin.js` — pause/resume/cancel handlers
-- `uninstall.php` — drop table + fix cron hooks
+- `uninstall.php` — drop table + fix cron hooks (use `Activator::get_cron_events()` instead of duplicate list)
 
 ---
 
-## Slice 4: Abilities API Registration
+## Slice 4: Module Discovery REST Endpoint
 
 ### What changes
 
-Register each WP-Claw module as a WordPress 6.9 Ability via `wp_register_ability()`, discoverable at `/wp-json/wp-abilities/v1/`.
+> **Note:** The `wp_register_ability()` API referenced in `WordPress/agent-skills` is experimental and does not exist in any shipped WordPress release. Instead, we register a custom REST endpoint that advertises WP-Claw module capabilities in a compatible format — ready to migrate to the Abilities API if/when WordPress ships it.
 
-### Registration
+Register a new REST endpoint `GET /wp-claw/v1/abilities` that returns WP-Claw's module capabilities in a structured, discoverable format.
 
-New method `register_abilities()` in `class-wp-claw.php`, hooked on `init`:
+### Endpoint: `GET /wp-claw/v1/abilities`
 
-- Registers `wp-claw` ability category
-- Registers 12 abilities (one per module) with label, description, category, and `is_enabled` flag
-- Guarded by `function_exists( 'wp_register_ability' )` for WP < 6.9 compatibility
+**Permission:** `__return_true` (public — module metadata is not sensitive)
+
+**Response:**
+```json
+{
+  "plugin": "claw-agent",
+  "version": "1.4.0",
+  "category": "wp-claw",
+  "abilities": [
+    { "id": "wp-claw-seo", "label": "WP-Claw SEO", "description": "AI-powered SEO optimization...", "enabled": true, "agent": "scribe" },
+    { "id": "wp-claw-security", "label": "WP-Claw Security", "description": "File integrity monitoring...", "enabled": true, "agent": "sentinel" }
+  ]
+}
+```
+
+### Implementation
+
+New method `register_abilities_route()` in `class-rest-api.php`:
+- Registers one `GET` route with empty args
+- Handler reads `wp_claw_enabled_modules` option and maps each to a structured ability object
+- If `wp_register_ability()` exists in a future WP version, a second method `register_native_abilities()` in `class-wp-claw.php` calls the native API (guarded by `function_exists`)
 
 ### Why it matters
 
-- Other AI agents/plugins can discover WP-Claw's modules through standard WordPress API
-- Theme developers can check `wp_has_ability( 'wp-claw-seo' )` to avoid conflicts
-- Positions WP-Claw as a first-class WP 6.9 citizen
+- Other AI agents/plugins on the same WordPress site can discover WP-Claw's modules programmatically
+- Theme developers can query the endpoint to avoid conflicts (e.g., skip SEO fields if WP-Claw handles SEO)
+- Forward-compatible: when WordPress ships the Abilities API, we add native registration alongside the custom endpoint
 
 ### Files touched
 
-- `class-wp-claw.php` — new method + hook
+- `class-rest-api.php` — new route registration + handler
+- `class-wp-claw.php` — future-ready `register_native_abilities()` stub (guarded, no-op until WP ships API)
 
 ---
 
@@ -270,11 +309,12 @@ Add Application Passwords (WP 5.6+) as an alternative auth mode for self-hosted 
 
 ```
 1. HMAC header present? → verify_hmac_signature() (managed mode)
-2. WP user authenticated via Basic Auth + manage_options? → allow (app password mode)
-3. Neither? → 401
+2. is_ssl() false? → 401 (Application Passwords require HTTPS)
+3. WP user authenticated via Basic Auth + manage_options? → allow (app password mode)
+4. Neither? → 401
 ```
 
-HMAC takes precedence if both are present.
+HMAC takes precedence if both are present. The `is_ssl()` check is explicit defense-in-depth — WordPress core also enforces HTTPS for Application Passwords, but we don't rely on that alone.
 
 ### Settings UI
 
@@ -371,13 +411,12 @@ Add schemas to ~8 routes not covered by slices 1-5:
 | Route | Args to add |
 |---|---|
 | `/command/setup-pin` | `pin`: string, 4-8 chars, `sanitize_text_field` |
-| `/command/verify-pin` | `pin`: same |
-| `/proposals` (GET) | `status`: enum filter, `sanitize_key` |
-| `/proposals/{id}` (GET) | `id`: integer, `absint` |
 | `/activity` (GET) | `page`, `per_page`, `agent`, `id` with types and sanitizers |
-| `/agents` (GET) | Optional `agent` filter |
+| `/agents` (GET) | Optional `agent` filter, `sanitize_key` |
 | `/health` (GET) | Explicit empty `args => array()` |
-| `/reports/{type}` (GET) | `type`: enum, `sanitize_key` |
+| `/reports` (GET) | Optional `type` filter: enum, `sanitize_key` |
+
+> **Note:** Routes `/command/verify-pin`, `GET /proposals`, and `GET /proposals/{id}` do not exist in the current codebase. If they are needed for v1.4.0, they must be created first. Otherwise, arg schemas only apply to existing routes listed above.
 
 ### Uninstall verification
 
@@ -415,7 +454,7 @@ All slices together = **v1.4.0**.
 
 | File | Slices touching it |
 |---|---|
-| `class-rest-api.php` | 1, 3, 5, 6, 7 |
+| `class-rest-api.php` | 1, 3, 4, 5, 6, 7 |
 | `class-cron.php` | 1, 2, 3, 7 |
 | `class-wp-claw.php` | 4 |
 | `class-activator.php` | 3 |
@@ -423,8 +462,12 @@ All slices together = **v1.4.0**.
 | `class-module-performance.php` | 2 |
 | `class-module-security.php` | 7 |
 | `admin/views/dashboard.php` | 2, 3, 6 |
+| `admin/views/proposals.php` | 3 |
 | `admin/views/settings.php` | 5 |
 | `admin/js/wp-claw-admin.js` | 3, 5 |
+| `CHANGELOG.md` | 7 |
+| `README.md` | 7 |
+| `readme.txt` | 7 |
 | **New:** `class-demo-provider.php` | 6 |
 | **New:** `playground/blueprint.json` | 6 |
 | **New:** `playground/demo-content.xml` | 6 |
@@ -436,7 +479,7 @@ All slices together = **v1.4.0**.
 3. Cron handlers are idempotent, batched where needed, under 30s execution
 4. Task chains work end-to-end: Klawty creates chain → WP-Claw stores → dispatches steps → admin can pause/cancel
 5. Performance diagnostics produce structured report with score and actionable recommendations
-6. Abilities registered and visible at `/wp-json/wp-abilities/v1/` on WP 6.9+
+6. Module capabilities discoverable at `GET /wp-claw/v1/abilities` (forward-compatible with future WP Abilities API)
 7. Application Passwords auth works for self-hosted mode
 8. Playground Blueprint boots a working demo with mock data in under 60 seconds
 9. Plugin passes `phpcs --standard=WordPress-Extra` after all changes
@@ -446,7 +489,7 @@ All slices together = **v1.4.0**.
 - WordPress/agent-skills: `wp-rest-api` skill (arg schemas, `permission_callback`, response patterns)
 - WordPress/agent-skills: `wp-performance` skill + `perf_inspect.mjs` (diagnostic sequence)
 - WordPress/agent-skills: `wp-plugin-development` skill (lifecycle, security, uninstall patterns)
-- WordPress/agent-skills: `wp-abilities-api` skill (Abilities API registration)
+- WordPress/agent-skills: `wp-abilities-api` skill (Abilities API concept — adapted to custom endpoint since native API not yet shipped)
 - Sarai-Chinwag/wp-openclaw: Data Machine prompt queue pattern (task chaining)
 - Sarai-Chinwag/wp-openclaw: `docs/securing-openclaw-vps.md` (cron safety principles)
 - WordPress/agent-skills: `eval/scenarios/` format (potential future adoption for agent testing)
