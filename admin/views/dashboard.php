@@ -773,6 +773,63 @@ $wp_claw_badge_class = function ( $status ) {
 		</p>
 	</section>
 
+	<!-- SITE TRIAGE CARD (v1.4.0) -->
+	<?php
+	// Compute triage signals inline — same logic as Cron::get_site_signals() / get_site_tooling().
+	$_wpc_triage_signals = array(
+		__( 'WooCommerce', 'claw-agent' )   => class_exists( 'WooCommerce' ),
+		__( 'Block Theme', 'claw-agent' )   => wp_get_theme()->is_block_theme(),
+		__( 'Multisite', 'claw-agent' )     => is_multisite(),
+		__( 'Object Cache', 'claw-agent' )  => file_exists( WP_CONTENT_DIR . '/object-cache.php' ),
+		__( 'Page Cache', 'claw-agent' )    => file_exists( WP_CONTENT_DIR . '/advanced-cache.php' ),
+		__( 'SSL Active', 'claw-agent' )    => is_ssl(),
+		__( 'Debug Mode', 'claw-agent' )    => defined( 'WP_DEBUG' ) && WP_DEBUG,
+		__( 'Cron Disabled', 'claw-agent' ) => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON,
+	);
+	// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized -- sanitized via sanitize_text_field below.
+	$_wpc_server_software = isset( $_SERVER['SERVER_SOFTWARE'] ) ? sanitize_text_field( wp_unslash( (string) $_SERVER['SERVER_SOFTWARE'] ) ) : 'unknown';
+	$_wpc_triage_tooling  = array(
+		__( 'PHP', 'claw-agent' )       => PHP_VERSION,
+		__( 'MySQL', 'claw-agent' )     => $wpdb->db_version(),
+		__( 'Server', 'claw-agent' )    => $_wpc_server_software,
+		__( 'Memory', 'claw-agent' )    => ini_get( 'memory_limit' ),
+		/* translators: %s: seconds value from PHP ini */
+		__( 'Max Exec', 'claw-agent' )  => sprintf( __( '%ss', 'claw-agent' ), ini_get( 'max_execution_time' ) ),
+		__( 'Upload', 'claw-agent' )    => ini_get( 'upload_max_filesize' ),
+	);
+	?>
+	<section class="wpc-card wpc-triage-card" style="margin-top:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Site Triage', 'claw-agent' ); ?></h2>
+		<div class="wpc-triage-grid">
+			<div>
+				<strong class="wpc-triage-col-heading"><?php esc_html_e( 'Environment Signals', 'claw-agent' ); ?></strong>
+				<ul class="wpc-triage-signal-list">
+					<?php foreach ( $_wpc_triage_signals as $_wpc_sig_label => $_wpc_sig_val ) : ?>
+					<li class="wpc-signal-row">
+						<span class="wpc-signal-label"><?php echo esc_html( $_wpc_sig_label ); ?></span>
+						<?php if ( $_wpc_sig_val ) : ?>
+							<span class="wpc-signal-yes" aria-label="<?php esc_attr_e( 'Yes', 'claw-agent' ); ?>">&#10003;</span>
+						<?php else : ?>
+							<span class="wpc-signal-no" aria-label="<?php esc_attr_e( 'No', 'claw-agent' ); ?>">&#10007;</span>
+						<?php endif; ?>
+					</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+			<div>
+				<strong class="wpc-triage-col-heading"><?php esc_html_e( 'Server Tooling', 'claw-agent' ); ?></strong>
+				<ul class="wpc-triage-tooling-list">
+					<?php foreach ( $_wpc_triage_tooling as $_wpc_tool_key => $_wpc_tool_val ) : ?>
+					<li class="wpc-tooling-row">
+						<span class="wpc-tooling-key"><?php echo esc_html( $_wpc_tool_key ); ?></span>
+						<span class="wpc-tooling-val"><?php echo esc_html( (string) $_wpc_tool_val ); ?></span>
+					</li>
+					<?php endforeach; ?>
+				</ul>
+			</div>
+		</div>
+	</section>
+
 	<!-- SITE HEALTH REPORT -->
 	<?php
 	$_perf_report = get_transient( 'wp_claw_perf_report' );
@@ -867,5 +924,75 @@ $wp_claw_badge_class = function ( $status ) {
 		<?php endif; ?>
 	</section>
 	<?php endif; ?>
+
+	<!-- AGENT SKILLS CARD (v1.4.0) -->
+	<?php
+	$_wpc_shared_skills = array( 'wordpress-router', 'wp-project-triage', 'wp-plugin-development' );
+	$_wpc_agent_skills  = array(
+		array(
+			'slug'   => 'architect',
+			'name'   => __( 'Karim', 'claw-agent' ),
+			'role'   => __( 'Architect', 'claw-agent' ),
+			'skills' => array( 'wp-rest-api', 'wp-wpcli-and-ops', 'wp-abilities-api', 'wp-phpstan' ),
+		),
+		array(
+			'slug'   => 'scribe',
+			'name'   => __( 'Lina', 'claw-agent' ),
+			'role'   => __( 'Scribe', 'claw-agent' ),
+			'skills' => array( 'wp-block-development', 'wp-block-themes', 'wp-interactivity-api', 'wpds' ),
+		),
+		array(
+			'slug'   => 'sentinel',
+			'name'   => __( 'Bastien', 'claw-agent' ),
+			'role'   => __( 'Sentinel', 'claw-agent' ),
+			'skills' => array( 'wp-performance', 'wp-wpcli-and-ops' ),
+		),
+		array(
+			'slug'   => 'commerce',
+			'name'   => __( 'Hugo', 'claw-agent' ),
+			'role'   => __( 'Commerce', 'claw-agent' ),
+			'skills' => array( 'wp-rest-api' ),
+		),
+		array(
+			'slug'   => 'analyst',
+			'name'   => __( 'Selma', 'claw-agent' ),
+			'role'   => __( 'Analyst', 'claw-agent' ),
+			'skills' => array( 'wp-performance', 'wp-phpstan' ),
+		),
+		array(
+			'slug'   => 'concierge',
+			'name'   => __( 'Marc', 'claw-agent' ),
+			'role'   => __( 'Concierge', 'claw-agent' ),
+			'skills' => array( 'wp-interactivity-api', 'wp-block-development' ),
+		),
+	);
+	?>
+	<section class="wpc-card wpc-skills-card" style="margin-top:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Agent Skills', 'claw-agent' ); ?></h2>
+
+		<!-- Shared skills row -->
+		<div class="wpc-agent-skills-row wpc-agent-skills-row--shared">
+			<span class="wpc-agent-skills-name"><?php esc_html_e( 'All Agents', 'claw-agent' ); ?></span>
+			<span class="wpc-agent-skills-role">(<?php esc_html_e( 'shared', 'claw-agent' ); ?>)</span>
+			<div class="wpc-agent-skills-badges">
+				<?php foreach ( $_wpc_shared_skills as $_wpc_sk ) : ?>
+				<span class="wpc-skill-badge wpc-skill-badge--shared"><?php echo esc_html( $_wpc_sk ); ?></span>
+				<?php endforeach; ?>
+			</div>
+		</div>
+
+		<!-- Per-agent rows -->
+		<?php foreach ( $_wpc_agent_skills as $_wpc_ag ) : ?>
+		<div class="wpc-agent-skills-row">
+			<span class="wpc-agent-skills-name"><?php echo esc_html( $_wpc_ag['name'] ); ?></span>
+			<span class="wpc-agent-skills-role">(<?php echo esc_html( $_wpc_ag['role'] ); ?>)</span>
+			<div class="wpc-agent-skills-badges">
+				<?php foreach ( $_wpc_ag['skills'] as $_wpc_sk ) : ?>
+				<span class="wpc-skill-badge"><?php echo esc_html( $_wpc_sk ); ?></span>
+				<?php endforeach; ?>
+			</div>
+		</div>
+		<?php endforeach; ?>
+	</section>
 
 </div>

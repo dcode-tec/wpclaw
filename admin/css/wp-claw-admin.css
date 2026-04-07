@@ -46,7 +46,7 @@
 .wpc-admin-wrap {
 	max-width: 1400px;
 	margin: 20px auto;
-	padding: 0 20px 40px;
+	padding: 20px;
 	font-family: var(--wpc-font);
 	font-size: 0.8125rem;
 	line-height: 1.5;
@@ -66,12 +66,12 @@
    ========================================================================== */
 
 .wpc-section-heading {
-	font-size: 0.6875rem;
+	font-size: 0.75rem;
 	font-weight: 600;
 	text-transform: uppercase;
 	letter-spacing: 0.08em;
 	color: var(--wpc-dim);
-	margin: 28px 0 12px;
+	margin: 0px 0px 20px 0px;
 	padding: 0;
 }
 
@@ -88,6 +88,7 @@
 
 .wpc-card + .wpc-card {
 	margin-top: 16px;
+	margin-bottom: 16px;
 }
 
 .wpc-card__header {
@@ -1067,6 +1068,144 @@
 		padding: 8px 12px;
 		font-size: 0.75rem;
 	}
+}
+
+/* ==========================================================================
+   Site Triage Card
+   ========================================================================== */
+
+.wpc-triage-card {
+	margin-top: 20px;
+}
+
+.wpc-triage-col-heading {
+	display: block;
+	font-size: 0.75rem;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.07em;
+	color: var(--wpc-dim);
+	margin-bottom: 10px;
+}
+
+.wpc-triage-grid {
+	display: grid;
+	grid-template-columns: 1fr 1fr;
+	gap: 24px;
+}
+
+@media (max-width: 640px) {
+	.wpc-triage-grid {
+		grid-template-columns: 1fr;
+	}
+}
+
+.wpc-triage-signal-list,
+.wpc-triage-tooling-list {
+	list-style: none;
+	margin: 0;
+	padding: 0;
+}
+
+.wpc-signal-row,
+.wpc-tooling-row {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 7px 0;
+	border-bottom: 1px solid var(--wpc-border);
+	font-size: 0.8125rem;
+}
+
+.wpc-signal-row:last-child,
+.wpc-tooling-row:last-child {
+	border-bottom: none;
+}
+
+.wpc-signal-label,
+.wpc-tooling-key {
+	color: var(--wpc-dim);
+}
+
+.wpc-signal-yes {
+	font-weight: 700;
+	color: var(--wpc-success);
+}
+
+.wpc-signal-no {
+	font-weight: 700;
+	color: var(--wpc-muted);
+}
+
+.wpc-tooling-val {
+	font-weight: 600;
+	color: var(--wpc-text);
+	font-family: var(--wpc-mono);
+	font-size: 0.75rem;
+}
+
+/* ==========================================================================
+   Agent Skills Card
+   ========================================================================== */
+
+.wpc-skills-card {
+	margin-top: 20px;
+}
+
+.wpc-agent-skills-row {
+	display: flex;
+	align-items: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	padding: 10px 0;
+	border-bottom: 1px solid var(--wpc-border);
+	font-size: 0.8125rem;
+}
+
+.wpc-agent-skills-row:last-child {
+	border-bottom: none;
+}
+
+.wpc-agent-skills-row--shared {
+	padding-bottom: 12px;
+	margin-bottom: 4px;
+	border-bottom: 2px solid var(--wpc-border);
+}
+
+.wpc-agent-skills-name {
+	font-weight: 600;
+	color: var(--wpc-text);
+	min-width: 56px;
+}
+
+.wpc-agent-skills-role {
+	color: var(--wpc-dim);
+	font-size: 0.75rem;
+	min-width: 80px;
+}
+
+.wpc-agent-skills-badges {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+}
+
+.wpc-skill-badge {
+	display: inline-block;
+	padding: 2px 9px;
+	font-size: 0.6875rem;
+	font-weight: 500;
+	font-family: var(--wpc-mono);
+	border-radius: 9999px;
+	background: var(--wpc-accent-light);
+	color: #3730a3;
+	white-space: nowrap;
+	line-height: 1.6;
+}
+
+.wpc-skill-badge--shared {
+	background: #f0fdf4;
+	color: #166534;
 }
 
 /* ==========================================================================
