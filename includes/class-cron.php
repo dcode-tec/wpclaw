@@ -476,6 +476,14 @@ class Cron {
 			return;
 		}
 
+		// Performance module: run local diagnostics before dispatching to Klawty.
+		if ( 'performance' === $module_slug ) {
+			if ( method_exists( $module, 'run_diagnostics' ) ) {
+				$report = $module->run_diagnostics();
+				wp_claw_log_debug( 'Performance diagnostics completed.', array( 'score' => $report['score'] ) );
+			}
+		}
+
 		$task_data = array(
 			'agent'  => $module->get_agent(),
 			'title'  => sprintf(

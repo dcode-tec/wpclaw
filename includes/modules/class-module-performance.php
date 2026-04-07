@@ -644,6 +644,440 @@ class Module_Performance extends Module_Base {
 	}
 
 	// -------------------------------------------------------------------------
+	// Diagnostic checks (used by run_diagnostics)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Check autoloaded options for size bloat.
+	 *
+	 * Queries the wp_options table for total autoloaded size and the top 10
+	 * offenders. Fires a warning when total autoloaded bytes exceeds 800 KB.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array {
+	 *     @type string $id           Check identifier 'autoload_bloat'.
+	 *     @type string $status       'pass' or 'warning'.
+	 *     @type string $value        Human-readable total autoloaded size.
+	 *     @type int    $value_bytes  Total autoloaded bytes.
+	 *     @type string $threshold    Human-readable threshold (800 KB).
+	 *     @type array  $top_offenders Top 10 options by size.
+	 * }
+	 */
+	private function check_autoload_bloat(): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional aggregate for diagnostic check.
+		$total = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				'SELECT SUM(LENGTH(option_value)) FROM %i WHERE autoload = %s',
+				$wpdb->options,
+				'yes'
+			)
+		);
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional TOP-10 query for diagnostic check.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT option_name, LENGTH(option_value) AS size FROM %i WHERE autoload = %s ORDER BY size DESC LIMIT 10',
+				$wpdb->options,
+				'yes'
+			),
+			ARRAY_A
+		);
+
+		$top_offenders = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$top_offenders[] = array(
+					'option_name' => sanitize_text_field( $row['option_name'] ),
+					'size_bytes'  => (int) $row['size'],
+				);
+			}
+		}
+
+		return array(
+			'id'            => 'autoload_bloat',
+			'status'        => $total > 800000 ? 'warning' : 'pass',
+			'value'         => size_format( $total ),
+			'value_bytes'   => $total,
+			'threshold'     => size_format( 800000 ),
+			'top_offenders' => $top_offenders,
+		);
+	}
+
+	/**
+	 * Check whether a persistent object cache is installed and connected.
+	 *
+	 * Detects Redis or Memcached by reading the object-cache.php drop-in and
+	 * verifying connection via wp_using_ext_object_cache().
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array {
+	 *     @type string $id        Check identifier 'object_cache'.
+	 *     @type string $status    'pass' or 'fail'.
+	 *     @type string $provider  'redis', 'memcached', 'none', or 'unknown'.
+	 *     @type bool   $connected Whether the cache is actively connected.
+	 * }
+	 */
+	private function check_object_cache(): array {
+		$drop_in = WP_CONTENT_DIR . '/object-cache.php';
+		$exists  = file_exists( $drop_in );
+
+		$provider  = 'none';
+		$connected = false;
+
+		if ( $exists ) {
+			// phpcs:ignore WordPress.WP.AlternativeFunctions.file_get_contents_file_get_contents -- reading local drop-in file, not a remote URL.
+			$contents = (string) file_get_contents( $drop_in );
+			if ( false !== stripos( $contents, 'redis' ) ) {
+				$provider = 'redis';
+			} elseif ( false !== stripos( $contents, 'memcache' ) ) {
+				$provider = 'memcached';
+			} else {
+				$provider = 'unknown';
+			}
+			$connected = (bool) wp_using_ext_object_cache();
+		}
+
+		return array(
+			'id'        => 'object_cache',
+			'status'    => ( $exists && $connected ) ? 'pass' : 'fail',
+			'provider'  => $provider,
+			'connected' => $connected,
+		);
+	}
+
+	/**
+	 * Check whether a page caching solution is active.
+	 *
+	 * Detects the advanced-cache.php drop-in and known page cache plugins.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array {
+	 *     @type string $id      Check identifier 'page_cache'.
+	 *     @type string $status  'pass' or 'fail'.
+	 *     @type string $plugin  (optional) Detected cache plugin directory name.
+	 *     @type string $detail  (optional) Human-readable status detail.
+	 * }
+	 */
+	private function check_page_cache(): array {
+		$drop_in = WP_CONTENT_DIR . '/advanced-cache.php';
+
+		if ( file_exists( $drop_in ) ) {
+			return array(
+				'id'     => 'page_cache',
+				'status' => 'pass',
+				'detail' => __( 'advanced-cache.php drop-in is present.', 'claw-agent' ),
+			);
+		}
+
+		// Fall back to checking active plugins for known cache plugin slugs.
+		$active_plugins = (array) get_option( 'active_plugins', array() );
+		$known_slugs    = array(
+			'wp-super-cache',
+			'w3-total-cache',
+			'wp-fastest-cache',
+			'litespeed-cache',
+			'wp-rocket',
+		);
+
+		foreach ( $active_plugins as $plugin_path ) {
+			$dir = dirname( $plugin_path );
+			if ( in_array( $dir, $known_slugs, true ) ) {
+				return array(
+					'id'     => 'page_cache',
+					'status' => 'pass',
+					'plugin' => $dir,
+				);
+			}
+		}
+
+		return array(
+			'id'     => 'page_cache',
+			'status' => 'fail',
+			'detail' => __( 'No page caching detected.', 'claw-agent' ),
+		);
+	}
+
+	/**
+	 * Count overdue WP-Cron events.
+	 *
+	 * An event is considered overdue when its scheduled timestamp is in
+	 * the past. More than 5 overdue events triggers a warning.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array {
+	 *     @type string $id      Check identifier 'cron_health'.
+	 *     @type string $status  'pass' or 'warning'.
+	 *     @type int    $overdue Number of overdue events.
+	 *     @type int    $total   Total registered cron events.
+	 * }
+	 */
+	private function check_cron_health(): array {
+		$cron_array = _get_cron_array();
+
+		if ( ! is_array( $cron_array ) ) {
+			return array(
+				'id'      => 'cron_health',
+				'status'  => 'pass',
+				'overdue' => 0,
+				'total'   => 0,
+			);
+		}
+
+		$now     = time();
+		$overdue = 0;
+		$total   = 0;
+
+		foreach ( $cron_array as $timestamp => $hooks ) {
+			$total += count( $hooks );
+			if ( (int) $timestamp < $now ) {
+				$overdue += count( $hooks );
+			}
+		}
+
+		return array(
+			'id'      => 'cron_health',
+			'status'  => $overdue > 5 ? 'warning' : 'pass',
+			'overdue' => $overdue,
+			'total'   => $total,
+		);
+	}
+
+	/**
+	 * Count database bloat from orphaned and junk rows.
+	 *
+	 * Checks for: orphaned post meta, expired transients, trashed posts,
+	 * spam comments, and post revisions. A warning fires when the combined
+	 * waste count exceeds 1,000 rows.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array {
+	 *     @type string $id                  Check identifier 'database_bloat'.
+	 *     @type string $status              'pass' or 'warning'.
+	 *     @type int    $orphaned_meta       Postmeta rows without a parent post.
+	 *     @type int    $expired_transients  Expired transient timeout rows.
+	 *     @type int    $trashed_posts       Posts in the trash.
+	 *     @type int    $spam_comments       Spam comments.
+	 *     @type int    $revisions           Post revisions.
+	 * }
+	 */
+	private function check_database_bloat(): array {
+		global $wpdb;
+
+		// Orphaned post meta (postmeta rows whose post no longer exists).
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional COUNT JOIN for diagnostic check.
+		$orphaned_meta = (int) $wpdb->get_var(
+			"SELECT COUNT(*) FROM {$wpdb->postmeta} pm
+			 LEFT JOIN {$wpdb->posts} p ON p.ID = pm.post_id
+			 WHERE p.ID IS NULL"
+		);
+
+		// Expired transient timeout rows.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional COUNT for diagnostic check.
+		$expired_transients = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->options}
+				 WHERE option_name LIKE %s
+				   AND option_value < %d",
+				$wpdb->esc_like( '_transient_timeout_' ) . '%',
+				time()
+			)
+		);
+
+		// Trashed posts.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional COUNT for diagnostic check.
+		$trashed_posts = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = %s",
+				'trash'
+			)
+		);
+
+		// Spam comments.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional COUNT for diagnostic check.
+		$spam_comments = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->comments} WHERE comment_approved = %s",
+				'spam'
+			)
+		);
+
+		// Post revisions.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional COUNT for diagnostic check.
+		$revisions = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_type = %s",
+				'revision'
+			)
+		);
+
+		$total_waste = $orphaned_meta + $expired_transients + $trashed_posts + $spam_comments + $revisions;
+
+		return array(
+			'id'                 => 'database_bloat',
+			'status'             => $total_waste > 1000 ? 'warning' : 'pass',
+			'orphaned_meta'      => $orphaned_meta,
+			'expired_transients' => $expired_transients,
+			'trashed_posts'      => $trashed_posts,
+			'spam_comments'      => $spam_comments,
+			'revisions'          => $revisions,
+		);
+	}
+
+	/**
+	 * Check whether WP-Claw itself is causing autoload bloat.
+	 *
+	 * Looks for wp_claw_* options that are both autoloaded and exceed 10 KB.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array {
+	 *     @type string $id        Check identifier 'self_audit'.
+	 *     @type string $status    'pass' or 'warning'.
+	 *     @type string $detail    Human-readable summary.
+	 *     @type array  $offenders List of offending options with name and size.
+	 * }
+	 */
+	private function check_autoload_self(): array {
+		global $wpdb;
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- intentional self-audit query.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				'SELECT option_name, LENGTH(option_value) AS size FROM %i WHERE autoload = %s AND option_name LIKE %s AND LENGTH(option_value) > %d ORDER BY size DESC',
+				$wpdb->options,
+				'yes',
+				$wpdb->esc_like( 'wp_claw_' ) . '%',
+				10240
+			),
+			ARRAY_A
+		);
+
+		$offenders = array();
+		if ( is_array( $rows ) ) {
+			foreach ( $rows as $row ) {
+				$offenders[] = array(
+					'option_name' => sanitize_text_field( $row['option_name'] ),
+					'size_bytes'  => (int) $row['size'],
+				);
+			}
+		}
+
+		if ( empty( $offenders ) ) {
+			return array(
+				'id'        => 'self_audit',
+				'status'    => 'pass',
+				'detail'    => __( 'No oversized WP-Claw autoloaded options found.', 'claw-agent' ),
+				'offenders' => array(),
+			);
+		}
+
+		return array(
+			'id'        => 'self_audit',
+			'status'    => 'warning',
+			/* translators: %d: number of offending options. */
+			'detail'    => sprintf( _n( '%d WP-Claw option is autoloaded and exceeds 10 KB.', '%d WP-Claw options are autoloaded and exceed 10 KB.', count( $offenders ), 'claw-agent' ), count( $offenders ) ),
+			'offenders' => $offenders,
+		);
+	}
+
+	/**
+	 * Run all six diagnostic checks and compile a performance report.
+	 *
+	 * Calculates a score starting at 100, subtracting 15 per 'fail' and
+	 * 8 per 'warning'. The resulting report is cached in the
+	 * wp_claw_perf_report transient for one day.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array {
+	 *     @type int    $score            Performance score (0–100).
+	 *     @type array  $checks           Indexed array of individual check results.
+	 *     @type array  $recommendations  Human-readable action items.
+	 *     @type string $generated_at     ISO 8601 timestamp.
+	 * }
+	 */
+	public function run_diagnostics(): array {
+		$checks = array(
+			$this->check_autoload_bloat(),
+			$this->check_object_cache(),
+			$this->check_page_cache(),
+			$this->check_cron_health(),
+			$this->check_database_bloat(),
+			$this->check_autoload_self(),
+		);
+
+		$score = 100;
+		foreach ( $checks as $check ) {
+			if ( 'fail' === $check['status'] ) {
+				$score -= 15;
+			} elseif ( 'warning' === $check['status'] ) {
+				$score -= 8;
+			}
+		}
+		$score = max( 0, $score );
+
+		$recommendations = array();
+
+		foreach ( $checks as $check ) {
+			if ( 'pass' === $check['status'] ) {
+				continue;
+			}
+			switch ( $check['id'] ) {
+				case 'autoload_bloat':
+					$recommendations[] = sprintf(
+						/* translators: %s: total autoloaded size. */
+						__( 'Autoloaded options total %s — investigate the top offenders and disable autoloading where not needed.', 'claw-agent' ),
+						$check['value']
+					);
+					break;
+				case 'object_cache':
+					$recommendations[] = __( 'No persistent object cache is active. Install and connect Redis or Memcached to reduce database queries.', 'claw-agent' );
+					break;
+				case 'page_cache':
+					$recommendations[] = __( 'No page caching detected. Install WP Rocket, LiteSpeed Cache, or WP Super Cache to serve static HTML.', 'claw-agent' );
+					break;
+				case 'cron_health':
+					$recommendations[] = sprintf(
+						/* translators: %d: number of overdue cron events. */
+						_n( '%d overdue cron event detected. Check that WP-Cron is running reliably.', '%d overdue cron events detected. Check that WP-Cron is running reliably.', $check['overdue'], 'claw-agent' ),
+						$check['overdue']
+					);
+					break;
+				case 'database_bloat':
+					$recommendations[] = __( 'Database bloat detected. Run the DB cleanup action to remove orphaned meta, expired transients, trash, and spam.', 'claw-agent' );
+					break;
+				case 'self_audit':
+					$recommendations[] = $check['detail'];
+					break;
+			}
+		}
+
+		$report = array(
+			'score'           => $score,
+			'checks'          => $checks,
+			'recommendations' => $recommendations,
+			'generated_at'    => current_time( 'c' ),
+		);
+
+		set_transient( 'wp_claw_perf_report', $report, DAY_IN_SECONDS );
+
+		return $report;
+	}
+
+	// -------------------------------------------------------------------------
 	// Hook registration
 	// -------------------------------------------------------------------------
 
