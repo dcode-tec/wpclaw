@@ -123,7 +123,7 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 	$_wpc_prof_check = get_option( 'wp_claw_business_profile', array() );
 	$_wpc_prof_is_empty = empty( $_wpc_prof_check['business_name'] ) && empty( $_wpc_prof_check['description'] );
 	?>
-	<section class="wpc-card" style="margin-top: 20px;<?php echo $_wpc_prof_is_empty ? ' border: 2px solid #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.15);' : ''; ?>" id="wpc-business-profile-section">
+	<section class="wpc-card" style="margin-top: 20px;<?php echo esc_attr( $_wpc_prof_is_empty ? ' border: 2px solid #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.15);' : '' ); ?>" id="wpc-business-profile-section">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Your Business', 'claw-agent' ); ?></h2>
 		<?php if ( $_wpc_prof_is_empty ) : ?>
 		<div class="wpc-alert-banner wpc-alert-banner--warning" style="margin-bottom: 16px;">

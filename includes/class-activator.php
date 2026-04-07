@@ -348,7 +348,6 @@ class Activator {
 			// Existing events.
 			'wp_claw_health_check'      => 'hourly',
 			'wp_claw_sync_state'        => 'hourly',
-			'wp_claw_update_check'      => 'twicedaily',
 			'wp_claw_security_scan'     => 'twicedaily',
 			'wp_claw_backup'            => 'daily',
 			'wp_claw_seo_audit'         => 'daily',

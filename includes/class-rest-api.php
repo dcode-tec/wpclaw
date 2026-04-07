@@ -1366,14 +1366,14 @@ class REST_API {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$rows = $wpdb->get_results(
 				$wpdb->prepare(
-					'SELECT * FROM %i WHERE status = %s ORDER BY chain_id, step_order',
+					'SELECT * FROM %i WHERE status = %s ORDER BY chain_id, step_order LIMIT 200',
 					$chain_table, $status
 				)
 			);
 		} else {
 			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 			$rows = $wpdb->get_results(
-				$wpdb->prepare( 'SELECT * FROM %i ORDER BY chain_id, step_order', $chain_table )
+				$wpdb->prepare( "SELECT * FROM %i WHERE status NOT IN ('done','failed','cancelled') ORDER BY chain_id, step_order LIMIT 200", $chain_table )
 			);
 		}
 
@@ -1801,7 +1801,7 @@ class REST_API {
 	 * @return \WP_REST_Response REST response (200 on success, 403 on validation failure, 500 on send error).
 	 */
 	public function handle_command( \WP_REST_Request $request ): \WP_REST_Response {
-		$prompt = sanitize_textarea_field( (string) $request->get_param( 'prompt' ) );
+		$prompt = sanitize_textarea_field( (string) $request->get_param( 'command' ) );
 		$pin    = sanitize_text_field( (string) $request->get_param( 'pin' ) );
 
 		$cc = new Command_Center();
@@ -2286,7 +2286,7 @@ class REST_API {
 			);
 		}
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->health_check();
 
 		if ( is_wp_error( $response ) ) {
@@ -2345,7 +2345,7 @@ class REST_API {
 			);
 		}
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->get_agents();
 
 		if ( is_wp_error( $response ) ) {
@@ -2430,7 +2430,7 @@ class REST_API {
 			return new \WP_REST_Response( $cached, 200 );
 		}
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->get_reports( $qs );
 
 		if ( is_wp_error( $response ) ) {
@@ -2463,7 +2463,7 @@ class REST_API {
 		$params  = array_intersect_key( $request->get_query_params(), array_flip( $allowed ) );
 		$qs      = http_build_query( $params );
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->get_activity( $qs );
 
 		if ( is_wp_error( $response ) ) {
@@ -2487,7 +2487,7 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_proxy_profile_get(): \WP_REST_Response {
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->get_profile();
 
 		if ( is_wp_error( $response ) ) {
@@ -2518,7 +2518,7 @@ class REST_API {
 		$body   = $request->get_json_params();
 		$body   = is_array( $body ) ? $body : array();
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->update_profile( $body );
 
 		if ( is_wp_error( $response ) ) {
@@ -2567,7 +2567,7 @@ class REST_API {
 			);
 		}
 
-		$client   = new \WPClaw\API_Client();
+		$client   = $this->api_client;
 		$response = $client->create_task( $task );
 
 		if ( is_wp_error( $response ) ) {
@@ -2713,7 +2713,7 @@ class REST_API {
 			'tier'        => 'AUTO',
 		);
 
-		$client   = new API_Client();
+		$client   = $this->api_client;
 		$response = $client->create_task( $task );
 
 		if ( is_wp_error( $response ) ) {

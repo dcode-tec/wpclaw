@@ -59,8 +59,7 @@ class Cron {
 		// Core system events.
 		add_action( 'wp_claw_health_check', array( $this, 'run_health_check' ) );
 		add_action( 'wp_claw_sync_state', array( $this, 'run_sync_state' ) );
-		// Update check disabled for wordpress.org hosted plugins.
-		// add_action( 'wp_claw_update_check', array( $this, 'run_update_check' ) );
+		// wp_claw_update_check removed in v1.4.0 (handler was dead code).
 
 		// Module-specific scheduled events (closures capture slug cleanly).
 		add_action(
@@ -451,16 +450,17 @@ class Cron {
 
 		// --- Missing WP-Claw DB tables -------------------------------------------
 		$expected_tables = array(
-			$wpdb->prefix . 'claw_tasks',
-			$wpdb->prefix . 'claw_proposals',
-			$wpdb->prefix . 'claw_analytics',
-			$wpdb->prefix . 'claw_command_log',
-			$wpdb->prefix . 'claw_file_hashes',
-			$wpdb->prefix . 'claw_ab_tests',
-			$wpdb->prefix . 'claw_abandoned_carts',
-			$wpdb->prefix . 'claw_email_drafts',
-			$wpdb->prefix . 'claw_cwv_history',
-			$wpdb->prefix . 'claw_snapshots',
+			$wpdb->prefix . 'wp_claw_tasks',
+			$wpdb->prefix . 'wp_claw_proposals',
+			$wpdb->prefix . 'wp_claw_analytics',
+			$wpdb->prefix . 'wp_claw_command_log',
+			$wpdb->prefix . 'wp_claw_file_hashes',
+			$wpdb->prefix . 'wp_claw_ab_tests',
+			$wpdb->prefix . 'wp_claw_abandoned_carts',
+			$wpdb->prefix . 'wp_claw_email_drafts',
+			$wpdb->prefix . 'wp_claw_cwv_history',
+			$wpdb->prefix . 'wp_claw_snapshots',
+			$wpdb->prefix . 'wp_claw_task_chains',
 		);
 
 		$db_tables_missing = array();
@@ -961,7 +961,7 @@ class Cron {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$abandoned = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM %i WHERE status = %s AND created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR)",
+				"SELECT * FROM %i WHERE status = %s AND created_at < DATE_SUB(NOW(), INTERVAL 2 HOUR) LIMIT 200",
 				$table,
 				'active'
 			)
@@ -1040,7 +1040,7 @@ class Cron {
 		// phpcs:disable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 		$tests = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT * FROM %i WHERE status = %s",
+				"SELECT * FROM %i WHERE status = %s LIMIT 100",
 				$table,
 				'running'
 			)

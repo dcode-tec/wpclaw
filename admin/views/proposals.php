@@ -159,8 +159,8 @@ if ( $chain_lookup_rows ) {
 	<nav style="display:flex;gap:4px;border-bottom:2px solid #e5e7eb;margin-bottom:20px;" aria-label="<?php esc_attr_e( 'Proposal filters', 'claw-agent' ); ?>">
 		<a
 			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals' ) ); ?>"
-			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo 'pending' === $current_filter ? '600' : '400'; ?>;color:<?php echo 'pending' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'pending' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
-			<?php echo 'pending' === $current_filter ? 'aria-current="page"' : ''; ?>
+			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo esc_attr( 'pending' === $current_filter ? '600' : '400' ); ?>;color:<?php echo 'pending' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'pending' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
+			<?php echo 'pending' === $current_filter ? 'aria-current="page"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static string. ?>
 		>
 			<?php esc_html_e( 'Pending', 'claw-agent' ); ?>
 			<?php if ( $pending_count > 0 ) : ?>
@@ -169,8 +169,8 @@ if ( $chain_lookup_rows ) {
 		</a>
 		<a
 			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=approved' ) ); ?>"
-			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo 'approved' === $current_filter ? '600' : '400'; ?>;color:<?php echo 'approved' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'approved' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
-			<?php echo 'approved' === $current_filter ? 'aria-current="page"' : ''; ?>
+			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo esc_attr( 'approved' === $current_filter ? '600' : '400' ); ?>;color:<?php echo 'approved' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'approved' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
+			<?php echo 'approved' === $current_filter ? 'aria-current="page"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static string. ?>
 		>
 			<?php esc_html_e( 'Approved', 'claw-agent' ); ?>
 			<?php if ( $approved_count > 0 ) : ?>
@@ -179,8 +179,8 @@ if ( $chain_lookup_rows ) {
 		</a>
 		<a
 			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=rejected' ) ); ?>"
-			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo 'rejected' === $current_filter ? '600' : '400'; ?>;color:<?php echo 'rejected' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'rejected' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
-			<?php echo 'rejected' === $current_filter ? 'aria-current="page"' : ''; ?>
+			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo esc_attr( 'rejected' === $current_filter ? '600' : '400' ); ?>;color:<?php echo 'rejected' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'rejected' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
+			<?php echo 'rejected' === $current_filter ? 'aria-current="page"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static string. ?>
 		>
 			<?php esc_html_e( 'Rejected', 'claw-agent' ); ?>
 			<?php if ( $rejected_count > 0 ) : ?>
@@ -189,16 +189,16 @@ if ( $chain_lookup_rows ) {
 		</a>
 		<a
 			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=all' ) ); ?>"
-			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo 'all' === $current_filter ? '600' : '400'; ?>;color:<?php echo 'all' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'all' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
-			<?php echo 'all' === $current_filter ? 'aria-current="page"' : ''; ?>
+			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo esc_attr( 'all' === $current_filter ? '600' : '400' ); ?>;color:<?php echo 'all' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'all' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
+			<?php echo 'all' === $current_filter ? 'aria-current="page"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static string. ?>
 		>
 			<?php esc_html_e( 'All', 'claw-agent' ); ?>
 			<span class="wpc-badge wpc-badge--idle"><?php echo esc_html( number_format_i18n( $total_proposals ) ); ?></span>
 		</a>
 		<a
 			href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-proposals&show=ideas' ) ); ?>"
-			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo 'ideas' === $current_filter ? '600' : '400'; ?>;color:<?php echo 'ideas' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'ideas' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
-			<?php echo 'ideas' === $current_filter ? 'aria-current="page"' : ''; ?>
+			style="padding:10px 16px;text-decoration:none;font-size:0.875rem;font-weight:<?php echo esc_attr( 'ideas' === $current_filter ? '600' : '400' ); ?>;color:<?php echo 'ideas' === $current_filter ? '#4f46e5' : '#6b7280'; ?>;border-bottom:2px solid <?php echo 'ideas' === $current_filter ? '#4f46e5' : 'transparent'; ?>;margin-bottom:-2px;"
+			<?php echo 'ideas' === $current_filter ? 'aria-current="page"' : ''; // phpcs:ignore WordPress.Security.EscapeOutput.OutputNotEscaped -- static string. ?>
 		>
 			<?php esc_html_e( 'Ideas', 'claw-agent' ); ?>
 			💡

@@ -52,7 +52,6 @@ class Deactivator {
 	private static array $cron_hooks = array(
 		'wp_claw_health_check',
 		'wp_claw_sync_state',
-		'wp_claw_update_check',
 		'wp_claw_security_scan',
 		'wp_claw_backup',
 		'wp_claw_seo_audit',
@@ -66,6 +65,8 @@ class Deactivator {
 		'wp_claw_ab_test_eval',
 		'wp_claw_cwv_cleanup',
 		'wp_claw_segmentation',
+		'wp_claw_daily_digest',
+		'wp_claw_weekly_report',
 	);
 
 	/**

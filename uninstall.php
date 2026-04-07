@@ -70,7 +70,6 @@ wp_claw_remove_capabilities();
 $cron_hooks = array(
 	'wp_claw_health_check',
 	'wp_claw_sync_state',
-	'wp_claw_update_check',
 	'wp_claw_security_scan',
 	'wp_claw_backup',
 	'wp_claw_seo_audit',
