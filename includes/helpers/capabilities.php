@@ -132,14 +132,15 @@ function wp_claw_current_user_can( string $capability ): bool {
 		return true;
 	}
 
-	$user_id = get_current_user_id();
+	$user_id   = get_current_user_id();
+	$user_data = $user_id > 0 ? get_userdata( $user_id ) : false;
 
 	wp_claw_log_warning(
 		'Access denied.',
 		array(
 			'capability' => $capability,
 			'user_id'    => $user_id,
-			'user_login' => $user_id > 0 ? get_userdata( $user_id )->user_login ?? 'unknown' : 'not_logged_in',
+			'user_login' => $user_data ? $user_data->user_login : ( $user_id > 0 ? 'unknown' : 'not_logged_in' ),
 		)
 	);
 

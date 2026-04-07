@@ -17,7 +17,7 @@ defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables in included view file.
 
 // Security: check capability.
-if ( ! function_exists( 'wp_claw_current_user_can' ) || ! wp_claw_current_user_can( 'command_center' ) ) {
+if ( ! function_exists( 'wp_claw_current_user_can' ) || ! wp_claw_current_user_can( 'wp_claw_command_center' ) ) {
 	wp_die( esc_html__( 'You do not have permission to access the Command Center.', 'claw-agent' ) );
 }
 
@@ -40,9 +40,9 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 			<h2 class="wpc-section-heading"><?php esc_html_e( 'Set Up Command Center PIN', 'claw-agent' ); ?></h2>
 			<p><?php esc_html_e( 'For security, every command requires a PIN. Choose a 4-8 digit PIN that only you know.', 'claw-agent' ); ?></p>
 
-			<div class="wpc-kpi-grid">
-				<div class="wpc-kpi-card">
-					<label for="wp-claw-cc-new-pin" class="wpc-kpi-label">
+			<div style="display:flex;gap:16px;margin:16px 0;">
+				<div style="flex:0 0 200px;">
+					<label for="wp-claw-cc-new-pin" style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:6px;">
 						<?php esc_html_e( 'New PIN', 'claw-agent' ); ?>
 					</label>
 					<input
@@ -52,10 +52,11 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						minlength="4"
 						placeholder="<?php esc_attr_e( '4-8 digits', 'claw-agent' ); ?>"
 						autocomplete="new-password"
+						style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;letter-spacing:0.15em;"
 					>
 				</div>
-				<div class="wpc-kpi-card">
-					<label for="wp-claw-cc-confirm-pin" class="wpc-kpi-label">
+				<div style="flex:0 0 200px;">
+					<label for="wp-claw-cc-confirm-pin" style="display:block;font-size:0.8125rem;font-weight:600;color:#374151;margin-bottom:6px;">
 						<?php esc_html_e( 'Confirm PIN', 'claw-agent' ); ?>
 					</label>
 					<input
@@ -65,6 +66,7 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						minlength="4"
 						placeholder="<?php esc_attr_e( 'Re-enter PIN', 'claw-agent' ); ?>"
 						autocomplete="new-password"
+						style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;letter-spacing:0.15em;"
 					>
 				</div>
 			</div>
@@ -83,7 +85,7 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 		<section class="wpc-card wpc-cc-chat-container">
 
 			<!-- Messages area -->
-			<div id="wp-claw-cc-messages" class="wpc-activity-feed" role="log" aria-live="polite" aria-label="<?php esc_attr_e( 'Command Center messages', 'claw-agent' ); ?>">
+			<div id="wp-claw-cc-messages" role="log" aria-live="polite" aria-label="<?php esc_attr_e( 'Command Center messages', 'claw-agent' ); ?>" style="min-height:200px;max-height:450px;overflow-y:auto;padding:16px 0;display:flex;flex-direction:column;gap:12px;">
 				<div class="wpc-activity-item">
 					<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'System', 'claw-agent' ); ?></span>
 					<span><?php esc_html_e( 'Command Center active. 7 security layers verified. Type a command for your AI team.', 'claw-agent' ); ?></span>
@@ -91,22 +93,23 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 			</div>
 
 			<!-- Input area -->
-			<div class="wpc-cc-input-area">
-				<div>
-					<label for="wp-claw-cc-pin" class="screen-reader-text">
+			<div style="display:flex;gap:10px;align-items:flex-end;padding:16px 0;border-top:1px solid #e5e7eb;">
+				<div style="flex:0 0 90px;">
+					<label for="wp-claw-cc-pin" style="display:block;font-size:0.75rem;font-weight:600;color:#6b7280;margin-bottom:4px;">
 						<?php esc_html_e( 'PIN', 'claw-agent' ); ?>
 					</label>
 					<input
 						type="password"
 						id="wp-claw-cc-pin"
 						maxlength="8"
-						placeholder="<?php esc_attr_e( 'PIN', 'claw-agent' ); ?>"
+						placeholder="<?php esc_attr_e( '····', 'claw-agent' ); ?>"
 						autocomplete="off"
 						inputmode="numeric"
+						style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:1rem;letter-spacing:0.2em;text-align:center;"
 					>
 				</div>
-				<div>
-					<label for="wp-claw-cc-prompt" class="screen-reader-text">
+				<div style="flex:1;">
+					<label for="wp-claw-cc-prompt" style="display:block;font-size:0.75rem;font-weight:600;color:#6b7280;margin-bottom:4px;">
 						<?php esc_html_e( 'Command', 'claw-agent' ); ?>
 					</label>
 					<input
@@ -115,6 +118,7 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 						maxlength="2000"
 						placeholder="<?php esc_attr_e( 'Type a command for your AI team...', 'claw-agent' ); ?>"
 						autocomplete="off"
+						style="width:100%;padding:10px 14px;border:1px solid #d1d5db;border-radius:8px;font-size:0.9375rem;"
 					>
 				</div>
 				<button
@@ -123,6 +127,7 @@ $pin_set = \WPClaw\Command_Center::is_pin_set();
 					class="wpc-btn wpc-btn--primary"
 					disabled
 					aria-disabled="true"
+					style="padding:10px 24px;border-radius:8px;font-size:0.9375rem;font-weight:600;white-space:nowrap;"
 				>
 					<?php esc_html_e( 'Send', 'claw-agent' ); ?>
 				</button>

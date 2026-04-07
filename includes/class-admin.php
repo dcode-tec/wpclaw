@@ -72,6 +72,7 @@ class Admin {
 		add_action( 'admin_bar_menu', array( $this, 'add_admin_bar_node' ), 100 );
 		add_action( 'admin_post_wp_claw_clear_local_data', array( $this, 'handle_clear_local_data' ) );
 		add_action( 'wp_ajax_wp_claw_save_profile', array( $this, 'ajax_save_profile' ) );
+		add_action( 'wp_ajax_wp_claw_send_test_email', array( $this, 'ajax_send_test_email' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -160,6 +161,16 @@ class Admin {
 			array( $this, 'render_seo_content' )
 		);
 
+		// Analytics dashboard.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Analytics — WP-Claw', 'claw-agent' ),
+			__( 'Analytics', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-analytics',
+			array( $this, 'render_analytics' )
+		);
+
 		// Settings page.
 		$this->page_hooks[] = add_submenu_page(
 			'claw-agent',
@@ -223,7 +234,7 @@ class Admin {
 			'wp-claw-admin',
 			WP_CLAW_PLUGIN_URL . 'admin/js/wp-claw-admin.js',
 			array(),
-			WP_CLAW_VERSION,
+			WP_CLAW_VERSION . '.' . time(),
 			true
 		);
 
@@ -244,6 +255,8 @@ class Admin {
 			'wpClaw',
 			array(
 				'restUrl'    => rest_url( 'wp-claw/v1/' ),
+				'avatarUrl'  => WP_CLAW_PLUGIN_URL . 'public/avatars/',
+				'ajaxUrl'    => admin_url( 'admin-ajax.php' ),
 				'nonce'      => wp_create_nonce( 'wp_rest' ),
 				'adminNonce' => wp_create_nonce( 'wp_claw_admin' ),
 				'page'       => $current_page,
@@ -543,6 +556,111 @@ class Admin {
 				'default'           => 60,
 			)
 		);
+
+		// ----- Notification settings (v1.3.0) -----
+		register_setting(
+			'wp_claw_settings',
+			'wp_claw_notification_settings',
+			array(
+				'type'              => 'array',
+				'sanitize_callback' => array( $this, 'sanitize_notification_settings' ),
+				'default'           => array(),
+			)
+		);
+	}
+
+	/**
+	 * Sanitize notification settings array.
+	 *
+	 * Validates each field to its expected type and range before saving to the
+	 * database. Unknown keys are silently dropped.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @param mixed $input Raw input from the settings form.
+	 *
+	 * @return array Sanitized notification settings.
+	 */
+	public function sanitize_notification_settings( $input ): array {
+		if ( ! is_array( $input ) ) {
+			return array();
+		}
+
+		$valid_agents = array( 'architect', 'scribe', 'sentinel', 'commerce', 'analyst', 'concierge' );
+		$output       = array();
+
+		// enabled — boolean (checkbox).
+		$output['enabled'] = ! empty( $input['enabled'] );
+
+		// email — sanitized email address.
+		$output['email'] = isset( $input['email'] ) ? sanitize_email( $input['email'] ) : '';
+
+		// realtime_alerts — boolean (checkbox).
+		$output['realtime_alerts'] = ! empty( $input['realtime_alerts'] );
+
+		// daily_digest — boolean (checkbox).
+		$output['daily_digest'] = ! empty( $input['daily_digest'] );
+
+		// digest_hour — integer 0–23.
+		$digest_hour          = isset( $input['digest_hour'] ) ? (int) $input['digest_hour'] : 8;
+		$output['digest_hour'] = max( 0, min( 23, $digest_hour ) );
+
+		// digest_format — 'html' or 'text'.
+		$output['digest_format'] = ( isset( $input['digest_format'] ) && 'text' === $input['digest_format'] ) ? 'text' : 'html';
+
+		// weekly_report — boolean (checkbox).
+		$output['weekly_report'] = ! empty( $input['weekly_report'] );
+
+		// weekly_day — integer 0–6.
+		$weekly_day          = isset( $input['weekly_day'] ) ? (int) $input['weekly_day'] : 0;
+		$output['weekly_day'] = max( 0, min( 6, $weekly_day ) );
+
+		// weekly_hour — integer 0–23.
+		$weekly_hour          = isset( $input['weekly_hour'] ) ? (int) $input['weekly_hour'] : 9;
+		$output['weekly_hour'] = max( 0, min( 23, $weekly_hour ) );
+
+		// muted_agents — array of valid agent slugs.
+		$raw_muted            = isset( $input['muted_agents'] ) && is_array( $input['muted_agents'] ) ? $input['muted_agents'] : array();
+		$output['muted_agents'] = array_values(
+			array_intersect(
+				array_map( 'sanitize_key', $raw_muted ),
+				$valid_agents
+			)
+		);
+
+		return $output;
+	}
+
+	/**
+	 * AJAX handler — send a test notification email.
+	 *
+	 * Verifies the nonce and capability, then calls Notifications::send_alert()
+	 * with a test payload. Returns a JSON response with success/error message.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return void
+	 */
+	public function ajax_send_test_email(): void {
+		check_ajax_referer( 'wp_claw_test_email', 'nonce' );
+
+		if ( ! current_user_can( 'wp_claw_manage_settings' ) ) {
+			wp_send_json_error( __( 'Unauthorized', 'claw-agent' ) );
+		}
+
+		$result = \WPClaw\Notifications::send_alert(
+			'test',
+			array(
+				'agent'   => 'system',
+				'details' => array( 'message' => 'This is a test notification from WP-Claw.' ),
+			)
+		);
+
+		if ( $result ) {
+			wp_send_json_success( array( 'message' => __( 'Test email sent!', 'claw-agent' ) ) );
+		} else {
+			wp_send_json_error( __( 'Failed to send. Check your email configuration.', 'claw-agent' ) );
+		}
 	}
 
 	// -------------------------------------------------------------------------
@@ -567,21 +685,41 @@ class Admin {
 			return;
 		}
 
-		$connected = $this->api_client->is_connected();
+		// Cache connection status for 5 minutes to avoid transient reads on every page load.
+		$cached = get_transient( 'wp_claw_admin_bar_status' );
 
-		// Transient holds detailed health data set by health_check().
-		$health = get_transient( 'wp_claw_health_data' );
-
-		if ( $connected && ! empty( $health['status'] ) && 'degraded' === $health['status'] ) {
-			$dot_color = '#f59e0b'; // amber — degraded.
-			$label     = __( 'WP-Claw: Degraded', 'claw-agent' );
-		} elseif ( $connected ) {
-			$dot_color = '#10b981'; // green — healthy.
-			$label     = __( 'WP-Claw: Connected', 'claw-agent' );
+		if ( is_array( $cached ) ) {
+			$dot_color = $cached['dot_color'];
+			$label     = $cached['label'];
 		} else {
-			$dot_color = '#ef4444'; // red — disconnected.
-			$label     = __( 'WP-Claw: Disconnected', 'claw-agent' );
+			$connected = $this->api_client->is_connected();
+
+			// Transient holds detailed health data set by health_check().
+			$health = get_transient( 'wp_claw_health_data' );
+
+			if ( $connected && ! empty( $health['status'] ) && 'degraded' === $health['status'] ) {
+				$dot_color = '#f59e0b'; // amber — degraded.
+				$label     = 'WP-Claw: Degraded';
+			} elseif ( $connected ) {
+				$dot_color = '#10b981'; // green — healthy.
+				$label     = 'WP-Claw: Connected';
+			} else {
+				$dot_color = '#ef4444'; // red — disconnected.
+				$label     = 'WP-Claw: Disconnected';
+			}
+
+			set_transient(
+				'wp_claw_admin_bar_status',
+				array(
+					'dot_color' => $dot_color,
+					'label'     => $label,
+				),
+				5 * MINUTE_IN_SECONDS
+			);
 		}
+
+		// Translate after cache retrieval so i18n is applied at render time.
+		$label = __( $label, 'claw-agent' ); // phpcs:ignore WordPress.WP.I18n.NonSingularStringLiteralText
 
 		$dot = sprintf(
 			'<span style="display:inline-block;width:8px;height:8px;border-radius:50%%'
@@ -831,6 +969,20 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/seo-content.php';
+	}
+
+	/**
+	 * Render the Analytics admin page.
+	 *
+	 * @since 1.3.0
+	 *
+	 * @return void
+	 */
+	public function render_analytics(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/analytics.php';
 	}
 
 	/**

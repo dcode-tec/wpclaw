@@ -157,7 +157,7 @@ class Module_Content extends Module_Base {
 		// Posts modified in the last 7 days.
 		$recent = new \WP_Query(
 			array(
-				'post_type'      => array( 'post', 'page' ),
+				'post_type'      => array( 'post', 'page', 'product' ),
 				'post_status'    => array( 'publish', 'draft', 'pending' ),
 				'posts_per_page' => 10,
 				'orderby'        => 'modified',
@@ -591,7 +591,7 @@ class Module_Content extends Module_Base {
 
 		$query = new \WP_Query(
 			array(
-				'post_type'      => array( 'post', 'page' ),
+				'post_type'      => array( 'post', 'page', 'product' ),
 				'post_status'    => 'publish',
 				'posts_per_page' => 100,
 				'orderby'        => 'modified',

@@ -267,19 +267,18 @@ class Module_Chat extends Module_Base {
 	 */
 	public function enqueue_chat_assets(): void {
 		$version    = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
-		$suffix     = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( dirname( __DIR__ ) );
 
 		wp_enqueue_style(
 			'wp-claw-chat',
-			$plugin_url . 'public/css/wp-claw-chat' . $suffix . '.css',
+			$plugin_url . 'public/css/wp-claw-chat.css',
 			array(),
 			$version
 		);
 
 		wp_enqueue_script(
 			'wp-claw-chat',
-			$plugin_url . 'public/js/wp-claw-chat' . $suffix . '.js',
+			$plugin_url . 'public/js/wp-claw-chat.js',
 			array(),
 			$version,
 			true // load in footer

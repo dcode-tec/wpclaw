@@ -22,6 +22,22 @@ defined( 'ABSPATH' ) || exit;
 
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
+	<?php
+	$_wpc_profile = get_option( 'wp_claw_business_profile', array() );
+	if ( empty( $_wpc_profile['business_name'] ) && empty( $_wpc_profile['description'] ) ) : ?>
+	<div class="wpc-alert-banner wpc-alert-banner--warning" style="margin-bottom: 16px; display: flex; align-items: center; gap: 10px;">
+		<span style="font-size: 1.2rem;">💡</span>
+		<span>
+			<?php
+			printf(
+				esc_html__( 'These reports were generated without your business context. %s for more relevant and personalized insights.', 'claw-agent' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings#wpc-business-profile-form' ) ) . '" style="font-weight:600;">' . esc_html__( 'Fill your Business Profile', 'claw-agent' ) . '</a>'
+			);
+			?>
+		</span>
+	</div>
+	<?php endif; ?>
+
 	<!-- Filter bar -->
 	<div class="wpc-card" style="margin-bottom: 20px;">
 		<div style="display: flex; gap: 12px; align-items: center; flex-wrap: wrap;">

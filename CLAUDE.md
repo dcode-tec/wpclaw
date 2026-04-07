@@ -22,7 +22,7 @@ WP-Claw is a WordPress plugin that replaces 10-15 individual plugins with a sing
 
 ### Klawty-Side Plugin (Agent Intelligence)
 
-The Klawty OS plugin that powers the 6 agents lives at `../tools/marketplace-plugins/wp-claw-agents/`. It registers 134 tools (domain tools + coordination + godmode + shared intelligence), 37 skills (domain expertise from vision.md), and 8 HTTP routes (events, chat, health, agents, reports, activity, profile, tasks).
+The Klawty OS plugin that powers the 6 agents lives at `../tools/marketplace-plugins/wp-claw-agents/`. It registers 134 tools (domain tools + coordination + godmode + shared intelligence), 37 skills (domain expertise from vision.md), and 9 HTTP routes (events, chat, health, agents, reports, activity, profile, tasks, proposals). **v1.4.0 adds a full governance layer:** PolicyEngine (5-tier tool gating), ProposalStore (SQLite-backed approval workflow), WpSecurity (input sanitization + rate limiting + constitutional enforcement), BudgetTracker (per-agent daily caps), AlertService (Discord/WhatsApp/Telegram notifications), PatternMemory (learning from tool outcomes). Spec: `../docs/superpowers/specs/2026-04-07-wp-claw-agent-upgrade-design.md`.
 
 - **Spec:** `../docs/superpowers/specs/2026-03-31-wp-claw-klawty-plugin-design.md`
 - **Plan:** `../docs/superpowers/plans/2026-03-31-wp-claw-klawty-plugin.md`
@@ -42,7 +42,7 @@ The Klawty OS plugin that powers the 6 agents lives at `../tools/marketplace-plu
 - **Minimum WP**: 6.4
 - **Tested up to**: 6.9
 - **License**: GPL-2.0-or-later (required by wordpress.org)
-- **Plugin version**: 1.3.2 (2026-04-07: Data layer sees 200 WooCommerce products, task lifecycle with dedup + status bars, analytics pixel + chat widget .min fix, 10 empty states, full honest audit. Audit spec: `../docs/superpowers/specs/2026-04-04-wp-claw-honest-audit-spec.md`.)
+- **Plugin version**: 1.4.0 (2026-04-07: Governance layer — PolicyEngine with 5-tier tool gating (auto/auto+/propose/confirm/block), 134 tools mapped, proposal store with approval workflow, constitutional enforcement, input sanitization, per-agent budget caps, channel alerts, pattern memory learning. Prior: data layer WooCommerce products, task lifecycle, analytics pixel fix, 10 empty states.)
 - **App version**: 2.3.0 (deployed to VPS 1, port 3300)
 - **Owner**: dcode technologies S.a r.l., Luxembourg
 - **Parent product**: Klawty OS (klawty.ai) — open-source agent operating system

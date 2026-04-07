@@ -130,6 +130,22 @@ $wp_claw_agent_dashboard = array(
 
 	<h1 class="wpc-section-heading"><?php echo esc_html( get_admin_page_title() ); ?></h1>
 
+	<?php
+	$_wpc_profile = get_option( 'wp_claw_business_profile', array() );
+	if ( empty( $_wpc_profile['business_name'] ) && empty( $_wpc_profile['description'] ) ) : ?>
+	<div class="wpc-connection-banner wpc-connection-banner--connected" style="background: #fffbeb; border-color: #f59e0b; color: #92400e; margin-bottom: 16px;">
+		<span class="wpc-status-dot wpc-status-dot--yellow"></span>
+		<span>
+			<?php
+			printf(
+				esc_html__( 'Agents are working with limited context. %s for personalized results.', 'claw-agent' ),
+				'<a href="' . esc_url( admin_url( 'admin.php?page=wp-claw-settings#wpc-business-profile-form' ) ) . '" style="color:#92400e;font-weight:600;">' . esc_html__( 'Add your Business Profile', 'claw-agent' ) . '</a>'
+			);
+			?>
+		</span>
+	</div>
+	<?php endif; ?>
+
 	<?php if ( $api_error ) : ?>
 	<div class="wpc-connection-banner wpc-connection-banner--disconnected">
 		<span class="wpc-status-dot wpc-status-dot--red"></span>
@@ -223,7 +239,7 @@ $wp_claw_agent_dashboard = array(
 	<?php endif; ?>
 
 	<?php if ( ! empty( $agents ) ) : ?>
-	<div class="wpc-module-grid">
+	<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:16px;">
 
 		<?php foreach ( $agents as $agent ) : ?>
 			<?php
@@ -241,82 +257,74 @@ $wp_claw_agent_dashboard = array(
 			$agent_cost_today   = isset( $agent['llm_cost_today'] ) ? (float) $agent['llm_cost_today'] : 0.0;
 			$agent_last_seen    = isset( $agent['last_heartbeat'] ) ? sanitize_text_field( (string) $agent['last_heartbeat'] ) : '';
 			$agent_model        = isset( $agent['model'] ) ? sanitize_text_field( (string) $agent['model'] ) : '';
+			$is_healthy         = in_array( $agent_health, array( 'ok', 'healthy', 'idle', 'in_progress' ), true );
+			$has_tasks          = $agent_task_count > 0;
 			?>
-		<article class="wpc-module-card">
+		<article style="background:#fff;border:1px solid <?php echo esc_attr( $is_healthy ? '#e5e7eb' : '#fca5a5' ); ?>;border-radius:12px;padding:20px;display:flex;flex-direction:column;gap:12px;">
 
-			<header>
-				<div>
-					<?php if ( '' !== $agent_emoji ) : ?>
-					<span aria-hidden="true"><?php echo esc_html( $agent_emoji ); ?></span>
-					<?php endif; ?>
-					<strong><?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'claw-agent' ) ); ?></strong>
+			<!-- Agent identity -->
+			<div style="display:flex;align-items:center;justify-content:space-between;">
+				<div style="display:flex;align-items:center;gap:10px;">
+					<?php echo wp_claw_agent_avatar( '' !== $agent_name ? $agent_name : $agent_slug, 40 ); ?>
+					<div>
+						<strong style="font-size:1rem;"><?php echo esc_html( '' !== $agent_name ? $agent_name : __( 'Unknown Agent', 'claw-agent' ) ); ?></strong>
+						<?php if ( '' !== $agent_role ) : ?>
+						<div style="font-size:0.75rem;color:#6b7280;margin-top:2px;"><?php echo esc_html( strtoupper( $agent_role ) ); ?></div>
+						<?php endif; ?>
+					</div>
 				</div>
-				<span class="wpc-badge wpc-badge--<?php echo esc_attr( $wp_claw_health_badge( $agent_health ) ); ?>">
-					<span class="wpc-status-dot wpc-status-dot--<?php echo esc_attr( $wp_claw_health_dot( $agent_health ) ); ?>"></span>
-					<?php echo esc_html( ucfirst( $agent_health ) ); ?>
-				</span>
-			</header>
-
-			<?php if ( '' !== $agent_role ) : ?>
-			<p class="wpc-kpi-label"><?php echo esc_html( $agent_role ); ?></p>
-			<?php endif; ?>
-
-			<div>
-				<p>
-					<?php if ( '' !== $agent_current_task ) : ?>
-						<strong><?php esc_html_e( 'Current:', 'claw-agent' ); ?></strong>
-						<?php echo esc_html( $agent_current_task ); ?>
-					<?php else : ?>
-						<em><?php esc_html_e( 'Idle — no active task', 'claw-agent' ); ?></em>
-					<?php endif; ?>
-				</p>
+				<div style="display:flex;align-items:center;gap:6px;">
+					<span style="width:8px;height:8px;border-radius:50%;background:<?php echo esc_attr( $is_healthy ? ( $has_tasks ? '#16a34a' : '#9ca3af' ) : '#dc2626' ); ?>;"></span>
+					<span style="font-size:0.75rem;font-weight:600;color:<?php echo esc_attr( $is_healthy ? '#374151' : '#dc2626' ); ?>;"><?php echo esc_html( ucfirst( $agent_health ) ); ?></span>
+				</div>
 			</div>
 
-			<table class="wpc-agent-table">
-				<tbody>
-					<?php if ( '' !== $agent_uptime ) : ?>
-					<tr>
-						<td><?php esc_html_e( 'Uptime', 'claw-agent' ); ?></td>
-						<td><?php echo esc_html( $agent_uptime ); ?></td>
-					</tr>
-					<?php endif; ?>
-					<tr>
-						<td><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></td>
-						<td><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></td>
-					</tr>
-					<tr>
-						<td><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></td>
-						<td><?php echo esc_html( number_format( $agent_cost_today, 4 ) . ' EUR' ); ?></td>
-					</tr>
-					<?php if ( '' !== $agent_model ) : ?>
-					<tr>
-						<td><?php esc_html_e( 'Model', 'claw-agent' ); ?></td>
-						<td><code><?php echo esc_html( $agent_model ); ?></code></td>
-					</tr>
-					<?php endif; ?>
-					<?php if ( '' !== $agent_last_seen ) : ?>
-					<tr>
-						<td><?php esc_html_e( 'Last seen', 'claw-agent' ); ?></td>
-						<td>
-							<?php
-							$ts = strtotime( $agent_last_seen );
-							if ( $ts ) {
-								echo esc_html(
-									sprintf(
-										/* translators: %s: human-readable time difference */
-										__( '%s ago', 'claw-agent' ),
-										human_time_diff( $ts )
-									)
-								);
-							} else {
-								echo esc_html( $agent_last_seen );
-							}
-							?>
-						</td>
-					</tr>
-					<?php endif; ?>
-				</tbody>
-			</table>
+			<!-- Current task -->
+			<div style="padding:10px 14px;background:<?php echo esc_attr( '' !== $agent_current_task ? '#f0fdf4' : '#f9fafb' ); ?>;border-radius:8px;font-size:0.8125rem;">
+				<?php if ( '' !== $agent_current_task ) : ?>
+					<span style="color:#16a34a;font-weight:600;"><?php esc_html_e( 'Working:', 'claw-agent' ); ?></span>
+					<?php echo esc_html( mb_strimwidth( $agent_current_task, 0, 60, '...' ) ); ?>
+				<?php else : ?>
+					<span style="color:#9ca3af;"><em><?php esc_html_e( 'Idle — waiting for next cycle', 'claw-agent' ); ?></em></span>
+				<?php endif; ?>
+			</div>
+
+			<!-- Stats grid -->
+			<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+				<div style="background:#f9fafb;border-radius:8px;padding:10px 12px;text-align:center;">
+					<div style="font-size:1.25rem;font-weight:700;color:#111827;"><?php echo esc_html( number_format_i18n( $agent_task_count ) ); ?></div>
+					<div style="font-size:0.6875rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;"><?php esc_html_e( 'Tasks today', 'claw-agent' ); ?></div>
+				</div>
+				<div style="background:#f9fafb;border-radius:8px;padding:10px 12px;text-align:center;">
+					<div style="font-size:1.25rem;font-weight:700;color:#111827;"><?php echo esc_html( number_format( $agent_cost_today, 2 ) ); ?><small style="font-size:0.625rem;color:#6b7280;"> EUR</small></div>
+					<div style="font-size:0.6875rem;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;"><?php esc_html_e( 'AI cost today', 'claw-agent' ); ?></div>
+				</div>
+			</div>
+
+			<!-- Meta row -->
+			<div style="display:flex;justify-content:space-between;align-items:center;font-size:0.75rem;color:#9ca3af;">
+				<?php if ( '' !== $agent_model ) : ?>
+				<span><code style="background:#f3f4f6;padding:2px 6px;border-radius:4px;font-size:0.6875rem;"><?php echo esc_html( $agent_model ); ?></code></span>
+				<?php endif; ?>
+				<?php if ( '' !== $agent_last_seen ) : ?>
+				<span>
+					<?php
+					$ts = strtotime( $agent_last_seen );
+					if ( $ts ) {
+						echo esc_html(
+							sprintf(
+								/* translators: %s: human-readable time difference */
+								__( '%s ago', 'claw-agent' ),
+								human_time_diff( $ts )
+							)
+						);
+					} else {
+						echo esc_html( $agent_last_seen );
+					}
+					?>
+				</span>
+				<?php endif; ?>
+			</div>
 
 			<?php
 			// Module badges (v1.2.0).

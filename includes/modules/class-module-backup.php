@@ -1057,6 +1057,62 @@ class Module_Backup extends Module_Base {
 	}
 
 	// -------------------------------------------------------------------------
+	// Public helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return the last 20 active or expired snapshots for the admin dashboard.
+	 *
+	 * Queries wp_claw_snapshots for rows with status 'active' or 'expired',
+	 * ordered newest first, limited to 20 rows. Returns an empty array on
+	 * database error rather than a WP_Error so callers can render the page
+	 * without branching on error types.
+	 *
+	 * @since 1.2.3
+	 *
+	 * @global \wpdb $wpdb WordPress database abstraction object.
+	 *
+	 * @return array[] Each element has keys: snapshot_id, agent,
+	 *                 action_description, tables_count, files_count,
+	 *                 status, created_at, expires_at.
+	 */
+	public function get_snapshots_for_admin(): array {
+		global $wpdb;
+
+		$snapshots_table = $wpdb->prefix . 'wp_claw_snapshots';
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching -- admin page requires fresh data; no appropriate caching key.
+		$rows = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT snapshot_id, agent, action_description, tables_count, files_count, status, created_at, expires_at FROM {$snapshots_table} WHERE status IN (%s, %s) ORDER BY created_at DESC LIMIT 20", // phpcs:ignore WordPress.DB.PreparedSQL.InterpolatedNotPrepared, PluginCheck.Security.DirectDB.UnescapedDBParameter -- prefix is safe.
+				'active',
+				'expired'
+			),
+			ARRAY_A
+		);
+
+		if ( null === $rows ) {
+			return array();
+		}
+
+		$snapshots = array();
+		foreach ( $rows as $row ) {
+			$snapshots[] = array(
+				'snapshot_id'        => sanitize_text_field( $row['snapshot_id'] ),
+				'agent'              => sanitize_text_field( $row['agent'] ),
+				'action_description' => sanitize_text_field( $row['action_description'] ),
+				'tables_count'       => absint( $row['tables_count'] ),
+				'files_count'        => absint( $row['files_count'] ),
+				'status'             => sanitize_text_field( $row['status'] ),
+				'created_at'         => sanitize_text_field( $row['created_at'] ),
+				'expires_at'         => sanitize_text_field( $row['expires_at'] ),
+			);
+		}
+
+		return $snapshots;
+	}
+
+	// -------------------------------------------------------------------------
 	// Helpers
 	// -------------------------------------------------------------------------
 

@@ -42,6 +42,7 @@ function wp_claw_encrypt( string $plaintext ): string {
 	$salt = wp_salt( 'auth' );
 	if ( empty( $salt ) || 'put your unique phrase here' === $salt ) {
 		wp_claw_log_error( 'wp_salt(auth) returned empty or default value — encryption key is unsafe. Define AUTH_SALT in wp-config.php.' );
+		return '';
 	}
 	$key = hash( 'sha256', $salt, true );
 

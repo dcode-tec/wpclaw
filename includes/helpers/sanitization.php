@@ -72,6 +72,29 @@ function wp_claw_sanitize_api_response( array $response ): array {
 		$clean['states'] = $response['states'];
 	}
 
+	// 'activity' is used by the live activity feed proxy.
+	if ( array_key_exists( 'activity', $response ) && is_array( $response['activity'] ) ) {
+		$clean['activity'] = $response['activity'];
+	}
+
+	// 'reports' is used by the reports proxy.
+	if ( array_key_exists( 'reports', $response ) && is_array( $response['reports'] ) ) {
+		$clean['reports'] = $response['reports'];
+	}
+
+	// Passthrough scalars for profile and pagination endpoints.
+	foreach ( array( 'content', 'exists', 'ok', 'offset', 'limit' ) as $passthrough_key ) {
+		if ( array_key_exists( $passthrough_key, $response ) ) {
+			if ( is_string( $response[ $passthrough_key ] ) ) {
+				$clean[ $passthrough_key ] = $response[ $passthrough_key ];
+			} elseif ( is_bool( $response[ $passthrough_key ] ) ) {
+				$clean[ $passthrough_key ] = $response[ $passthrough_key ];
+			} elseif ( is_int( $response[ $passthrough_key ] ) ) {
+				$clean[ $passthrough_key ] = $response[ $passthrough_key ];
+			}
+		}
+	}
+
 	// 'data' may be a nested array — recurse one level for simple scalar children,
 	// or preserve as-is for complex structures (callers must sanitize deeper).
 	if ( array_key_exists( 'data', $response ) && is_array( $response['data'] ) ) {

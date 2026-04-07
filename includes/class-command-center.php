@@ -337,17 +337,21 @@ class Command_Center {
 		$api_client = new API_Client();
 
 		// Build a task payload for the orchestrator agent.
+		// The Klawty /api/tasks endpoint requires 'agent' + 'title' (not module/action).
 		$task_data = array(
-			'agent'   => 'architect',
-			'module'  => 'command-center',
-			'action'  => 'user_command',
-			'details' => array(
-				'prompt'    => $prompt,
-				'user_name' => $user->display_name,
-				'user_role' => implode( ', ', $user->roles ),
-				'source'    => 'command-center',
-				'timestamp' => gmdate( 'c' ),
+			'agent'       => 'atlas',
+			'title'       => sprintf(
+				/* translators: %s: The user's command text (truncated). */
+				__( 'Command: %s', 'claw-agent' ),
+				mb_strimwidth( $prompt, 0, 80, '...' )
 			),
+			'description' => sprintf(
+				"User command from %s (%s) via Command Center:\n\n%s",
+				$user->display_name,
+				implode( ', ', $user->roles ),
+				$prompt
+			),
+			'priority'    => 'high',
 		);
 
 		$response = $api_client->create_task( $task_data );

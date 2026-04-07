@@ -269,6 +269,63 @@ class Module_Security extends Module_Base {
 			}
 		}
 
+		// Security score calculation.
+		$deployed_headers = get_option( 'wp_claw_security_headers_deployed', array() );
+		if ( ! is_array( $deployed_headers ) ) {
+			$deployed_headers = array();
+		}
+		$header_count = count( $deployed_headers );
+
+		$brute_force_enabled = (bool) get_option( 'wp_claw_brute_force_enabled', false );
+
+		$no_malware    = ( 'clean' === $file_integrity_status || 'scan_pending' === $file_integrity_status ) && 0 === $quarantined_file_count;
+		$integrity_ok  = 'clean' === $file_integrity_status;
+
+		$ssl_points        = $ssl_valid ? 20 : 0;
+		$headers_points    = (int) min( 30, $header_count * 30 / 7 );
+		$malware_points    = $no_malware ? 20 : 0;
+		$integrity_points  = $integrity_ok ? 15 : 0;
+		$brute_force_points = $brute_force_enabled ? 15 : 0;
+
+		$security_score = $ssl_points + $headers_points + $malware_points + $integrity_points + $brute_force_points;
+
+		$score_breakdown = array(
+			'ssl'         => array(
+				'label'  => 'SSL Valid',
+				'points' => $ssl_points,
+				'max'    => 20,
+				'pass'   => $ssl_valid,
+			),
+			'headers'     => array(
+				'label'  => 'Security Headers Deployed',
+				'points' => $headers_points,
+				'max'    => 30,
+				'pass'   => $header_count >= 7,
+			),
+			'malware'     => array(
+				'label'  => 'No Malware / Quarantine',
+				'points' => $malware_points,
+				'max'    => 20,
+				'pass'   => $no_malware,
+			),
+			'integrity'   => array(
+				'label'  => 'File Integrity Clean',
+				'points' => $integrity_points,
+				'max'    => 15,
+				'pass'   => $integrity_ok,
+			),
+			'brute_force' => array(
+				'label'  => 'Brute Force Protection Enabled',
+				'points' => $brute_force_points,
+				'max'    => 15,
+				'pass'   => $brute_force_enabled,
+			),
+		);
+
+		// Last 50 login attempts (newest first).
+		$all_attempts         = array_reverse( $login_attempts );
+		$recent_login_attempts = array_slice( $all_attempts, 0, 50 );
+
 		return array(
 			'failed_logins_24h'       => $recent_fails,
 			'blocked_ips_count'       => count( $blocked_ips ),
@@ -279,6 +336,10 @@ class Module_Security extends Module_Base {
 			'ssl_days_remaining'      => $ssl_days_remaining,
 			'last_malware_scan'       => get_option( 'wp_claw_last_malware_scan', '' ),
 			'security_headers_active' => (bool) get_option( 'wp_claw_security_headers_active', false ),
+			'security_score'          => $security_score,
+			'score_breakdown'         => $score_breakdown,
+			'recent_login_attempts'   => $recent_login_attempts,
+			'blocked_ip_list'         => $blocked_ips,
 		);
 	}
 
@@ -844,6 +905,21 @@ class Module_Security extends Module_Base {
 				'infected_files' => count( $all_matches ),
 			)
 		);
+
+		// Send real-time alert if malware was found.
+		if ( ! empty( $all_matches ) && class_exists( '\\WPClaw\\Notifications' ) ) {
+			\WPClaw\Notifications::send_alert(
+				'malware_found',
+				array(
+					'agent'   => 'sentinel',
+					'details' => array(
+						'directory'      => $directory,
+						'infected_files' => count( $all_matches ),
+						'files'          => array_keys( $all_matches ),
+					),
+				)
+			);
+		}
 
 		return array(
 			'success' => true,

@@ -201,24 +201,46 @@ class Module_SEO extends Module_Base {
 	public function get_state(): array {
 		global $wpdb;
 
-		// Total published posts.
-		$total_posts = (int) wp_count_posts( 'post' )->publish;
+		// Total published posts and pages.
+		$total_posts = (int) wp_count_posts( 'post' )->publish + (int) wp_count_posts( 'page' )->publish + (int) wp_count_posts( 'product' )->publish;
 
-		// Posts that have the SEO title meta.
+		// Posts that have ANY SEO title meta (WP-Claw, Yoast, RankMath, AIOSEO, or the WP default).
+		$seo_title_keys = array(
+			'_wp_claw_seo_title',
+			'_yoast_wpseo_title',
+			'_rank_math_title',
+			'_aioseo_title',
+		);
+		$placeholders = implode( ',', array_fill( 0, count( $seo_title_keys ), '%s' ) );
+
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$posts_with_title = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = %s",
-				self::META_TITLE
+				"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
+				 LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key IN ({$placeholders})
+				 WHERE p.post_status = 'publish' AND p.post_type IN ('post', 'page', 'product')
+				 AND (pm.meta_value IS NOT NULL AND pm.meta_value != '')",
+				...$seo_title_keys
 			)
 		);
 
-		// Posts that have the SEO description meta.
+		$seo_desc_keys = array(
+			'_wp_claw_seo_description',
+			'_yoast_wpseo_metadesc',
+			'_rank_math_description',
+			'_aioseo_description',
+		);
+		$desc_placeholders = implode( ',', array_fill( 0, count( $seo_desc_keys ), '%s' ) );
+
+		// Posts that have ANY SEO description meta (WP-Claw, Yoast, RankMath, AIOSEO).
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$posts_with_desc = (int) $wpdb->get_var(
 			$wpdb->prepare(
-				"SELECT COUNT(DISTINCT post_id) FROM {$wpdb->postmeta} WHERE meta_key = %s",
-				self::META_DESC
+				"SELECT COUNT(DISTINCT p.ID) FROM {$wpdb->posts} p
+				 LEFT JOIN {$wpdb->postmeta} pm ON p.ID = pm.post_id AND pm.meta_key IN ({$desc_placeholders})
+				 WHERE p.post_status = 'publish' AND p.post_type IN ('post', 'page', 'product')
+				 AND (pm.meta_value IS NOT NULL AND pm.meta_value != '')",
+				...$seo_desc_keys
 			)
 		);
 
@@ -234,7 +256,10 @@ class Module_SEO extends Module_Base {
 		// Stale content — published posts not modified in 12+ months.
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$stale_content_count = (int) $wpdb->get_var(
-			"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type = 'post' AND post_modified < DATE_SUB( NOW(), INTERVAL 12 MONTH )"
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ('post', 'page', 'product') AND post_modified < DATE_SUB( NOW(), INTERVAL %d MONTH )",
+				12
+			)
 		);
 
 		// Broken link count from transient cache (0 if no scan has run yet).
@@ -253,6 +278,78 @@ class Module_SEO extends Module_Base {
 			'stale_content_count'      => $stale_content_count,
 			'broken_link_count'        => $broken_link_count,
 		);
+	}
+
+	/**
+	 * Get per-page SEO status for the admin table.
+	 *
+	 * @param int $limit Max rows to return.
+	 * @return array Array of page SEO data.
+	 */
+	public function get_pages_seo_status( int $limit = 50 ): array {
+		global $wpdb;
+
+		$seo_title_keys = array( '_wp_claw_seo_title', '_yoast_wpseo_title', '_rank_math_title', '_aioseo_title' );
+		$seo_desc_keys  = array( '_wp_claw_seo_description', '_yoast_wpseo_metadesc', '_rank_math_description', '_aioseo_description' );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
+		$posts = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT ID, post_title, post_type, post_modified, CHAR_LENGTH(post_content) as content_length
+				 FROM {$wpdb->posts}
+				 WHERE post_status = 'publish' AND post_type IN ('post', 'page', 'product')
+				 ORDER BY post_modified DESC
+				 LIMIT %d",
+				$limit
+			)
+		);
+
+		if ( ! $posts ) {
+			return array();
+		}
+
+		$results = array();
+		foreach ( $posts as $post ) {
+			$has_title = false;
+			$has_desc  = false;
+			$schema    = '';
+
+			foreach ( $seo_title_keys as $key ) {
+				$val = get_post_meta( $post->ID, $key, true );
+				if ( ! empty( $val ) ) {
+					$has_title = true;
+					break;
+				}
+			}
+
+			foreach ( $seo_desc_keys as $key ) {
+				$val = get_post_meta( $post->ID, $key, true );
+				if ( ! empty( $val ) ) {
+					$has_desc = true;
+					break;
+				}
+			}
+
+			$schema_val = get_post_meta( $post->ID, '_wp_claw_schema_markup', true );
+			if ( ! empty( $schema_val ) ) {
+				$schema = sanitize_text_field( $schema_val );
+			}
+
+			$content_words = (int) round( (int) $post->content_length / 6 ); // rough estimate
+
+			$results[] = array(
+				'id'        => (int) $post->ID,
+				'title'     => sanitize_text_field( $post->post_title ),
+				'type'      => $post->post_type,
+				'has_title' => $has_title,
+				'has_desc'  => $has_desc,
+				'schema'    => $schema,
+				'words'     => $content_words,
+				'modified'  => $post->post_modified,
+			);
+		}
+
+		return $results;
 	}
 
 	/**
@@ -624,7 +721,7 @@ class Module_SEO extends Module_Base {
 			// phpcs:ignore WordPressVIPMinimum.Performance.WPQueryParams.PostNotIn_post__not_in -- small result set, performance acceptable.
 			$query = new \WP_Query(
 				array(
-					'post_type'      => 'post',
+					'post_type'      => array( 'post', 'page', 'product' ),
 					'post_status'    => 'publish',
 					'posts_per_page' => 5,
 					's'              => $keyword,
@@ -896,7 +993,7 @@ class Module_SEO extends Module_Base {
 		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery, WordPress.DB.DirectDatabaseQuery.NoCaching
 		$rows = $wpdb->get_results(
 			$wpdb->prepare(
-				"SELECT ID, post_title, post_modified, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type = 'post' AND post_modified < DATE_SUB( NOW(), INTERVAL %d MONTH ) ORDER BY post_modified ASC LIMIT 100",
+				"SELECT ID, post_title, post_modified, post_content FROM {$wpdb->posts} WHERE post_status = 'publish' AND post_type IN ('post', 'page', 'product') AND post_modified < DATE_SUB( NOW(), INTERVAL %d MONTH ) ORDER BY post_modified ASC LIMIT 100",
 				$months
 			)
 		);
@@ -956,7 +1053,7 @@ class Module_SEO extends Module_Base {
 		} else {
 			$query = new \WP_Query(
 				array(
-					'post_type'      => 'post',
+					'post_type'      => array( 'post', 'page', 'product' ),
 					'post_status'    => 'publish',
 					'posts_per_page' => $batch_size,
 					'orderby'        => 'date',

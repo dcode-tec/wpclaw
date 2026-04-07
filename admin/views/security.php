@@ -139,14 +139,14 @@ if ( $ssl_valid && null !== $ssl_days ) {
 		================================================================ -->
 	<section class="wpc-card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:20px;">
 		<div style="display:flex;align-items:center;gap:12px;">
-			<span style="font-size:1.5rem;" aria-hidden="true">🛡️</span>
+			<?php echo wp_claw_agent_avatar( 'Bastien', 36 ); ?>
 			<div>
 				<strong><?php esc_html_e( 'Bastien — The Sentinel', 'claw-agent' ); ?></strong>
 				<span class="wpc-badge wpc-badge--active" id="wpc-agent-health">
 					<?php esc_html_e( 'Monitoring', 'claw-agent' ); ?>
 				</span>
 				<br>
-				<span class="wpc-kpi-label" id="wpc-last-scan"><?php esc_html_e( 'Last scan: checking\xe2\x80\xa6', 'claw-agent' ); ?></span>
+				<span class="wpc-kpi-label" id="wpc-last-scan"><?php esc_html_e( 'Last scan: checking...', 'claw-agent' ); ?></span>
 				<span class="wpc-kpi-label" id="wpc-next-scan" style="margin-left:12px;"></span>
 			</div>
 		</div>
@@ -156,6 +156,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 			data-agent="sentinel"
 			data-title="Manual security scan"
 			data-description="Admin requested full security scan. Run security_run_file_integrity_check, security_get_login_attempts, security_check_ssl_certificate, security_scan_malware_patterns. Write a detailed report with severity levels for each finding."
+			data-task-key="security_sentinel_scan"
 		>
 			<?php esc_html_e( 'Request Security Scan', 'claw-agent' ); ?>
 		</button>
@@ -167,7 +168,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	<section class="wpc-card" style="margin-bottom:20px;">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Latest Security Report', 'claw-agent' ); ?></h2>
 		<div id="wpc-latest-report" data-agent="sentinel">
-			<p class="wpc-empty-state"><?php esc_html_e( "Loading Bastien\xe2\x80\x99s latest security report\xe2\x80\xa6", 'claw-agent' ); ?></p>
+			<p class="wpc-empty-state"><?php esc_html_e( "Loading Bastien's latest security report...", 'claw-agent' ); ?></p>
 		</div>
 	</section>
 
@@ -221,13 +222,140 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 	</section>
 
+	<!-- SECURITY SCORE BREAKDOWN -->
+	<?php
+	$score     = isset( $sec['security_score'] ) ? (int) $sec['security_score'] : 0;
+	$breakdown = isset( $sec['score_breakdown'] ) && is_array( $sec['score_breakdown'] ) ? $sec['score_breakdown'] : array();
+	?>
+	<section class="wpc-card" style="margin-top:20px;margin-bottom:20px;">
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+			<h2 class="wpc-section-heading" style="margin:0;"><?php esc_html_e( 'Security Score', 'claw-agent' ); ?></h2>
+			<span style="font-size:2rem;font-weight:700;color:<?php echo esc_attr( $score >= 80 ? '#16a34a' : ( $score >= 50 ? '#d97706' : '#dc2626' ) ); ?>;">
+				<?php echo esc_html( $score ); ?>/100
+			</span>
+		</div>
+		<?php if ( ! empty( $breakdown ) ) : ?>
+		<table class="wpc-detail-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Check', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
+					<th scope="col" style="text-align:right;"><?php esc_html_e( 'Points', 'claw-agent' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $breakdown as $check ) : ?>
+				<tr>
+					<td><?php echo esc_html( $check['label'] ?? '' ); ?></td>
+					<td>
+						<span class="wpc-badge wpc-badge--<?php echo esc_attr( ! empty( $check['pass'] ) ? 'done' : 'failed' ); ?>">
+							<?php echo esc_html( ! empty( $check['pass'] ) ? __( 'Pass', 'claw-agent' ) : __( 'Fail', 'claw-agent' ) ); ?>
+						</span>
+					</td>
+					<td style="text-align:right;"><?php echo esc_html( ( $check['points'] ?? 0 ) . '/' . ( $check['max'] ?? 0 ) ); ?></td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php endif; ?>
+		<?php if ( empty( $breakdown ) ) : ?>
+			<p class="wpc-empty-state"><?php esc_html_e( 'Security score will be calculated after Bastien completes his first scan.', 'claw-agent' ); ?></p>
+		<?php endif; ?>
+	</section>
+
+	<!-- FAILED LOGIN DETAILS -->
+	<?php
+	$login_details = isset( $sec['recent_login_attempts'] ) ? (array) $sec['recent_login_attempts'] : array();
+	if ( ! empty( $login_details ) ) :
+	?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Recent Login Attempts', 'claw-agent' ); ?></h2>
+		<table class="wpc-detail-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Time', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Type', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Username', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'IP Address', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Action', 'claw-agent' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( array_slice( $login_details, 0, 30 ) as $attempt ) : ?>
+				<tr>
+					<td><?php echo esc_html( isset( $attempt['time'] ) ? wp_date( 'M j, H:i', (int) $attempt['time'] ) : "\u{2014}" ); ?></td>
+					<td>
+						<span class="wpc-badge wpc-badge--<?php echo esc_attr( 'failed' === ( $attempt['type'] ?? '' ) ? 'failed' : 'done' ); ?>">
+							<?php echo esc_html( ucfirst( $attempt['type'] ?? 'unknown' ) ); ?>
+						</span>
+					</td>
+					<td><code><?php echo esc_html( $attempt['username'] ?? "\u{2014}" ); ?></code></td>
+					<td><code><?php echo esc_html( $attempt['ip'] ?? "\u{2014}" ); ?></code></td>
+					<td>
+						<?php if ( ! empty( $attempt['ip'] ) && 'failed' === ( $attempt['type'] ?? '' ) ) : ?>
+						<button data-inline-edit="block_ip" data-target-id="0"
+							data-current-value="<?php echo esc_attr( $attempt['ip'] ); ?>"
+							class="wpc-btn wpc-btn--sm wpc-btn--ghost" style="color:#dc2626;font-size:0.75rem;">
+							<?php esc_html_e( 'Block', 'claw-agent' ); ?>
+						</button>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</section>
+	<?php else : ?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Recent Login Attempts', 'claw-agent' ); ?></h2>
+		<p class="wpc-empty-state"><?php esc_html_e( 'No login attempts recorded yet. Bastien tracks all login attempts (successful and failed) to detect unauthorized access patterns.', 'claw-agent' ); ?></p>
+	</section>
+	<?php endif; ?>
+
+	<!-- BLOCKED IPS -->
+	<?php
+	$blocked_ip_list = isset( $sec['blocked_ip_list'] ) ? (array) $sec['blocked_ip_list'] : array();
+	if ( ! empty( $blocked_ip_list ) ) :
+	?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Blocked IP Addresses', 'claw-agent' ); ?></h2>
+		<table class="wpc-detail-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'IP Address', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Action', 'claw-agent' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $blocked_ip_list as $blocked_ip ) : ?>
+				<tr>
+					<td><code><?php echo esc_html( $blocked_ip ); ?></code></td>
+					<td>
+						<button data-inline-edit="unblock_ip" data-target-id="0"
+							data-current-value="<?php echo esc_attr( $blocked_ip ); ?>"
+							class="wpc-btn wpc-btn--sm wpc-btn--ghost" style="color:#059669;font-size:0.75rem;">
+							<?php esc_html_e( 'Unblock', 'claw-agent' ); ?>
+						</button>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+	</section>
+	<?php else : ?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Blocked IP Addresses', 'claw-agent' ); ?></h2>
+		<p class="wpc-empty-state"><?php esc_html_e( 'No IPs currently blocked. Bastien will block IPs that show brute-force or suspicious patterns.', 'claw-agent' ); ?></p>
+	</section>
+	<?php endif; ?>
+
 	<!-- ================================================================
 		4. SCAN HISTORY — JS-loaded timeline
 		================================================================ -->
 	<section class="wpc-card" style="margin-top:20px;margin-bottom:20px;">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Scan History', 'claw-agent' ); ?></h2>
 		<div id="wpc-scan-history" data-agent="sentinel" data-limit="10">
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading scan history\xe2\x80\xa6', 'claw-agent' ); ?></p>
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading scan history...', 'claw-agent' ); ?></p>
 		</div>
 	</section>
 
@@ -237,8 +365,61 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	<section class="wpc-card" style="margin-bottom:30px;">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Recent Actions', 'claw-agent' ); ?></h2>
 		<div id="wpc-agent-actions" data-agent="sentinel">
-			<p class="wpc-empty-state"><?php esc_html_e( 'Loading recent actions\xe2\x80\xa6', 'claw-agent' ); ?></p>
+			<p class="wpc-empty-state"><?php esc_html_e( 'Loading recent actions...', 'claw-agent' ); ?></p>
 		</div>
+	</section>
+
+	<!-- BACKUPS & SNAPSHOTS -->
+	<?php
+	$backup_module = $plugin->get_module( 'backup' );
+	$snapshots     = array();
+	if ( null !== $backup_module && method_exists( $backup_module, 'get_snapshots_for_admin' ) ) {
+		$snapshots = $backup_module->get_snapshots_for_admin();
+	}
+	?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+			<h2 class="wpc-section-heading" style="margin:0;"><?php esc_html_e( 'Backups &amp; Snapshots', 'claw-agent' ); ?></h2>
+			<button type="button" class="wpc-btn wpc-btn--primary wpc-request-scan"
+				data-agent="sentinel"
+				data-title="Create backup"
+				data-description="Create a full database backup and file snapshot. Verify the backup can be restored."
+				data-task-key="security_sentinel_backup">
+				<?php esc_html_e( 'Request Backup', 'claw-agent' ); ?>
+			</button>
+		</div>
+		<?php if ( empty( $snapshots ) ) : ?>
+			<p class="wpc-empty-state"><?php esc_html_e( 'No backups yet. Bastien creates backups automatically on a daily schedule, or click "Request Backup" to create one now.', 'claw-agent' ); ?></p>
+		<?php else : ?>
+			<table class="wpc-detail-table">
+				<thead>
+					<tr>
+						<th scope="col"><?php esc_html_e( 'Date', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Type', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Tables', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Files', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Status', 'claw-agent' ); ?></th>
+						<th scope="col"><?php esc_html_e( 'Expires', 'claw-agent' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $snapshots as $snap ) : ?>
+					<tr>
+						<td><?php echo esc_html( ! empty( $snap['created_at'] ) ? wp_date( 'M j, H:i', strtotime( $snap['created_at'] ) ) : "\u{2014}" ); ?></td>
+						<td><?php echo esc_html( $snap['action_description'] ?? 'backup' ); ?></td>
+						<td><?php echo esc_html( $snap['tables_count'] ?? "\u{2014}" ); ?></td>
+						<td><?php echo esc_html( $snap['files_count'] ?? "\u{2014}" ); ?></td>
+						<td>
+							<span class="wpc-badge wpc-badge--<?php echo esc_attr( 'active' === ( $snap['status'] ?? '' ) ? 'done' : 'idle' ); ?>">
+								<?php echo esc_html( $snap['status'] ?? 'unknown' ); ?>
+							</span>
+						</td>
+						<td><?php echo esc_html( ! empty( $snap['expires_at'] ) ? wp_date( 'M j', strtotime( $snap['expires_at'] ) ) : "\u{2014}" ); ?></td>
+					</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+		<?php endif; ?>
 	</section>
 
 	<!-- ================================================================
@@ -247,7 +428,14 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	<h2 class="wpc-section-heading" style="margin-top:10px;"><?php esc_html_e( 'Detailed Scan Data', 'claw-agent' ); ?></h2>
 
 	<!-- File integrity details -->
-	<?php if ( ! empty( $flagged_files ) ) : ?>
+	<?php if ( empty( $flagged_files ) ) : ?>
+	<section class="wpc-card" style="margin-bottom:16px;">
+		<h3 class="wpc-section-heading"><?php esc_html_e( 'File Integrity Issues', 'claw-agent' ); ?></h3>
+		<div style="text-align:center;padding:24px;color:#6b7280;">
+			<p style="font-size:0.875rem;"><?php esc_html_e( 'No file integrity issues detected. Bastien will compute the baseline on his next security scan.', 'claw-agent' ); ?></p>
+		</div>
+	</section>
+	<?php elseif ( ! empty( $flagged_files ) ) : ?>
 	<section class="wpc-card" style="margin-bottom:16px;">
 		<h3 class="wpc-section-heading"><?php esc_html_e( 'File Integrity Issues', 'claw-agent' ); ?></h3>
 		<table class="wpc-detail-table">
@@ -336,7 +524,18 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 	<!-- Security Headers -->
 	<section class="wpc-card">
-		<h3 class="wpc-section-heading"><?php esc_html_e( 'Security Headers', 'claw-agent' ); ?></h3>
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+			<h3 class="wpc-section-heading" style="margin:0;"><?php esc_html_e( 'Security Headers', 'claw-agent' ); ?></h3>
+			<?php if ( ! $headers_active ) : ?>
+			<button type="button" class="wpc-btn wpc-btn--primary wpc-request-scan"
+				data-agent="sentinel"
+				data-title="Deploy recommended security headers"
+				data-description="Deploy all recommended HTTP security headers: X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Strict-Transport-Security, Content-Security-Policy (report-only), Referrer-Policy, Permissions-Policy. Use safe defaults."
+				data-task-key="security_sentinel_deploy_headers">
+				<?php esc_html_e( 'Deploy Recommended Headers', 'claw-agent' ); ?>
+			</button>
+			<?php endif; ?>
+		</div>
 		<table class="wpc-detail-table">
 			<thead>
 				<tr>
@@ -429,7 +628,8 @@ if ( $ssl_valid && null !== $ssl_days ) {
 					return { ok: res.ok, data: data };
 				} );
 			} )
-			.catch( function () {
+			.catch( function ( err ) {
+				console.error( '[WP-Claw Security] fetch error:', err );
 				return { ok: false, data: null };
 			} );
 	}
@@ -438,7 +638,12 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	/* Config                                                               */
 	/* ------------------------------------------------------------------ */
 
-	var restUrl = ( window.wpClaw && window.wpClaw.restUrl ) ? window.wpClaw.restUrl : '';
+	// Lazy getter — wpClaw may not be defined yet when the IIFE runs.
+	function getRestUrl() {
+		return ( window.wpClaw && window.wpClaw.restUrl ) || '';
+	}
+	// Alias used by all functions below.
+	var restUrl = '';
 
 	/* ------------------------------------------------------------------ */
 	/* 1. Agent status bar — health badge + last active time               */
@@ -466,7 +671,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 			var healthEl = document.getElementById( 'wpc-agent-health' );
 			if ( healthEl ) {
-				var status = sentinel.status || 'monitoring';
+				var status = sentinel.health || sentinel.status || 'monitoring';
 				healthEl.textContent = status.charAt( 0 ).toUpperCase() + status.slice( 1 );
 				// Swap badge colour based on status.
 				healthEl.className = 'wpc-badge wpc-badge--' + ( 'in_progress' === status ? 'active' : ( 'failed' === status ? 'failed' : 'done' ) );
@@ -474,7 +679,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 			var lastEl = document.getElementById( 'wpc-last-scan' );
 			if ( lastEl ) {
-				var lastActive = sentinel.last_active || sentinel.updated_at || '';
+				var lastActive = sentinel.last_heartbeat || sentinel.last_active || sentinel.updated_at || '';
 				lastEl.textContent = lastActive
 					? 'Last active: ' + timeAgo( lastActive )
 					: 'No recent activity';
@@ -496,6 +701,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 
 	function renderLatestReport( container, report ) {
 		empty( container );
+		container.dataset.loaded = 'true';
 
 		if ( ! report ) {
 			container.appendChild( el( 'p', 'No security reports yet \u2014 Bastien will post findings after his next scan.', 'wpc-empty-state' ) );
@@ -536,11 +742,16 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	}
 
 	function loadLatestReport() {
-		if ( ! restUrl ) { return; }
+		if ( ! restUrl ) { console.warn('[WP-Claw] No restUrl'); return; }
 		var container = document.getElementById( 'wpc-latest-report' );
-		if ( ! container ) { return; }
+		if ( ! container ) { console.warn('[WP-Claw] No #wpc-latest-report container'); return; }
 
+		console.log('[WP-Claw] restUrl:', restUrl);
+		console.log('[WP-Claw] wpClaw exists:', typeof window.wpClaw !== 'undefined');
+		console.log('[WP-Claw] nonce:', (window.wpClaw && window.wpClaw.nonce) ? window.wpClaw.nonce.substring(0,6) + '...' : 'MISSING');
+		console.log('[WP-Claw] Fetching:', restUrl + 'reports?agent=sentinel&limit=1');
 		apiFetch( restUrl + 'reports?agent=sentinel&limit=1' ).then( function ( res ) {
+			console.log('[WP-Claw] Response ok:', res.ok, 'data:', JSON.stringify(res.data).substring(0, 300));
 			var list = ( res.ok && res.data )
 				? ( Array.isArray( res.data ) ? res.data : ( res.data.reports || [] ) )
 				: [];
@@ -567,6 +778,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 					: [];
 
 				empty( container );
+				container.dataset.loaded = 'true';
 
 				if ( ! reports.length ) {
 					container.appendChild( el( 'p', 'No scans in the last 30 days.', 'wpc-empty-state' ) );
@@ -627,6 +839,7 @@ if ( $ssl_valid && null !== $ssl_days ) {
 					: [];
 
 				empty( container );
+				container.dataset.loaded = 'true';
 
 				if ( ! items.length ) {
 					container.appendChild( el( 'p', 'No actions in the last 24 hours.', 'wpc-empty-state' ) );
@@ -668,6 +881,8 @@ if ( $ssl_valid && null !== $ssl_days ) {
 		document.addEventListener( 'click', function ( e ) {
 			var btn = e.target.closest( '.wpc-request-scan' );
 			if ( ! btn || ! restUrl ) { return; }
+			// NEW: skip if task manager handles this button.
+			if ( btn.hasAttribute( 'data-task-key' ) ) { return; }
 
 			if ( btn.disabled ) { return; }
 			btn.disabled = true;
@@ -707,6 +922,12 @@ if ( $ssl_valid && null !== $ssl_days ) {
 	/* ------------------------------------------------------------------ */
 
 	document.addEventListener( 'DOMContentLoaded', function () {
+		// Resolve restUrl now that wp_localize_script has injected wpClaw.
+		restUrl = getRestUrl();
+		if ( ! restUrl ) {
+			console.warn( '[WP-Claw Security] wpClaw.restUrl not available — API sections disabled.' );
+			return;
+		}
 		loadAgentStatus();
 		loadLatestReport();
 		loadScanHistory();

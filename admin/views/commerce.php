@@ -92,6 +92,51 @@ $pipeline_stages   = isset( $crm['pipeline_stages'] ) ? (array) $crm['pipeline_s
 $total_leads       = isset( $crm['total_leads'] ) ? (int) $crm['total_leads'] : 0;
 $customer_segments = isset( $com['customer_segments'] ) ? (array) $com['customer_segments'] : array();
 
+// Product data (requires WooCommerce).
+$products_data = array();
+$low_stock     = array();
+if ( $woo_active && function_exists( 'wc_get_products' ) ) {
+	// Recent products (last 20, sorted by date).
+	$recent_products = wc_get_products( array(
+		'limit'   => 20,
+		'orderby' => 'date',
+		'order'   => 'DESC',
+		'status'  => 'publish',
+	) );
+	foreach ( $recent_products as $product ) {
+		$products_data[] = array(
+			'id'       => $product->get_id(),
+			'name'     => $product->get_name(),
+			'price'    => $product->get_price(),
+			'stock'    => $product->get_stock_quantity(),
+			'status'   => $product->get_stock_status(),
+			'type'     => $product->get_type(),
+			'modified' => $product->get_date_modified() ? $product->get_date_modified()->date( 'Y-m-d' ) : '',
+		);
+	}
+
+	// Low stock products.
+	$low_threshold = (int) get_option( 'woocommerce_notify_low_stock_amount', 2 );
+	$low_manual    = wc_get_products( array(
+		'limit'        => 10,
+		'manage_stock' => true,
+		'orderby'      => 'meta_value_num',
+		'meta_key'     => '_stock', // phpcs:ignore WordPress.DB.SlowDBQuery.slow_db_query_meta_key
+		'order'        => 'ASC',
+	) );
+	foreach ( $low_manual as $product ) {
+		$qty = $product->get_stock_quantity();
+		if ( null !== $qty && $qty <= $low_threshold && $qty >= 0 ) {
+			$low_stock[] = array(
+				'id'        => $product->get_id(),
+				'name'      => $product->get_name(),
+				'stock'     => $qty,
+				'threshold' => $low_threshold,
+			);
+		}
+	}
+}
+
 // Nonce for "Request CRM Review" button.
 $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 ?>
@@ -117,25 +162,25 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 	<?php endif; ?>
 
 	<!-- 1. Agent Status Bar -->
-	<section class="wpc-agent-status-bar">
-		<div class="wpc-agent-status-bar__identity">
-			<span class="wpc-agent-status-bar__emoji" aria-hidden="true">&#x1F4BC;</span>
-			<span class="wpc-agent-status-bar__name"><?php esc_html_e( 'Hugo — Commerce Lead', 'claw-agent' ); ?></span>
-			<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Active', 'claw-agent' ); ?></span>
+	<section class="wpc-card" style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px;margin-bottom:20px;">
+		<div style="display:flex;align-items:center;gap:12px;">
+			<?php echo wp_claw_agent_avatar( 'Hugo', 40 ); ?>
+			<div>
+				<strong style="font-size:1rem;"><?php esc_html_e( 'Hugo — Commerce Lead', 'claw-agent' ); ?></strong>
+				<span class="wpc-badge wpc-badge--active" style="margin-left:8px;"><?php esc_html_e( 'Active', 'claw-agent' ); ?></span>
+				<br>
+				<span style="font-size:0.75rem;color:#9ca3af;" id="wpc-commerce-last-check"></span>
+			</div>
 		</div>
-		<div class="wpc-agent-status-bar__meta">
-			<span class="wpc-agent-status-bar__last-check" id="wpc-commerce-last-check">
-				<?php esc_html_e( 'Checking status...', 'claw-agent' ); ?>
-			</span>
-			<button
-				type="button"
-				id="wpc-commerce-request-review"
-				class="wpc-btn wpc-btn--sm wpc-btn--primary"
-				data-nonce="<?php echo esc_attr( $crm_review_nonce ); ?>"
-			>
-				<?php esc_html_e( 'Request CRM Review', 'claw-agent' ); ?>
-			</button>
-		</div>
+		<button
+			type="button"
+			id="wpc-commerce-request-review"
+			class="wpc-btn wpc-btn--primary"
+			data-nonce="<?php echo esc_attr( $crm_review_nonce ); ?>"
+			style="padding:10px 20px;border-radius:8px;font-weight:600;"
+		>
+			<?php esc_html_e( 'Request CRM Review', 'claw-agent' ); ?>
+		</button>
 	</section>
 
 	<!-- 2. Latest Commerce Report (hero) -->
@@ -186,7 +231,98 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 
 	</section>
 
-	<!-- 4. Commerce Activity History -->
+	<!-- 4. Products -->
+	<?php if ( $woo_active ) : ?>
+	<section class="wpc-card" style="margin-top:20px;margin-bottom:20px;">
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+			<h2 class="wpc-section-heading" style="margin:0;"><?php esc_html_e( 'Products', 'claw-agent' ); ?></h2>
+			<button type="button" class="wpc-btn wpc-btn--primary wpc-request-scan"
+				data-agent="commerce"
+				data-title="Create draft product"
+				data-description="Ask the site owner what product they want to create. Then use commerce_create_draft_product to create a WooCommerce draft product with the provided name, description, and price. DO NOT publish it — save as draft only."
+				data-task-key="commerce_commerce_create_product">
+				<?php esc_html_e( 'Ask Hugo to Create Product', 'claw-agent' ); ?>
+			</button>
+		</div>
+
+		<?php if ( ! empty( $low_stock ) ) : ?>
+		<div style="background:#fef3c7;border:1px solid #fbbf24;border-radius:8px;padding:12px 16px;margin-bottom:16px;">
+			<strong style="color:#92400e;"><?php esc_html_e( 'Low Stock Alerts', 'claw-agent' ); ?></strong>
+			<ul style="margin:8px 0 0;padding-left:20px;">
+				<?php foreach ( $low_stock as $ls ) : ?>
+				<li style="color:#92400e;">
+					<a href="<?php echo esc_url( get_edit_post_link( $ls['id'] ) ); ?>" style="color:#92400e;text-decoration:underline;">
+						<?php echo esc_html( $ls['name'] ); ?>
+					</a>
+					— <?php echo esc_html( sprintf( /* translators: 1: stock quantity, 2: low stock threshold */ __( '%1$d in stock (threshold: %2$d)', 'claw-agent' ), $ls['stock'], $ls['threshold'] ) ); ?>
+				</li>
+				<?php endforeach; ?>
+			</ul>
+		</div>
+		<?php endif; ?>
+
+		<?php if ( ! empty( $products_data ) ) : ?>
+		<table class="wpc-detail-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Product', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Type', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Price', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Stock', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Modified', 'claw-agent' ); ?></th>
+					<th scope="col"><?php esc_html_e( 'Actions', 'claw-agent' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<?php foreach ( $products_data as $prod ) : ?>
+				<tr>
+					<td>
+						<a href="<?php echo esc_url( get_edit_post_link( $prod['id'] ) ); ?>" style="color:#4f46e5;">
+							<?php echo esc_html( mb_strimwidth( $prod['name'], 0, 40, '...' ) ); ?>
+						</a>
+					</td>
+					<td><?php echo esc_html( $prod['type'] ); ?></td>
+					<td data-inline-edit="product_price"
+						data-target-id="<?php echo esc_attr( $prod['id'] ); ?>"
+						data-current-value="<?php echo esc_attr( $prod['price'] ?? '' ); ?>"
+						style="cursor:pointer;" title="<?php esc_attr_e( 'Click to edit price', 'claw-agent' ); ?>">
+						<?php echo esc_html( $wp_claw_format_price( $prod['price'] ) ); ?>
+					</td>
+					<td data-inline-edit="product_stock"
+						data-target-id="<?php echo esc_attr( $prod['id'] ); ?>"
+						data-current-value="<?php echo esc_attr( $prod['stock'] ?? '' ); ?>"
+						style="cursor:pointer;" title="<?php esc_attr_e( 'Click to edit stock', 'claw-agent' ); ?>">
+						<?php if ( null === $prod['stock'] ) : ?>
+							<span class="wpc-badge wpc-badge--idle"><?php esc_html_e( 'N/A', 'claw-agent' ); ?></span>
+						<?php elseif ( $prod['stock'] <= 0 ) : ?>
+							<span class="wpc-badge wpc-badge--failed"><?php echo esc_html( $prod['stock'] ); ?></span>
+						<?php else : ?>
+							<span class="wpc-badge wpc-badge--done"><?php echo esc_html( $prod['stock'] ); ?></span>
+						<?php endif; ?>
+					</td>
+					<td><?php echo esc_html( $prod['modified'] ); ?></td>
+					<td>
+						<button type="button" class="wpc-btn wpc-btn--small wpc-request-scan"
+							data-agent="commerce"
+							data-title="<?php echo esc_attr( sprintf( /* translators: %s: product name */ __( 'Improve product description: %s', 'claw-agent' ), $prod['name'] ) ); ?>"
+							data-description="<?php echo esc_attr( sprintf( /* translators: 1: product ID, 2: product name */ __( "Rewrite the product description for product ID %1\$d ('%2\$s'). Make it SEO-optimized, compelling, and include key features. Save as a draft suggestion — do NOT update the product directly.", 'claw-agent' ), $prod['id'], $prod['name'] ) ); ?>"
+							data-task-key="<?php echo esc_attr( 'commerce_commerce_improve_' . $prod['id'] ); ?>">
+							<?php esc_html_e( 'Improve Description', 'claw-agent' ); ?>
+						</button>
+					</td>
+				</tr>
+				<?php endforeach; ?>
+			</tbody>
+		</table>
+		<?php else : ?>
+		<p class="wpc-empty-state">
+			<?php esc_html_e( 'No products found. Add products in WooCommerce to see them here.', 'claw-agent' ); ?>
+		</p>
+		<?php endif; ?>
+	</section>
+	<?php endif; ?>
+
+	<!-- 5. Commerce Activity History -->
 	<section class="wpc-card">
 		<h3><?php esc_html_e( 'Commerce & CRM Activity', 'claw-agent' ); ?></h3>
 		<div id="wpc-commerce-history">
@@ -205,7 +341,7 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 
 		<?php if ( empty( $email_drafts ) ) : ?>
 			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'No pending email drafts.', 'claw-agent' ); ?></p>
+				<p><?php esc_html_e( 'When Hugo detects leads needing follow-up, email drafts appear here for your approval.', 'claw-agent' ); ?></p>
 			</div>
 		<?php else : ?>
 			<table class="wpc-detail-table">
@@ -286,7 +422,7 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 			</div>
 		<?php elseif ( $total_leads < 1 ) : ?>
 			<div class="wpc-empty-state">
-				<p><?php esc_html_e( 'No leads captured yet. Pipeline data will appear here once leads flow in.', 'claw-agent' ); ?></p>
+				<p><?php esc_html_e( 'No leads captured yet. Connect a contact form (WPForms, Gravity Forms, or Contact Form 7) to start capturing leads. Hugo will score and manage them automatically.', 'claw-agent' ); ?></p>
 			</div>
 		<?php else : ?>
 			<?php
@@ -332,7 +468,17 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 	</section>
 
 	<!-- Customer Segments -->
-	<?php if ( $woo_active && ! empty( $customer_segments ) ) : ?>
+	<?php
+	$has_real_segments = false;
+	if ( $woo_active && ! empty( $customer_segments ) ) {
+		foreach ( $customer_segments as $seg ) {
+			if ( ! empty( $seg['name'] ) && $seg['name'] !== 'Unknown' && ( isset( $seg['count'] ) && (int) $seg['count'] > 0 ) ) {
+				$has_real_segments = true;
+				break;
+			}
+		}
+	}
+	if ( $has_real_segments ) : ?>
 	<section class="wpc-card">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Customer Segments', 'claw-agent' ); ?></h2>
 
@@ -367,6 +513,11 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 			</tbody>
 		</table>
 	</section>
+	<?php elseif ( $woo_active ) : ?>
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Customer Segments', 'claw-agent' ); ?></h2>
+		<p class="wpc-empty-state"><?php esc_html_e( 'Customer segmentation will appear here after Hugo processes enough order data. Segments include: one-time, repeat, loyal, at-risk, and dormant customers.', 'claw-agent' ); ?></p>
+	</section>
 	<?php endif; ?>
 
 </div>
@@ -392,6 +543,7 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 		var el = document.getElementById( id );
 		if ( ! el ) { return; }
 		while ( el.firstChild ) { el.removeChild( el.firstChild ); }
+		el.dataset.loaded = 'true';
 		el.appendChild( frag );
 	}
 
@@ -551,8 +703,8 @@ $crm_review_nonce = wp_create_nonce( 'wp_claw_create_task' );
 						break;
 					}
 				}
-				if ( hugo && hugo.last_active ) {
-					var ago = Math.round( ( Date.now() - new Date( hugo.last_active ).getTime() ) / 60000 );
+				if ( hugo && ( hugo.last_heartbeat || hugo.last_active ) ) {
+					var ago = Math.round( ( Date.now() - new Date( hugo.last_heartbeat || hugo.last_active ).getTime() ) / 60000 );
 					var label = ago < 1
 						? <?php echo wp_json_encode( __( 'just now', 'claw-agent' ) ); ?>
 						: ago + ' ' + <?php echo wp_json_encode( __( 'min ago', 'claw-agent' ) ); ?>;

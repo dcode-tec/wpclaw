@@ -7,7 +7,21 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.4.0] — 2026-04-07 — Agent Skills Upgrade
+## [1.4.0] — 2026-04-07 — Agent Skills Upgrade + Governance Layer
+
+### Added — Governance Layer (Klawty-side plugin, `tools/marketplace-plugins/wp-claw-agents/`)
+- **[P0]** `src/governance/tier-registry.ts` — 134 tools mapped to 5 risk tiers: auto (64), auto+ (38), propose (27), confirm (5), block (0). Unknown tools default to `propose`.
+- **[P0]** `src/governance/proposal-store.ts` — SQLite `proposals` + `governance_log` tables. Lifecycle: pending → approved/rejected/expired/rolled_back. 15-min rollback window for propose tier, explicit approval for confirm tier.
+- **[P0]** `src/governance/wp-security.ts` — Input sanitization (SQL injection, XSS, path traversal), per-agent rate limiting (20 writes/hour, 5 deletes/day), constitutional enforcement (T3 daily limit, operations halt on 2 consecutive health failures).
+- **[P0]** `src/governance/policy-engine.ts` — Central orchestrator: tier lookup → security validation → rate limit → proposal creation. Exposes approve/reject/listPending API.
+- **[P0]** `coordinated-client.ts` — PolicyEngine wired as pre-execution check. `toolName` threaded as 5th parameter through 118 `execute()` calls across 7 tool files. `forAgent()` forwards policy engine to child instances. Propose-tier tools get 15-min rollback window after execution.
+- **[P0]** `plugin.ts` — `/api/proposals` HTTP route (GET pending, POST approve/reject). Proposal expiry service (24h max, hourly check).
+- **[P1]** `src/governance/budget-tracker.ts` — Per-agent daily cost caps: Thomas $3, Lina $4, Bastien $1.50, Hugo $3, Selma $2, Marc $2.50. Tracks via `agent_costs` SQLite table.
+- **[P1]** `src/services/alert-service.ts` — Formatted notifications for proposals, security threats, budget warnings, stuck agents. Emits to customer's configured channel (Discord/WhatsApp/Telegram) via Klawty OS.
+- **[P2]** `src/services/pattern-memory.ts` — Records tool success/failure patterns. SHA-256 input hashing, 7-day rolling window, skip-tool recommendation after 3+ consecutive failures.
+- **[P2]** `src/services/skill-improvement-service.ts` — Upgraded from 54→200 lines. Uses PatternMemory for two-pass analysis: investigate (< 50% success rate) + optimize (> 90% success rate). Max 3 insights per agent per cycle.
+- **[TESTS]** 9 new test files (tier-registry, proposal-store, wp-security, policy-engine, e2e-governance, budget-tracker, alert-service, pattern-memory, skill-improvement). 52+ assertions, 0 failures.
+- **[BUILD]** Plugin version bumped to 1.4.0. Bundle: 213KB (dist/plugin.js). All 7 governance components verified in bundle.
 
 ### Added
 - **Structured Site Triage**: `/state` sync now includes signals, tooling, health, and recommendations
