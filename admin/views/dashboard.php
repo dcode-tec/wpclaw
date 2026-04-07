@@ -257,6 +257,17 @@ $wp_claw_badge_class = function ( $status ) {
 ?>
 <div class="wpc-admin-wrap">
 
+<?php if ( get_option( 'wp_claw_demo_mode' ) ) : ?>
+<div class="notice notice-info wp-claw-demo-banner">
+	<p>
+		<strong><?php esc_html_e( 'Demo Mode', 'claw-agent' ); ?></strong> —
+		<?php esc_html_e( 'This is a demo environment with sample data.', 'claw-agent' ); ?>
+		<a href="https://wp-claw.ai/pricing" target="_blank" rel="noopener"><?php esc_html_e( 'Connect to a real instance', 'claw-agent' ); ?> &rarr;</a>
+	</p>
+</div>
+<?php endif; ?>
+
+
 	<?php settings_errors( 'wp_claw_messages' ); ?>
 
 	<!-- Constitutional Banners -->

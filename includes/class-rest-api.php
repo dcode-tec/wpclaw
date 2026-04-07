@@ -1264,6 +1264,11 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_chains_list( \WP_REST_Request $request ): \WP_REST_Response {
+		// Demo mode: return mock chain data when wp_claw_demo_mode is active.
+		if ( \WPClaw\Demo_Provider::is_active() ) {
+			return rest_ensure_response( \WPClaw\Demo_Provider::chains() );
+		}
+
 		global $wpdb;
 
 		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
@@ -2174,6 +2179,11 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_health( \WP_REST_Request $request ): \WP_REST_Response {
+		// Demo mode: return mock health data when wp_claw_demo_mode is active.
+		if ( \WPClaw\Demo_Provider::is_active() ) {
+			return rest_ensure_response( \WPClaw\Demo_Provider::health() );
+		}
+
 		// Pre-flight: check if instance URL is configured at all.
 		$instance_url = get_option( 'wp_claw_instance_url', '' );
 		$mode         = get_option( 'wp_claw_connection_mode', 'managed' );
@@ -2228,6 +2238,11 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_agents( \WP_REST_Request $request ): \WP_REST_Response {
+		// Demo mode: return mock agent data when wp_claw_demo_mode is active.
+		if ( \WPClaw\Demo_Provider::is_active() ) {
+			return rest_ensure_response( \WPClaw\Demo_Provider::agents() );
+		}
+
 		$instance_url = get_option( 'wp_claw_instance_url', '' );
 		$mode         = get_option( 'wp_claw_connection_mode', 'managed' );
 		if ( '' === $instance_url && 'managed' === $mode ) {
@@ -2649,6 +2664,10 @@ class REST_API {
 	 * @return \WP_REST_Response REST response containing the abilities manifest.
 	 */
 	public function handle_abilities( \WP_REST_Request $request ): \WP_REST_Response {
+		// Demo mode: abilities endpoint doesn't need mocked data — fall through
+		// to the normal abilities manifest so Playground shows the full module list.
+		// No guard needed here; abilities are static module metadata, not live instance data.
+
 		$version = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
 		$enabled = (array) get_option( 'wp_claw_enabled_modules', array() );
 

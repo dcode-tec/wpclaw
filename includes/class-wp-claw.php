@@ -239,6 +239,9 @@ class WP_Claw {
 
 		// --- Step 4b: Notifications -----------------------------------------
 		require_once WP_CLAW_PLUGIN_DIR . 'includes/class-notifications.php';
+
+		// --- Step 4c: Demo Provider -----------------------------------------
+		require_once WP_CLAW_PLUGIN_DIR . 'includes/class-demo-provider.php';
 		add_action( 'wp_claw_daily_digest', array( '\\WPClaw\\Notifications', 'send_daily_digest' ) );
 		add_action( 'wp_claw_weekly_report', array( '\\WPClaw\\Notifications', 'send_weekly_report' ) );
 

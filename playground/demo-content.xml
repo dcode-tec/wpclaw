@@ -1,0 +1,83 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!-- This is a WordPress eXtended RSS (WXR) file generated for WP-Claw demo content. -->
+<rss version="2.0"
+    xmlns:excerpt="http://wordpress.org/export/1.2/excerpt/"
+    xmlns:content="http://purl.org/rss/1.0/modules/content/"
+    xmlns:wfw="http://wellformedweb.org/CommentAPI/"
+    xmlns:dc="http://purl.org/dc/elements/1.1/"
+    xmlns:wp="http://wordpress.org/export/1.2/"
+>
+<channel>
+    <title>WP-Claw Demo Store</title>
+    <link>https://example.com</link>
+    <description>Demo content for WP-Claw Playground</description>
+    <pubDate>Mon, 07 Apr 2026 00:00:00 +0000</pubDate>
+    <language>en-US</language>
+    <wp:wxr_version>1.2</wp:wxr_version>
+    <wp:base_site_url>https://example.com</wp:base_site_url>
+    <wp:base_blog_url>https://example.com</wp:base_blog_url>
+
+    <item>
+        <title>Welcome to WP-Claw Demo</title>
+        <link>https://example.com/welcome-to-wp-claw-demo/</link>
+        <pubDate>Mon, 07 Apr 2026 10:00:00 +0000</pubDate>
+        <dc:creator>admin</dc:creator>
+        <content:encoded><![CDATA[<p>This is a demo WordPress site powered by WP-Claw. Your AI agent team is ready to help manage SEO, security, content, commerce, analytics, and more.</p>]]></content:encoded>
+        <wp:post_id>1</wp:post_id>
+        <wp:post_date>2026-04-07 10:00:00</wp:post_date>
+        <wp:post_date_gmt>2026-04-07 10:00:00</wp:post_date_gmt>
+        <wp:post_modified>2026-04-07 10:00:00</wp:post_modified>
+        <wp:post_modified_gmt>2026-04-07 10:00:00</wp:post_modified_gmt>
+        <wp:comment_status>closed</wp:comment_status>
+        <wp:ping_status>closed</wp:ping_status>
+        <wp:post_name>welcome-to-wp-claw-demo</wp:post_name>
+        <wp:status>publish</wp:status>
+        <wp:post_type>post</wp:post_type>
+    </item>
+
+    <item>
+        <title>How AI Agents Manage Your WordPress Site</title>
+        <link>https://example.com/how-ai-agents-manage-wordpress/</link>
+        <pubDate>Mon, 07 Apr 2026 11:00:00 +0000</pubDate>
+        <dc:creator>admin</dc:creator>
+        <content:encoded><![CDATA[<p>WP-Claw replaces 10–15 individual plugins with a single AI-powered operating layer. Six specialized agents handle SEO, security, content, commerce, analytics, and customer chat — autonomously.</p><p>This is not a chatbot. This is an operating system for WordPress.</p>]]></content:encoded>
+        <wp:post_id>2</wp:post_id>
+        <wp:post_date>2026-04-07 11:00:00</wp:post_date>
+        <wp:post_date_gmt>2026-04-07 11:00:00</wp:post_date_gmt>
+        <wp:post_modified>2026-04-07 11:00:00</wp:post_modified>
+        <wp:post_modified_gmt>2026-04-07 11:00:00</wp:post_modified_gmt>
+        <wp:comment_status>closed</wp:comment_status>
+        <wp:ping_status>closed</wp:ping_status>
+        <wp:post_name>how-ai-agents-manage-wordpress</wp:post_name>
+        <wp:status>publish</wp:status>
+        <wp:post_type>post</wp:post_type>
+    </item>
+
+    <item>
+        <title>Sample Product</title>
+        <link>https://example.com/sample-product/</link>
+        <pubDate>Mon, 07 Apr 2026 12:00:00 +0000</pubDate>
+        <dc:creator>admin</dc:creator>
+        <content:encoded><![CDATA[<p>A sample WooCommerce product for the WP-Claw demo. Hugo (Commerce Agent) monitors this product for abandoned carts, price optimisation opportunities, and stock thresholds.</p>]]></content:encoded>
+        <wp:post_id>3</wp:post_id>
+        <wp:post_date>2026-04-07 12:00:00</wp:post_date>
+        <wp:post_date_gmt>2026-04-07 12:00:00</wp:post_date_gmt>
+        <wp:post_modified>2026-04-07 12:00:00</wp:post_modified>
+        <wp:post_modified_gmt>2026-04-07 12:00:00</wp:post_modified_gmt>
+        <wp:comment_status>closed</wp:comment_status>
+        <wp:ping_status>closed</wp:ping_status>
+        <wp:post_name>sample-product</wp:post_name>
+        <wp:status>publish</wp:status>
+        <wp:post_type>product</wp:post_type>
+        <wp:postmeta>
+            <wp:meta_key>_price</wp:meta_key>
+            <wp:meta_value>29.00</wp:meta_value>
+        </wp:postmeta>
+        <wp:postmeta>
+            <wp:meta_key>_regular_price</wp:meta_key>
+            <wp:meta_value>29.00</wp:meta_value>
+        </wp:postmeta>
+    </item>
+
+</channel>
+</rss>
