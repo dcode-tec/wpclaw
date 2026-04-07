@@ -579,6 +579,19 @@ class REST_API {
 			)
 		);
 
+		// ----- Module discovery route (v1.4.0) -----
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/abilities',
+			array(
+				'methods'             => 'GET',
+				'callback'            => array( $this, 'handle_abilities' ),
+				'permission_callback' => '__return_true',
+				'args'                => array(),
+			)
+		);
+
 		// ----- Inline edit + agent action routes (v1.3.1) -----
 
 		register_rest_route(
@@ -2490,6 +2503,121 @@ class REST_API {
 				'task_id' => $response['id'] ?? '',
 				'message' => __( 'Task created — agent will process on next cycle.', 'claw-agent' ),
 			)
+		);
+	}
+
+	// -------------------------------------------------------------------------
+	// Module discovery (v1.4.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Return the plugin's ability manifest for external discovery.
+	 *
+	 * Public endpoint — no authentication required. Consumers (e.g. the Klawty
+	 * orchestrator, the wp-claw.ai dashboard, or future WordPress Abilities API
+	 * integrations) can call this route to discover which modules are shipped
+	 * with this plugin, which agent handles each one, and whether each module
+	 * is currently enabled on this WordPress installation.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request (unused — no params).
+	 *
+	 * @return \WP_REST_Response REST response containing the abilities manifest.
+	 */
+	public function handle_abilities( \WP_REST_Request $request ): \WP_REST_Response {
+		$version = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
+		$enabled = (array) get_option( 'wp_claw_enabled_modules', array() );
+
+		/**
+		 * Full module catalogue: slug → [ label, description, agent ].
+		 *
+		 * Agent IDs use the Klawty orchestrator identifiers (scribe, sentinel,
+		 * commerce, analyst, concierge, architect) which map to the vision names
+		 * Lina, Bastien, Hugo, Selma, Marc, and Karim respectively.
+		 */
+		$catalogue = array(
+			'seo'         => array(
+				'label'       => __( 'WP-Claw SEO', 'claw-agent' ),
+				'description' => __( 'Meta tags, schema markup, A/B testing, cannibalization detection, broken links, and stale content remediation.', 'claw-agent' ),
+				'agent'       => 'scribe',
+			),
+			'security'    => array(
+				'label'       => __( 'WP-Claw Security', 'claw-agent' ),
+				'description' => __( 'File integrity, malware scanning, IP blocking, brute-force protection, SSL monitoring, and security header deployment.', 'claw-agent' ),
+				'agent'       => 'sentinel',
+			),
+			'content'     => array(
+				'label'       => __( 'WP-Claw Content', 'claw-agent' ),
+				'description' => __( 'Draft creation, translations, freshness scanning, stale date fixing, and thin content expansion.', 'claw-agent' ),
+				'agent'       => 'scribe',
+			),
+			'crm'         => array(
+				'label'       => __( 'WP-Claw CRM', 'claw-agent' ),
+				'description' => __( 'Lead capture, scoring, pipeline management, email draft approval, and follow-up drafting.', 'claw-agent' ),
+				'agent'       => 'commerce',
+			),
+			'commerce'    => array(
+				'label'       => __( 'WP-Claw Commerce', 'claw-agent' ),
+				'description' => __( 'WooCommerce abandoned cart recovery, fraud detection, customer segmentation, and stock threshold monitoring.', 'claw-agent' ),
+				'agent'       => 'commerce',
+			),
+			'performance' => array(
+				'label'       => __( 'WP-Claw Performance', 'claw-agent' ),
+				'description' => __( 'Core Web Vitals monitoring, database cleanup, table optimisation, autoload analysis, and PageSpeed insights.', 'claw-agent' ),
+				'agent'       => 'analyst',
+			),
+			'analytics'   => array(
+				'label'       => __( 'WP-Claw Analytics', 'claw-agent' ),
+				'description' => __( 'Privacy-first tracking, anomaly detection, funnel analysis, and content trend reporting.', 'claw-agent' ),
+				'agent'       => 'analyst',
+			),
+			'backup'      => array(
+				'label'       => __( 'WP-Claw Backup', 'claw-agent' ),
+				'description' => __( 'Database and file backups, targeted 72-hour snapshots, and one-click rollback.', 'claw-agent' ),
+				'agent'       => 'sentinel',
+			),
+			'social'      => array(
+				'label'       => __( 'WP-Claw Social', 'claw-agent' ),
+				'description' => __( 'Platform-specific post formatting, scheduling, and publishing history.', 'claw-agent' ),
+				'agent'       => 'scribe',
+			),
+			'chat'        => array(
+				'label'       => __( 'WP-Claw Chat', 'claw-agent' ),
+				'description' => __( 'GDPR-compliant live chat widget with product catalogue, FAQ learning, escalation SLA, and lead capture.', 'claw-agent' ),
+				'agent'       => 'concierge',
+			),
+			'forms'       => array(
+				'label'       => __( 'WP-Claw Forms', 'claw-agent' ),
+				'description' => __( 'AI-assisted form creation and submission tracking.', 'claw-agent' ),
+				'agent'       => 'architect',
+			),
+			'audit'       => array(
+				'label'       => __( 'WP-Claw Audit', 'claw-agent' ),
+				'description' => __( 'Full site audit covering plugin versions, SSL status, disk and database statistics, and weekly health reports.', 'claw-agent' ),
+				'agent'       => 'architect',
+			),
+		);
+
+		$abilities = array();
+		foreach ( $catalogue as $id => $meta ) {
+			$abilities[] = array(
+				'id'          => 'wp-claw-' . $id,
+				'label'       => $meta['label'],
+				'description' => $meta['description'],
+				'enabled'     => in_array( $id, $enabled, true ),
+				'agent'       => $meta['agent'],
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'plugin'    => 'claw-agent',
+				'version'   => $version,
+				'category'  => 'wp-claw',
+				'abilities' => $abilities,
+			),
+			200
 		);
 	}
 }

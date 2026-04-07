@@ -237,6 +237,11 @@ class WP_Claw {
 		// --- Step 4: REST API bridge ----------------------------------------
 		$this->rest_api = new REST_API( $this->api_client );
 
+		// --- Step 4b: Notifications -----------------------------------------
+		require_once WP_CLAW_PLUGIN_DIR . 'includes/class-notifications.php';
+		add_action( 'wp_claw_daily_digest', array( '\\WPClaw\\Notifications', 'send_daily_digest' ) );
+		add_action( 'wp_claw_weekly_report', array( '\\WPClaw\\Notifications', 'send_weekly_report' ) );
+
 		// --- Step 5: Cron ---------------------------------------------------
 		$this->cron = new Cron( $this->api_client );
 
@@ -271,6 +276,9 @@ class WP_Claw {
 		// The redirect transient is consumed and deleted by Admin::handle_activation_redirect()
 		// on the admin_init hook (inside class-admin.php). Nothing to do here except
 		// confirm we do NOT redirect from this context (headers may already be sent).
+
+		// --- Step 12: Native abilities registration (future WordPress API) ----
+		add_action( 'init', array( $this, 'register_native_abilities' ) );
 	}
 
 	// -------------------------------------------------------------------------
@@ -350,7 +358,6 @@ class WP_Claw {
 	 * @return void
 	 */
 	public function enqueue_public_assets(): void {
-		$suffix     = defined( 'SCRIPT_DEBUG' ) && SCRIPT_DEBUG ? '' : '.min';
 		$version    = defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.0.0';
 		$plugin_url = defined( 'WP_CLAW_PLUGIN_URL' ) ? WP_CLAW_PLUGIN_URL : plugin_dir_url( __DIR__ );
 
@@ -358,14 +365,14 @@ class WP_Claw {
 		if ( $this->is_module_enabled( 'chat' ) ) {
 			wp_enqueue_style(
 				'wp-claw-public',
-				$plugin_url . 'public/css/wp-claw-public' . $suffix . '.css',
+				$plugin_url . 'public/css/wp-claw-public.css',
 				array(),
 				$version
 			);
 
 			wp_enqueue_script(
 				'wp-claw-public',
-				$plugin_url . 'public/js/wp-claw-public' . $suffix . '.js',
+				$plugin_url . 'public/js/wp-claw-public.js',
 				array(),
 				$version,
 				true // load in footer
@@ -389,7 +396,7 @@ class WP_Claw {
 		if ( $this->is_module_enabled( 'analytics' ) ) {
 			wp_enqueue_script(
 				'wp-claw-analytics',
-				$plugin_url . 'public/js/wp-claw-analytics' . $suffix . '.js',
+				$plugin_url . 'public/js/wp-claw-public.js',
 				array(),
 				$version,
 				true // load in footer
@@ -484,5 +491,31 @@ class WP_Claw {
 	public function is_module_enabled( string $slug ): bool {
 		$slug = sanitize_key( $slug );
 		return isset( $this->modules[ $slug ] );
+	}
+
+	// -------------------------------------------------------------------------
+	// Future WordPress Abilities API integration (v1.4.0)
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Register WP-Claw modules with the native WordPress Abilities API.
+	 *
+	 * This method is a forward-compatible stub. It fires on the `init` action
+	 * but is a no-op until WordPress ships the Abilities API
+	 * (wp_register_ability() function). When the function becomes available,
+	 * this stub can be fleshed out to register all 12 WP-Claw abilities natively,
+	 * enabling deep platform integration (block editor discovery, admin menus,
+	 * theme negotiation, etc.) without additional plugin configuration.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	public function register_native_abilities(): void {
+		if ( ! function_exists( 'wp_register_ability' ) ) {
+			return;
+		}
+
+		// Future: iterate $module_registry, call wp_register_ability() per module.
 	}
 }
