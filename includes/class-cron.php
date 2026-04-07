@@ -151,12 +151,16 @@ class Cron {
 				update_option( 'wp_claw_operations_halted', true, false );
 				wp_claw_log_error( 'Two consecutive health check failures — halting T2/T3 operations.' );
 			}
+			// Bust admin bar cache so disconnected state shows immediately.
+			delete_transient( 'wp_claw_admin_bar_status' );
 			return;
 		}
 
 		wp_claw_log_debug( 'Scheduled health check completed.', array( 'status' => $result['status'] ?? 'unknown' ) );
 		delete_transient( 'wp_claw_consecutive_health_fails' );
 		delete_option( 'wp_claw_operations_halted' );
+		// Bust admin bar cache so next page load reflects new status.
+		delete_transient( 'wp_claw_admin_bar_status' );
 	}
 
 	/**
@@ -178,6 +182,7 @@ class Cron {
 		$state = array(
 			'wordpress_version' => get_bloginfo( 'version' ),
 			'php_version'       => PHP_VERSION,
+			'claw_version'      => defined( 'WP_CLAW_VERSION' ) ? WP_CLAW_VERSION : '1.2.2',
 			'site_url'          => get_site_url(),
 			'theme'             => get_stylesheet(),
 			'active_plugins'    => $this->get_active_plugin_slugs(),
@@ -207,6 +212,11 @@ class Cron {
 			}
 		}
 
+		$state['signals']         = $this->get_site_signals();
+		$state['tooling']         = $this->get_site_tooling();
+		$state['health']          = $this->get_site_health();
+		$state['recommendations'] = $this->build_recommendations( $state['signals'], $state['health'] );
+
 		$result = $this->api_client->sync_state( $state );
 
 		if ( is_wp_error( $result ) ) {
@@ -222,6 +232,206 @@ class Cron {
 		}
 
 		update_option( 'wp_claw_last_sync', current_time( 'mysql' ), false );
+	}
+
+	// -------------------------------------------------------------------------
+	// Site triage helpers
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Collect high-level site signals that describe the environment.
+	 *
+	 * Returns a flat map of boolean/integer signals agents can use to make
+	 * context-aware decisions without querying WordPress themselves.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array<string,mixed> Signal name => value.
+	 */
+	private function get_site_signals(): array {
+		global $wpdb;
+
+		// Autoload payload size. phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$autoload_bytes = (int) $wpdb->get_var(
+			"SELECT SUM( LENGTH( option_value ) ) FROM {$wpdb->options} WHERE autoload = 'yes'"
+		);
+
+		return array(
+			'has_woocommerce'  => class_exists( 'WooCommerce' ),
+			'has_block_theme'  => wp_is_block_theme(),
+			'has_multisite'    => is_multisite(),
+			'has_object_cache' => wp_using_ext_object_cache(),
+			'has_page_cache'   => defined( 'WP_CACHE' ) && WP_CACHE,
+			'ssl_active'       => is_ssl(),
+			'debug_mode'       => defined( 'WP_DEBUG' ) && WP_DEBUG,
+			'cron_disabled'    => defined( 'DISABLE_WP_CRON' ) && DISABLE_WP_CRON,
+			'autoload_bytes'   => $autoload_bytes,
+		);
+	}
+
+	/**
+	 * Collect server / PHP environment tooling details.
+	 *
+	 * The SERVER_SOFTWARE value is sanitized before storage to strip any
+	 * potentially unsafe characters originating from the web server header.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array<string,string|int> Tooling name => value.
+	 */
+	private function get_site_tooling(): array {
+		global $wpdb;
+
+		$server_software = '';
+		if ( isset( $_SERVER['SERVER_SOFTWARE'] ) ) {
+			// phpcs:ignore WordPress.Security.ValidatedSanitizedInput.InputNotSanitized
+			$server_software = sanitize_text_field( wp_unslash( $_SERVER['SERVER_SOFTWARE'] ) );
+		}
+
+		return array(
+			'php_version'         => PHP_VERSION,
+			'mysql_version'       => $wpdb->db_version(),
+			'server_software'     => $server_software,
+			'memory_limit'        => ini_get( 'memory_limit' ),
+			'max_execution_time'  => (int) ini_get( 'max_execution_time' ),
+			'upload_max_filesize' => ini_get( 'upload_max_filesize' ),
+		);
+	}
+
+	/**
+	 * Perform a lightweight health audit of the WordPress installation.
+	 *
+	 * Checks overdue WP-Cron hooks, autoload bloat, broken active plugins,
+	 * missing WP-Claw database tables, and available disk space.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return array<string,mixed> Health metric name => value.
+	 */
+	private function get_site_health(): array {
+		global $wpdb;
+
+		// --- Overdue cron count --------------------------------------------------
+		$overdue_count = 0;
+		$cron_array    = _get_cron_array();
+		if ( is_array( $cron_array ) ) {
+			foreach ( $cron_array as $timestamp => $hooks ) {
+				if ( (int) $timestamp < time() ) {
+					$overdue_count += count( $hooks );
+				}
+			}
+		}
+
+		// --- Autoload bloat ------------------------------------------------------
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$autoload_bytes = (int) $wpdb->get_var(
+			"SELECT SUM( LENGTH( option_value ) ) FROM {$wpdb->options} WHERE autoload = 'yes'"
+		);
+
+		// --- Broken active plugins (file missing) --------------------------------
+		$active_plugins  = (array) get_option( 'active_plugins', array() );
+		$failed_plugins  = array();
+		foreach ( $active_plugins as $plugin_file ) {
+			$plugin_path = WP_PLUGIN_DIR . '/' . $plugin_file;
+			if ( ! file_exists( $plugin_path ) ) {
+				$failed_plugins[] = sanitize_text_field( $plugin_file );
+			}
+		}
+
+		// --- Missing WP-Claw DB tables -------------------------------------------
+		$expected_tables = array(
+			$wpdb->prefix . 'claw_tasks',
+			$wpdb->prefix . 'claw_proposals',
+			$wpdb->prefix . 'claw_analytics',
+			$wpdb->prefix . 'claw_command_log',
+			$wpdb->prefix . 'claw_file_hashes',
+			$wpdb->prefix . 'claw_ab_tests',
+			$wpdb->prefix . 'claw_abandoned_carts',
+			$wpdb->prefix . 'claw_email_drafts',
+			$wpdb->prefix . 'claw_cwv_history',
+			$wpdb->prefix . 'claw_snapshots',
+		);
+
+		$db_tables_missing = array();
+		foreach ( $expected_tables as $table ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$exists = $wpdb->get_var( $wpdb->prepare( 'SHOW TABLES LIKE %s', $table ) );
+			if ( null === $exists ) {
+				$db_tables_missing[] = $table;
+			}
+		}
+
+		// --- Disk free percentage ------------------------------------------------
+		$disk_free_pct = null;
+		$abspath_dir   = ABSPATH;
+		$disk_total    = @disk_total_space( $abspath_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		$disk_free     = @disk_free_space( $abspath_dir );  // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
+		if ( $disk_total && $disk_free ) {
+			$disk_free_pct = round( ( $disk_free / $disk_total ) * 100, 1 );
+		}
+
+		return array(
+			'wp_cron_overdue_count' => $overdue_count,
+			'autoload_bloat'        => $autoload_bytes > 800000,
+			'failed_plugins'        => $failed_plugins,
+			'db_tables_missing'     => $db_tables_missing,
+			'disk_free_pct'         => $disk_free_pct,
+		);
+	}
+
+	/**
+	 * Build an array of actionable recommendation strings from triage data.
+	 *
+	 * Each recommendation is a plain-English sentence suitable for display
+	 * in the admin dashboard or inclusion in the daily digest email.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param array<string,mixed> $signals Output of get_site_signals().
+	 * @param array<string,mixed> $health  Output of get_site_health().
+	 *
+	 * @return string[] Recommendation strings (empty array = no issues found).
+	 */
+	private function build_recommendations( array $signals, array $health ): array {
+		$recommendations = array();
+
+		if ( ! $signals['has_object_cache'] ) {
+			$recommendations[] = __( 'No persistent object cache detected. Install a Redis or Memcached plugin to reduce database load.', 'claw-agent' );
+		}
+
+		if ( ! $signals['has_page_cache'] ) {
+			$recommendations[] = __( 'Page caching is not enabled (WP_CACHE is false). Enable a full-page cache to improve response times.', 'claw-agent' );
+		}
+
+		if ( $signals['debug_mode'] ) {
+			$recommendations[] = __( 'WP_DEBUG is enabled on a live site. Disable it in wp-config.php to avoid exposing errors to visitors.', 'claw-agent' );
+		}
+
+		if ( ! $signals['ssl_active'] ) {
+			$recommendations[] = __( 'SSL is not active. Install an SSL certificate and force HTTPS to protect visitor data.', 'claw-agent' );
+		}
+
+		if ( $health['autoload_bloat'] ) {
+			$recommendations[] = __( 'Autoloaded options exceed 800 KB. Run a database cleanup to reduce page-load overhead.', 'claw-agent' );
+		}
+
+		if ( $health['wp_cron_overdue_count'] > 5 ) {
+			$recommendations[] = sprintf(
+				/* translators: %d: number of overdue cron hooks. */
+				__( '%d WP-Cron hooks are overdue. Verify WP-Cron is running correctly or switch to a server-side cron.', 'claw-agent' ),
+				(int) $health['wp_cron_overdue_count']
+			);
+		}
+
+		if ( ! empty( $health['db_tables_missing'] ) ) {
+			$recommendations[] = sprintf(
+				/* translators: %d: number of missing database tables. */
+				__( '%d WP-Claw database tables are missing. Deactivate and reactivate the plugin to recreate them.', 'claw-agent' ),
+				count( $health['db_tables_missing'] )
+			);
+		}
+
+		return $recommendations;
 	}
 
 	// -------------------------------------------------------------------------
@@ -508,6 +718,17 @@ class Cron {
 		}
 
 		$days_remaining = isset( $ssl_info['days_remaining'] ) ? (int) $ssl_info['days_remaining'] : 999;
+
+		// Send real-time email alert if SSL expires within 14 days.
+		if ( $days_remaining < 14 && class_exists( '\\WPClaw\\Notifications' ) ) {
+			\WPClaw\Notifications::send_alert(
+				'ssl_expiring',
+				array(
+					'agent' => 'sentinel',
+					'days'  => $days_remaining,
+				)
+			);
+		}
 
 		if ( $days_remaining >= 30 ) {
 			wp_claw_log_debug(

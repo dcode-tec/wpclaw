@@ -120,6 +120,26 @@ class REST_API {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_execute' ),
 				'permission_callback' => array( $this, 'verify_signature' ),
+				'args'                => array(
+					'action' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'The allowlisted action to execute.', 'claw-agent' ),
+					),
+					'module' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The module slug that owns the action.', 'claw-agent' ),
+					),
+					'params' => array(
+						'required'          => false,
+						'type'              => 'object',
+						'default'           => array(),
+						'description'       => __( 'Optional key/value parameters passed to the action handler.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -130,6 +150,7 @@ class REST_API {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'handle_state' ),
 				'permission_callback' => array( $this, 'verify_signature' ),
+				'args'                => array(),
 			)
 		);
 
@@ -140,6 +161,27 @@ class REST_API {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_webhook' ),
 				'permission_callback' => array( $this, 'verify_signature' ),
+				'args'                => array(
+					'event'   => array(
+						'required'          => false,
+						'type'              => 'string',
+						'default'           => 'task_update',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The event type dispatched by the Klawty instance.', 'claw-agent' ),
+					),
+					'task_id' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'The Klawty task ID associated with this event.', 'claw-agent' ),
+					),
+					'status'  => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The task status value reported by the agent.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -440,6 +482,32 @@ class REST_API {
 			array(
 				'methods'             => 'POST',
 				'callback'            => array( $this, 'handle_create_task' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+			)
+		);
+
+		// ----- Inline edit + agent action routes (v1.3.1) -----
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/inline-edit',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_inline_edit' ),
+				'permission_callback' => static function () {
+					return current_user_can( 'wp_claw_manage_settings' );
+				},
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/agent-action',
+			array(
+				'methods'             => 'POST',
+				'callback'            => array( $this, 'handle_agent_action' ),
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
@@ -1777,7 +1845,7 @@ class REST_API {
 	 * @return \WP_REST_Response
 	 */
 	public function handle_proxy_activity( \WP_REST_Request $request ): \WP_REST_Response {
-		$allowed = array( 'since', 'limit' );
+		$allowed = array( 'since', 'limit', 'id' );
 		$params  = array_intersect_key( $request->get_query_params(), array_flip( $allowed ) );
 		$qs      = http_build_query( $params );
 
@@ -1896,5 +1964,157 @@ class REST_API {
 		}
 
 		return new \WP_REST_Response( $response, 200 );
+	}
+
+	/**
+	 * Handle inline edit requests from admin pages.
+	 *
+	 * Dispatches direct edits to WordPress/WooCommerce APIs based on type.
+	 * Supported types: meta_title, meta_desc, schema, product_price,
+	 * product_stock, block_ip, unblock_ip, toggle_module, toggle_header.
+	 *
+	 * @since 1.3.1
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function handle_inline_edit( \WP_REST_Request $request ): \WP_REST_Response {
+		$body      = $request->get_json_params();
+		$body      = is_array( $body ) ? $body : array();
+		$type      = sanitize_key( $body['type'] ?? '' );
+		$target_id = absint( $body['target_id'] ?? 0 );
+		$value     = sanitize_text_field( $body['value'] ?? '' );
+
+		switch ( $type ) {
+			case 'meta_title':
+				update_post_meta( $target_id, '_wp_claw_seo_title', $value );
+				return new \WP_REST_Response( array( 'success' => true, 'value' => $value ) );
+
+			case 'meta_desc':
+				update_post_meta( $target_id, '_wp_claw_seo_description', $value );
+				return new \WP_REST_Response( array( 'success' => true, 'value' => $value ) );
+
+			case 'schema':
+				$valid = array( 'Article', 'Product', 'FAQ', 'LocalBusiness', '' );
+				if ( ! in_array( $value, $valid, true ) ) {
+					return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'Invalid schema type', 'claw-agent' ) ), 400 );
+				}
+				update_post_meta( $target_id, '_wp_claw_schema_markup', $value );
+				return new \WP_REST_Response( array( 'success' => true, 'value' => $value ) );
+
+			case 'product_price':
+				if ( ! function_exists( 'wc_get_product' ) ) {
+					return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'WooCommerce not active', 'claw-agent' ) ), 400 );
+				}
+				$product = wc_get_product( $target_id );
+				if ( ! $product ) {
+					return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'Product not found', 'claw-agent' ) ), 404 );
+				}
+				$product->set_regular_price( $value );
+				$product->save();
+				return new \WP_REST_Response( array( 'success' => true, 'value' => $value ) );
+
+			case 'product_stock':
+				if ( ! function_exists( 'wc_get_product' ) ) {
+					return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'WooCommerce not active', 'claw-agent' ) ), 400 );
+				}
+				$product = wc_get_product( $target_id );
+				if ( ! $product ) {
+					return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'Product not found', 'claw-agent' ) ), 404 );
+				}
+				$product->set_stock_quantity( absint( $value ) );
+				$product->set_manage_stock( true );
+				$product->save();
+				return new \WP_REST_Response( array( 'success' => true, 'value' => absint( $value ) ) );
+
+			case 'block_ip':
+				$sec = WP_Claw::get_instance()->get_module( 'security' );
+				if ( $sec ) {
+					$sec->handle_action( 'block_ip', array( 'ip' => $value ) );
+				}
+				return new \WP_REST_Response( array( 'success' => true ) );
+
+			case 'unblock_ip':
+				$sec = WP_Claw::get_instance()->get_module( 'security' );
+				if ( $sec ) {
+					$sec->handle_action( 'unblock_ip', array( 'ip' => $value ) );
+				}
+				return new \WP_REST_Response( array( 'success' => true ) );
+
+			case 'toggle_module':
+				$module_slug = sanitize_key( $body['module'] ?? '' );
+				$modules     = (array) get_option( 'wp_claw_enabled_modules', array() );
+				if ( 'on' === $value ) {
+					$modules[] = $module_slug;
+					$modules   = array_unique( $modules );
+				} else {
+					$modules = array_diff( $modules, array( $module_slug ) );
+				}
+				update_option( 'wp_claw_enabled_modules', array_values( $modules ) );
+				return new \WP_REST_Response( array( 'success' => true ) );
+
+			default:
+				return new \WP_REST_Response( array( 'success' => false, 'error' => __( 'Unknown edit type', 'claw-agent' ) ), 400 );
+		}
+	}
+
+	/**
+	 * Handle agent-assisted action requests.
+	 *
+	 * Creates a task for the specified agent to execute a complex action.
+	 * Uses the same API client as the Command Center.
+	 *
+	 * @since 1.3.1
+	 *
+	 * @param \WP_REST_Request $request The REST request.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function handle_agent_action( \WP_REST_Request $request ): \WP_REST_Response {
+		$body        = $request->get_json_params();
+		$body        = is_array( $body ) ? $body : array();
+		$agent       = sanitize_text_field( $body['agent'] ?? '' );
+		$action_type = sanitize_text_field( $body['action_type'] ?? '' );
+		$target_id   = absint( $body['target_id'] ?? 0 );
+		$context     = sanitize_textarea_field( $body['context'] ?? '' );
+
+		if ( empty( $agent ) || empty( $action_type ) ) {
+			return new \WP_REST_Response(
+				array( 'success' => false, 'error' => __( 'Agent and action_type are required.', 'claw-agent' ) ),
+				400
+			);
+		}
+
+		$task = array(
+			'agent'       => $agent,
+			'title'       => sprintf(
+				/* translators: 1: action type, 2: target ID */
+				__( 'Admin request: %1$s (target: %2$d)', 'claw-agent' ),
+				$action_type,
+				$target_id
+			),
+			'description' => $context,
+			'priority'    => 'high',
+			'tier'        => 'AUTO',
+		);
+
+		$client   = new API_Client();
+		$response = $client->create_task( $task );
+
+		if ( is_wp_error( $response ) ) {
+			return new \WP_REST_Response(
+				array( 'success' => false, 'error' => $response->get_error_message() ),
+				502
+			);
+		}
+
+		return new \WP_REST_Response(
+			array(
+				'success' => true,
+				'task_id' => $response['id'] ?? '',
+				'message' => __( 'Task created — agent will process on next cycle.', 'claw-agent' ),
+			)
+		);
 	}
 }
