@@ -88,11 +88,49 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 				aria-live="polite"
 			></span>
 		</p>
+
+		<!-- Application Password section (self-hosted mode only) -->
+		<div
+			id="wp-claw-app-password-section"
+			style="<?php echo esc_attr( 'self-hosted' === $connection_mode ? '' : 'display:none;' ); ?>margin-top:16px;padding:16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;"
+		>
+			<h3 style="margin:0 0 8px;"><?php esc_html_e( 'Application Password — Self-Hosted Auth', 'claw-agent' ); ?></h3>
+			<p class="wpc-kpi-label" style="margin-bottom:12px;">
+				<?php esc_html_e( 'Generate a WordPress Application Password for your Klawty instance to authenticate requests. The password is shown only once — copy it to your Klawty instance configuration.', 'claw-agent' ); ?>
+			</p>
+			<button
+				type="button"
+				class="wpc-btn wpc-btn--secondary"
+				id="wp-claw-generate-app-password"
+			>
+				<?php esc_html_e( 'Generate Application Password', 'claw-agent' ); ?>
+			</button>
+			<div id="wp-claw-app-password-result" style="display:none;margin-top:12px;">
+				<p class="wpc-kpi-label" style="color:#d97706;font-weight:600;margin-bottom:6px;">
+					&#9888; <?php esc_html_e( 'Copy this password now — it will not be shown again.', 'claw-agent' ); ?>
+				</p>
+				<code
+					id="wp-claw-app-password-value"
+					style="display:block;padding:8px 12px;background:#fff;border:1px solid #d1d5db;border-radius:4px;font-size:14px;word-break:break-all;"
+					aria-live="polite"
+				></code>
+			</div>
+		</div>
 	</section>
 
 	<!-- Business Profile -->
-	<section class="wpc-card" style="margin-top: 20px;">
+	<?php
+	$_wpc_prof_check = get_option( 'wp_claw_business_profile', array() );
+	$_wpc_prof_is_empty = empty( $_wpc_prof_check['business_name'] ) && empty( $_wpc_prof_check['description'] );
+	?>
+	<section class="wpc-card" style="margin-top: 20px;<?php echo $_wpc_prof_is_empty ? ' border: 2px solid #f59e0b; box-shadow: 0 0 0 4px rgba(245,158,11,0.15);' : ''; ?>" id="wpc-business-profile-section">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Your Business', 'claw-agent' ); ?></h2>
+		<?php if ( $_wpc_prof_is_empty ) : ?>
+		<div class="wpc-alert-banner wpc-alert-banner--warning" style="margin-bottom: 16px;">
+			<strong>📋 <?php esc_html_e( 'Complete this section', 'claw-agent' ); ?></strong> &mdash;
+			<?php esc_html_e( 'Your AI agents are working without knowing your business. Fill in at least your business name and description for better, more relevant results.', 'claw-agent' ); ?>
+		</div>
+		<?php endif; ?>
 		<p class="wpc-kpi-label" style="margin-bottom: 16px;">
 			<?php esc_html_e( 'Help your AI agents understand your business. This is synced to your Klawty instance.', 'claw-agent' ); ?>
 		</p>
@@ -401,6 +439,283 @@ $api_key_set     = '' !== (string) get_option( 'wp_claw_api_key', '' );
 			<?php submit_button( __( 'Save Backup Settings', 'claw-agent' ) ); ?>
 		</form>
 	</section>
+
+	<!-- Notifications (v1.3.0) -->
+	<?php $notif_settings = \WPClaw\Notifications::get_settings(); ?>
+	<section class="wpc-card">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Notifications', 'claw-agent' ); ?></h2>
+		<p class="wpc-kpi-label">
+			<?php esc_html_e( 'Configure how and when WP-Claw sends email alerts and digest reports.', 'claw-agent' ); ?>
+		</p>
+
+		<form method="post" action="options.php">
+			<?php settings_fields( 'wp_claw_settings' ); ?>
+
+			<table class="wpc-agent-table">
+				<tbody>
+
+					<!-- Email notifications master switch -->
+					<tr>
+						<td><label for="wpc-notif-enabled"><strong><?php esc_html_e( 'Email notifications', 'claw-agent' ); ?></strong></label></td>
+						<td>
+							<label for="wpc-notif-enabled" style="display:inline-block;cursor:pointer;">
+								<div class="wpc-toggle-switch">
+									<input
+										type="checkbox"
+										id="wpc-notif-enabled"
+										name="wp_claw_notification_settings[enabled]"
+										value="1"
+										<?php checked( ! empty( $notif_settings['enabled'] ) ); ?>
+									>
+									<span class="wpc-toggle-switch__slider"></span>
+								</div>
+							</label>
+						</td>
+					</tr>
+
+					<!-- Notification email -->
+					<tr>
+						<td><label for="wpc-notif-email"><?php esc_html_e( 'Notification email', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="email"
+								id="wpc-notif-email"
+								name="wp_claw_notification_settings[email]"
+								value="<?php echo esc_attr( isset( $notif_settings['email'] ) ? $notif_settings['email'] : '' ); ?>"
+								placeholder="<?php esc_attr_e( 'defaults to admin email', 'claw-agent' ); ?>"
+								style="width:100%;max-width:360px"
+							>
+						</td>
+					</tr>
+
+					<!-- Real-time alerts -->
+					<tr>
+						<td><label for="wpc-notif-realtime"><?php esc_html_e( 'Real-time alerts', 'claw-agent' ); ?></label></td>
+						<td>
+							<label for="wpc-notif-realtime" style="display:inline-block;cursor:pointer;">
+								<div class="wpc-toggle-switch">
+									<input
+										type="checkbox"
+										id="wpc-notif-realtime"
+										name="wp_claw_notification_settings[realtime_alerts]"
+										value="1"
+										<?php checked( ! empty( $notif_settings['realtime_alerts'] ) ); ?>
+									>
+									<span class="wpc-toggle-switch__slider"></span>
+								</div>
+							</label>
+						</td>
+					</tr>
+
+					<!-- Daily digest -->
+					<tr>
+						<td><label for="wpc-notif-daily-digest"><?php esc_html_e( 'Daily digest', 'claw-agent' ); ?></label></td>
+						<td>
+							<label for="wpc-notif-daily-digest" style="display:inline-block;cursor:pointer;">
+								<div class="wpc-toggle-switch">
+									<input
+										type="checkbox"
+										id="wpc-notif-daily-digest"
+										name="wp_claw_notification_settings[daily_digest]"
+										value="1"
+										<?php checked( ! empty( $notif_settings['daily_digest'] ) ); ?>
+									>
+									<span class="wpc-toggle-switch__slider"></span>
+								</div>
+							</label>
+						</td>
+					</tr>
+
+					<!-- Delivery time -->
+					<tr>
+						<td><label for="wpc-notif-digest-hour"><?php esc_html_e( 'Delivery time (hour)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wpc-notif-digest-hour"
+								name="wp_claw_notification_settings[digest_hour]"
+								value="<?php echo esc_attr( isset( $notif_settings['digest_hour'] ) ? (int) $notif_settings['digest_hour'] : 8 ); ?>"
+								min="0"
+								max="23"
+								style="width:80px"
+							>
+							<span class="wpc-kpi-label" style="margin-left:8px;"><?php esc_html_e( '(0–23, site time)', 'claw-agent' ); ?></span>
+						</td>
+					</tr>
+
+					<!-- Digest format -->
+					<tr>
+						<td><label for="wpc-notif-digest-format"><?php esc_html_e( 'Digest format', 'claw-agent' ); ?></label></td>
+						<td>
+							<select id="wpc-notif-digest-format" name="wp_claw_notification_settings[digest_format]">
+								<option value="html" <?php selected( isset( $notif_settings['digest_format'] ) ? $notif_settings['digest_format'] : 'html', 'html' ); ?>>
+									<?php esc_html_e( 'Rich HTML', 'claw-agent' ); ?>
+								</option>
+								<option value="text" <?php selected( isset( $notif_settings['digest_format'] ) ? $notif_settings['digest_format'] : 'html', 'text' ); ?>>
+									<?php esc_html_e( 'Plain text', 'claw-agent' ); ?>
+								</option>
+							</select>
+						</td>
+					</tr>
+
+					<!-- Weekly report -->
+					<tr>
+						<td><label for="wpc-notif-weekly-report"><?php esc_html_e( 'Weekly report', 'claw-agent' ); ?></label></td>
+						<td>
+							<label for="wpc-notif-weekly-report" style="display:inline-block;cursor:pointer;">
+								<div class="wpc-toggle-switch">
+									<input
+										type="checkbox"
+										id="wpc-notif-weekly-report"
+										name="wp_claw_notification_settings[weekly_report]"
+										value="1"
+										<?php checked( ! empty( $notif_settings['weekly_report'] ) ); ?>
+									>
+									<span class="wpc-toggle-switch__slider"></span>
+								</div>
+							</label>
+						</td>
+					</tr>
+
+					<!-- Weekly day -->
+					<tr>
+						<td><label for="wpc-notif-weekly-day"><?php esc_html_e( 'Weekly report day', 'claw-agent' ); ?></label></td>
+						<td>
+							<?php
+							$_wpc_days = array(
+								0 => __( 'Monday', 'claw-agent' ),
+								1 => __( 'Tuesday', 'claw-agent' ),
+								2 => __( 'Wednesday', 'claw-agent' ),
+								3 => __( 'Thursday', 'claw-agent' ),
+								4 => __( 'Friday', 'claw-agent' ),
+								5 => __( 'Saturday', 'claw-agent' ),
+								6 => __( 'Sunday', 'claw-agent' ),
+							);
+							$_wpc_weekly_day = isset( $notif_settings['weekly_day'] ) ? (int) $notif_settings['weekly_day'] : 0;
+							?>
+							<select id="wpc-notif-weekly-day" name="wp_claw_notification_settings[weekly_day]">
+								<?php foreach ( $_wpc_days as $_wpc_day_val => $_wpc_day_label ) : ?>
+									<option value="<?php echo esc_attr( (string) $_wpc_day_val ); ?>" <?php selected( $_wpc_weekly_day, $_wpc_day_val ); ?>>
+										<?php echo esc_html( $_wpc_day_label ); ?>
+									</option>
+								<?php endforeach; ?>
+							</select>
+						</td>
+					</tr>
+
+					<!-- Weekly time -->
+					<tr>
+						<td><label for="wpc-notif-weekly-hour"><?php esc_html_e( 'Weekly report time (hour)', 'claw-agent' ); ?></label></td>
+						<td>
+							<input
+								type="number"
+								id="wpc-notif-weekly-hour"
+								name="wp_claw_notification_settings[weekly_hour]"
+								value="<?php echo esc_attr( isset( $notif_settings['weekly_hour'] ) ? (int) $notif_settings['weekly_hour'] : 9 ); ?>"
+								min="0"
+								max="23"
+								style="width:80px"
+							>
+							<span class="wpc-kpi-label" style="margin-left:8px;"><?php esc_html_e( '(0–23, site time)', 'claw-agent' ); ?></span>
+						</td>
+					</tr>
+
+				</tbody>
+			</table>
+
+			<!-- Per-agent mute toggles -->
+			<h3 style="margin-top:24px;margin-bottom:8px;font-size:14px;font-weight:600;">
+				<?php esc_html_e( 'Mute notifications per agent', 'claw-agent' ); ?>
+			</h3>
+			<p class="wpc-kpi-label" style="margin-bottom:12px;">
+				<?php esc_html_e( 'Checked agents will NOT send notifications. Uncheck to receive their alerts.', 'claw-agent' ); ?>
+			</p>
+
+			<?php
+			$_wpc_muted_agents = isset( $notif_settings['muted_agents'] ) && is_array( $notif_settings['muted_agents'] )
+				? $notif_settings['muted_agents']
+				: array();
+			$_wpc_agents = array(
+				array( 'slug' => 'architect', 'name' => 'Karim', 'role' => __( 'The Architect', 'claw-agent' ) ),
+				array( 'slug' => 'scribe',    'name' => 'Lina',  'role' => __( 'The Scribe', 'claw-agent' ) ),
+				array( 'slug' => 'sentinel',  'name' => 'Bastien', 'role' => __( 'The Sentinel', 'claw-agent' ) ),
+				array( 'slug' => 'commerce',  'name' => 'Hugo',  'role' => __( 'Commerce Lead', 'claw-agent' ) ),
+				array( 'slug' => 'analyst',   'name' => 'Selma', 'role' => __( 'The Analyst', 'claw-agent' ) ),
+				array( 'slug' => 'concierge', 'name' => 'Marc',  'role' => __( 'The Concierge', 'claw-agent' ) ),
+			);
+			?>
+			<table class="wpc-agent-table">
+				<thead>
+					<tr>
+						<th><?php esc_html_e( 'Agent', 'claw-agent' ); ?></th>
+						<th><?php esc_html_e( 'Role', 'claw-agent' ); ?></th>
+						<th><?php esc_html_e( 'Muted', 'claw-agent' ); ?></th>
+					</tr>
+				</thead>
+				<tbody>
+					<?php foreach ( $_wpc_agents as $_wpc_agent ) : ?>
+					<tr>
+						<td>
+							<strong><?php echo esc_html( $_wpc_agent['name'] ); ?></strong>
+							<span class="wpc-badge wpc-badge--idle" style="margin-left:6px;"><?php echo esc_html( $_wpc_agent['slug'] ); ?></span>
+						</td>
+						<td><?php echo esc_html( $_wpc_agent['role'] ); ?></td>
+						<td>
+							<label for="wpc-mute-<?php echo esc_attr( $_wpc_agent['slug'] ); ?>" style="display:inline-block;cursor:pointer;">
+								<div class="wpc-toggle-switch">
+									<input
+										type="checkbox"
+										id="wpc-mute-<?php echo esc_attr( $_wpc_agent['slug'] ); ?>"
+										name="wp_claw_notification_settings[muted_agents][]"
+										value="<?php echo esc_attr( $_wpc_agent['slug'] ); ?>"
+										<?php checked( in_array( $_wpc_agent['slug'], $_wpc_muted_agents, true ) ); ?>
+									>
+									<span class="wpc-toggle-switch__slider"></span>
+								</div>
+							</label>
+						</td>
+					</tr>
+					<?php endforeach; ?>
+				</tbody>
+			</table>
+
+			<?php submit_button( __( 'Save Notification Settings', 'claw-agent' ) ); ?>
+		</form>
+
+		<!-- Send Test Email -->
+		<div style="margin-top:16px;padding-top:16px;border-top:1px solid #e5e7eb;">
+			<button type="button" class="wpc-btn wpc-btn--primary" id="wpc-test-email-btn">
+				<?php esc_html_e( 'Send Test Email', 'claw-agent' ); ?>
+			</button>
+			<span id="wpc-test-email-status" style="margin-left:12px;font-size:13px;" aria-live="polite"></span>
+		</div>
+	</section>
+
+	<script>
+	document.getElementById('wpc-test-email-btn').addEventListener('click', function() {
+		var btn = this;
+		var status = document.getElementById('wpc-test-email-status');
+		btn.disabled = true;
+		status.textContent = '<?php echo esc_js( __( 'Sending...', 'claw-agent' ) ); ?>';
+
+		var fd = new FormData();
+		fd.append('action', 'wp_claw_send_test_email');
+		fd.append('nonce', '<?php echo esc_js( wp_create_nonce( 'wp_claw_test_email' ) ); ?>');
+
+		fetch(ajaxurl, { method: 'POST', body: fd })
+			.then(function(r) { return r.json(); })
+			.then(function(data) {
+				status.textContent = data.success ? data.data.message : (data.data || '<?php echo esc_js( __( 'Error', 'claw-agent' ) ); ?>');
+				status.style.color = data.success ? '#059669' : '#dc2626';
+				btn.disabled = false;
+			})
+			.catch(function() {
+				status.textContent = '<?php echo esc_js( __( 'Network error', 'claw-agent' ) ); ?>';
+				status.style.color = '#dc2626';
+				btn.disabled = false;
+			});
+	});
+	</script>
 
 	<!-- System Status (v1.2.0) -->
 	<section class="wpc-card">

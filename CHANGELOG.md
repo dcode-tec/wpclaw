@@ -7,6 +7,118 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
+## [1.4.0] — 2026-04-07 — Application Passwords auth + arg schemas on 6 routes
+
+### Added — Dual Authentication (Slice 5)
+- **[AUTH]** `verify_signature()` in `class-rest-api.php` refactored into a dispatcher: detects `X-WPClaw-Signature` header to route to HMAC path (managed mode) or Application Password / Basic Auth path (self-hosted mode).
+- **[AUTH]** New `verify_hmac_signature()` method — carries the original HMAC validation logic. Called exclusively by the dispatcher when the signature header is present. Early empty-header guard removed (handled by dispatcher).
+- **[AUTH]** Self-hosted Application Password path: enforces HTTPS via `is_ssl()`, validates `manage_options` capability on the authenticated user. Returns `WP_Error` 403 if not HTTPS, 401 if not authenticated.
+- **[SETTINGS]** Application Password section added to Connection card in `admin/views/settings.php`: shown when connection mode is `self-hosted`, hidden otherwise. Contains "Generate Application Password" button and one-time result display with "copy now" warning.
+- **[JS]** `initConnectionMode()` IIFE in `wp-claw-admin.js`: toggles `#wp-claw-app-password-section` on `#wp_claw_connection_mode` change. Generate button calls `wp.apiRequest()` to `POST /wp/v2/users/me/application-passwords` with name `WP-Claw Klawty Instance`, displays password in result area or error message on failure.
+
+### Added — REST API Arg Schemas (Slice 5)
+- **[API]** `/chat/send`: `session_id` (required string), `message` (required string, sanitize_textarea_field), `page_url` (optional string, esc_url_raw).
+- **[API]** `/chat/history`: `session_id` (required string, sanitize_text_field).
+- **[API]** `/analytics`: `event` (required string, sanitize_key), `url` (optional string, esc_url_raw).
+- **[API]** `/inline-edit`: `type` (required string, sanitize_key), `id` (required integer, absint), `value` (required string, sanitize_text_field).
+- **[API]** `/agent-action`: `action` (required string, sanitize_key), `agent` (required string, sanitize_key), `params` (optional object, default `[]`).
+- **[API]** `/settings/modules`: `modules` (required array, items type string).
+
+---
+
+## [1.3.1] — 2026-04-04 — Email notifications, agent ideas, interactive admin pages
+
+### Added — Email Notification System (Pillar 1)
+- **[NEW FILE]** `includes/class-notifications.php` — 1,410 lines. 6 public + 17 private methods handling real-time alerts, daily digest, weekly report with branded HTML/text email templates.
+- **[CRON]** `wp_claw_daily_digest` (daily) and `wp_claw_weekly_report` (weekly) WP-Cron events registered in activator/deactivator.
+- **[SETTINGS]** Full Notifications section in Settings page: master toggle, email override, real-time alerts toggle, daily digest with hour picker + format selector, weekly report with day + hour picker, per-agent mute toggles for all 6 agents.
+- **[AJAX]** "Send Test Email" button with `wp_ajax_wp_claw_send_test_email` handler, nonce + capability verified.
+- **[ALERTS]** Real-time email alerts hooked into: malware scan results (security module), SSL expiry < 14 days (cron).
+- **[ADMIN]** `register_setting()` + `sanitize_notification_settings()` for the `wp_claw_notification_settings` option with full validation.
+
+### Added — Agent Idea Generation (Pillar 2)
+- **[ORCHESTRATOR]** 6 daily "Generate daily idea" schedules in `cold-start.ts` DEFAULT_SCHEDULES — one per agent role (scribe, sentinel, commerce, analyst, concierge, architect).
+- **[UI]** "Ideas 💡" tab on Proposals page with `action='idea'` query filter and idea-specific empty state.
+- **[UI]** Yellow gradient "Agent Ideas" card on Dashboard showing pending idea count with "Review Ideas" button.
+- **[EMAIL]** "Ideas from your team" section added to daily digest (HTML yellow cards + plain text).
+
+### Added — Interactive Admin Pages (Pillar 3)
+- **[API]** `POST /wp-claw/v1/inline-edit` — handles 8 edit types: meta_title, meta_desc, schema, product_price, product_stock, block_ip, unblock_ip, toggle_module.
+- **[API]** `POST /wp-claw/v1/agent-action` — creates agent tasks for complex actions (same pattern as Command Center).
+- **[JS]** `wpClawInlineEdit()`, `doInlineEdit()`, `wpClawAgentAction()` + event delegation on `[data-inline-edit]` and `[data-agent-action]` attributes (+277 lines).
+- **[SEO]** Clickable meta title/desc cells with inline edit + "Auto-fix All Missing Meta" agent button.
+- **[COMMERCE]** Clickable price/stock cells with inline edit.
+- **[SECURITY]** Direct "Block IP" on login attempts, direct "Unblock" on blocked IPs (replaces agent-assisted flow).
+- **[DASHBOARD]** KPI cards → navigation links, module health toggles, activity timeline expansion.
+
+### Fixed — Bugs Found in Testing
+- **[JS]** Inline edit + agent action REST URLs doubled namespace (`wp-claw/v1/wp-claw/v1/...` → 404). Fixed to use relative path from `wpClaw.restUrl`.
+- **[JS]** Deprecated `event` global replaced with `triggerEl` parameter in `wpClawAgentAction()`.
+- **[JS]** `doInlineEdit()` now sends `module` field for `toggle_module` type.
+- **[PHP]** Notification toggles (enabled, realtime, digest, weekly, per-agent mute) not clickable — `wpc-toggle-switch__slider` overlay blocked checkbox. Wrapped all 11 toggles in `<label for="...">` elements.
+- **[PHP]** Email header removed `⚡` thunder icon. Agent avatars now use profile images (`Karim.png`, etc.) instead of letter circles.
+
+### Fixed — Klawty Instance (wp-claw-agents plugin)
+- **[TIMEOUT]** Security tools (`file_integrity`, `compare_hashes`, `malware_scan`, `compute_hashes`) increased from 30s → 90s. `getState` increased 30s → 60s. Eliminated timeout failures on heavy filesystem scans.
+- **[CRASH]** `emit_event` tool crashed with `NOT NULL constraint failed: agent_events.type` when LLM omitted `event_type` param (20 failures). Added null guard with error return.
+- **[PATH]** Doubled workspace path (`workspace/workspace/skills/`) caused ENOENT. Created symlink on instance.
+- **[CONFIG]** `"missing site_url or api_key"` warning on every restart — `api.pluginConfig` empty on early `register()` calls. Added fallback: reads `klawty.json` directly via `KLAWTY_STATE_DIR` env var. Zero warnings after fix.
+
+### Added — Data Layer Fixes (Session 2, 2026-04-05)
+- **[SEO]** Added `post_type='product'` to ALL 10 SEO module queries — agents + admin now see 200+ WooCommerce products. Meta coverage KPIs show real percentages.
+- **[CONTENT]** Added `post_type='product'` to 2 content freshness queries.
+- **[SQL]** Fixed unprepared SQL in `get_state()` stale content count — wrapped in `$wpdb->prepare()`.
+
+### Added — Task Lifecycle System (Session 2, 2026-04-05)
+- **[BACKEND]** Task dedup in `task-creator-handler.ts` — checks for existing pending task with same agent+title before INSERT. Returns existing task_id with `{ existing: true }`.
+- **[BACKEND]** Single-task query in `activity-handler.ts` — `GET /api/activity?id=X` returns one task with status, summary, agent info.
+- **[PHP]** Extended `/activity` proxy to pass through `id` query param.
+- **[JS]** `wpClawTaskManager` module (~420 lines): localStorage with 24h TTL, adaptive polling (30s→15s→backoff), status bar rendering (queued/working/done/failed), cross-tab persistence, dedup on click.
+- **[PHP]** `data-task-key` attribute on 10 action buttons across 4 pages (security, seo, commerce, analytics). Old conflicting click handlers neutralized with `data-task-key` guard.
+
+### Added — Empty States (Session 2, 2026-04-05)
+- **[JS]** `wpClawSetEmptyState()` + 10-second timeout for 10 async loading containers. Shows contextual "No data yet" messages instead of permanent "Loading...".
+- **[PHP]** Empty states for: A/B tests, stale content, file hashes, activity timeline, analytics data collection banner.
+- **[FIX]** `dataset.loaded = 'true'` markers in all 4 view files' inline scripts — prevents timeout from overwriting real data that loaded before 10s.
+
+### Fixed — Asset Loading (Session 2, 2026-04-05)
+- **[CRITICAL]** Removed `.min` suffix logic from `class-wp-claw.php` and `class-module-chat.php`. Minified files (`wp-claw-public.min.js`, `wp-claw-chat.min.js`, etc.) don't exist — production sites silently failed to load analytics pixel + chat widget. Now loads source files directly.
+- **[FIX]** Analytics pixel filename mismatch: PHP enqueued `wp-claw-analytics.js` (doesn't exist) instead of `wp-claw-public.js` (the actual pixel). Fixed to correct filename.
+
+---
+
+## [1.2.2] — 2026-04-02 — Security fixes, circuit breaker UI, live health polling
+
+### Fixed — Security (3 bugs)
+- **[CRITICAL]** Removed DEBUG logging in `class-api-client.php` that exposed first 8 + last 8 characters of the API key on every request. Was marked "TEMPORARY" but shipped in v1.2.1.
+- **[CRITICAL]** `wp_claw_encrypt()` now returns empty string when `wp_salt('auth')` is the default placeholder. Previously logged a warning but continued encrypting with a predictable key — any WordPress installation with default salts had effectively no encryption.
+- **[BUG]** `wp_claw_current_user_can()` crashed with TypeError when `get_userdata()` returned `false` (invalid user IDs). PHP's `??` null-coalescing doesn't catch `false->property`. Now safely checks the return value before accessing `->user_login`.
+
+### Fixed — Capabilities
+- **[BUG]** Command Center view (`admin/views/command-center.php`) checked `wp_claw_current_user_can('command_center')` — missing the `wp_claw_` prefix. The capability `command_center` doesn't exist on any role, so all users (including admins) got `wp_die()`. Fixed to `wp_claw_command_center`.
+
+### Fixed — Admin UI
+- **[BUG]** "Test Connection" success/failure never updated the connection banner on the Settings page. JS was targeting `.wpc-connection-status .wpc-status-dot` which doesn't exist — the banner uses `.wpc-connection-banner`. Rewrote to update the actual banner element.
+- **[BUG]** "Resume Operations" button updated the dashboard alert banner but not the Settings page table row. Added DOM update for the Operations Status badge in the System Status table.
+
+### Added — Circuit Breaker Management
+- **[API]** `POST /admin/reset-circuit-breaker` — clears `wp_claw_circuit_failures` and `wp_claw_circuit_open_until` transients. Gated by `wp_claw_manage_settings` capability.
+- **[UI]** System Status section in Settings now shows Circuit Breaker state: red "Open" with countdown + reset button, yellow with failure count + reset button, or green "Closed (healthy)".
+- **[JS]** Click handler for reset button updates the row inline to green state on success.
+
+### Added — Agents Endpoint Hardening
+- **[API]** `handle_agents()` now validates instance URL before creating API client (parity with `handle_health()`). Returns 400 with helpful message instead of opaque 502 when URL is not configured.
+
+### Added — Live Health Polling
+- **[JS]** Settings page now auto-polls `/health` every 30 seconds (silent — banner only, no toast notifications). Connection banner updates in real-time.
+- **[JS]** Immediate health check on Settings page load — banner reflects current state without requiring manual "Test Connection" click.
+- **[JS]** Extracted `updateConnectionBanner(connected, message)` and `checkHealth(silent)` helper functions — shared by button click and auto-poll.
+
+### Changed — Connection Banner Behavior
+- **[JS]** Banner now updates for ALL response types: 200+ok → green, 200+non-ok → red, 404/500/502/network error → red with error message. Previously only showed a toast without updating the banner.
+
+---
+
 ## [1.2.1] — 2026-04-01 — Bearer auth for Klawty gateway compatibility
 
 ### Fixed

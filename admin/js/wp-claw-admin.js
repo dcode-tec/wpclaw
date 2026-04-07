@@ -3129,4 +3129,107 @@ function agentAvatar( name, size ) {
 		document.head.appendChild( style );
 	} )();
 
+	// --- 7. Connection mode + Application Password generation ---------------
+
+	( function initConnectionMode() {
+		'use strict';
+
+		var modeSelect   = document.getElementById( 'wp_claw_connection_mode' );
+		var appPwSection = document.getElementById( 'wp-claw-app-password-section' );
+		var genBtn       = document.getElementById( 'wp-claw-generate-app-password' );
+		var resultDiv    = document.getElementById( 'wp-claw-app-password-result' );
+		var pwCode       = document.getElementById( 'wp-claw-app-password-value' );
+
+		/**
+		 * Show or hide the Application Password section based on the selected mode.
+		 */
+		function toggleAppPasswordSection() {
+			if ( ! modeSelect || ! appPwSection ) {
+				return;
+			}
+			if ( modeSelect.value === 'self-hosted' ) {
+				appPwSection.style.display = '';
+			} else {
+				appPwSection.style.display = 'none';
+				// Reset result area when switching away from self-hosted.
+				if ( resultDiv ) {
+					resultDiv.style.display = 'none';
+				}
+				if ( pwCode ) {
+					pwCode.textContent = '';
+				}
+			}
+		}
+
+		if ( modeSelect ) {
+			modeSelect.addEventListener( 'change', toggleAppPasswordSection );
+		}
+
+		/**
+		 * Generate a WordPress Application Password via the WP REST API.
+		 * Uses wp.apiRequest (available in all WP admin pages after WP 5.5).
+		 */
+		if ( genBtn ) {
+			genBtn.addEventListener( 'click', function () {
+				genBtn.disabled    = true;
+				genBtn.textContent = genBtn.textContent.replace( /.*/, function () {
+					return 'Generating\u2026';
+				} );
+
+				if ( resultDiv ) {
+					resultDiv.style.display = 'none';
+				}
+				if ( pwCode ) {
+					pwCode.textContent = '';
+				}
+
+				// wp.apiRequest is available in wp-api-request (enqueued by WP core in admin).
+				if ( typeof wp === 'undefined' || typeof wp.apiRequest !== 'function' ) {
+					genBtn.disabled    = false;
+					genBtn.textContent = 'Generate Application Password';
+					if ( pwCode ) {
+						pwCode.textContent = 'Error: WordPress API not available.';
+					}
+					if ( resultDiv ) {
+						resultDiv.style.display = '';
+					}
+					return;
+				}
+
+				wp.apiRequest( {
+					path:   '/wp/v2/users/me/application-passwords',
+					method: 'POST',
+					data:   { name: 'WP-Claw Klawty Instance' },
+				} ).done( function ( response ) {
+					genBtn.disabled    = false;
+					genBtn.textContent = 'Generate Application Password';
+
+					var password = response && response.password ? response.password : '';
+					if ( password && pwCode ) {
+						pwCode.textContent = password;
+					} else if ( pwCode ) {
+						pwCode.textContent = 'Error: no password returned.';
+					}
+					if ( resultDiv ) {
+						resultDiv.style.display = '';
+					}
+				} ).fail( function ( xhr ) {
+					genBtn.disabled    = false;
+					genBtn.textContent = 'Generate Application Password';
+
+					var msg = 'Request failed.';
+					if ( xhr && xhr.responseJSON && xhr.responseJSON.message ) {
+						msg = xhr.responseJSON.message;
+					}
+					if ( pwCode ) {
+						pwCode.textContent = 'Error: ' + msg;
+					}
+					if ( resultDiv ) {
+						resultDiv.style.display = '';
+					}
+				} );
+			} );
+		}
+	} )();
+
 } )();

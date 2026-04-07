@@ -194,6 +194,26 @@ class REST_API {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_chat_send' ),
 				'permission_callback' => '__return_true',
+				'args'                => array(
+					'session_id' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'Unique session identifier for the chat conversation.', 'claw-agent' ),
+					),
+					'message'    => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_textarea_field',
+						'description'       => __( 'The visitor message to send to the Concierge agent.', 'claw-agent' ),
+					),
+					'page_url'   => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'esc_url_raw',
+						'description'       => __( 'The URL of the page where the chat was initiated.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -204,6 +224,14 @@ class REST_API {
 				'methods'             => \WP_REST_Server::READABLE,
 				'callback'            => array( $this, 'handle_chat_history' ),
 				'permission_callback' => '__return_true',
+				'args'                => array(
+					'session_id' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'Unique session identifier to retrieve chat history for.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -214,6 +242,20 @@ class REST_API {
 				'methods'             => \WP_REST_Server::CREATABLE,
 				'callback'            => array( $this, 'handle_analytics' ),
 				'permission_callback' => '__return_true',
+				'args'                => array(
+					'event' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The analytics event name (e.g. page_view, click).', 'claw-agent' ),
+					),
+					'url'   => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'esc_url_raw',
+						'description'       => __( 'The URL associated with the analytics event.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -517,6 +559,14 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(
+					'modules' => array(
+						'required'    => true,
+						'type'        => 'array',
+						'items'       => array( 'type' => 'string' ),
+						'description' => __( 'List of module slugs to enable.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -603,6 +653,26 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(
+					'type'  => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The type of inline edit (e.g. meta_title, product_price).', 'claw-agent' ),
+					),
+					'id'    => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+						'description'       => __( 'The post/object ID being edited.', 'claw-agent' ),
+					),
+					'value' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'The new value to set.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -615,6 +685,26 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(
+					'action' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The action slug to dispatch to the agent.', 'claw-agent' ),
+					),
+					'agent'  => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The agent slug that should handle this action.', 'claw-agent' ),
+					),
+					'params' => array(
+						'required'    => false,
+						'type'        => 'object',
+						'default'     => array(),
+						'description' => __( 'Optional key/value parameters for the agent action.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 	}
@@ -624,6 +714,48 @@ class REST_API {
 	// -------------------------------------------------------------------------
 
 	/**
+	 * Dispatch to the correct authentication path.
+	 *
+	 * Path 1 — HMAC header present: managed mode, delegates to verify_hmac_signature().
+	 * Path 2 — No HMAC header: self-hosted mode via WordPress Application Passwords
+	 * (Basic Auth). Requires HTTPS and manage_options capability.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return true|\WP_Error True when authenticated, WP_Error otherwise.
+	 */
+	public function verify_signature( \WP_REST_Request $request ) {
+		// Path 1: HMAC header present → managed mode.
+		$signature = $request->get_header( 'x-wpclaw-signature' );
+		if ( ! empty( $signature ) ) {
+			return $this->verify_hmac_signature( $request );
+		}
+
+		// Path 2: Application Password (Basic Auth) → self-hosted mode.
+		if ( ! is_ssl() ) {
+			return new \WP_Error(
+				'wp_claw_ssl_required',
+				__( 'Application Passwords require HTTPS.', 'claw-agent' ),
+				array( 'status' => 403 )
+			);
+		}
+
+		$user = wp_get_current_user();
+		if ( $user->ID > 0 && current_user_can( 'manage_options' ) ) {
+			wp_claw_log_debug( 'Authenticated via Application Password.', array( 'user' => $user->user_login ) );
+			return true;
+		}
+
+		return new \WP_Error(
+			'wp_claw_unauthorized',
+			__( 'Invalid authentication.', 'claw-agent' ),
+			array( 'status' => 401 )
+		);
+	}
+
+	/**
 	 * Verify the HMAC-SHA256 request signature from the Klawty instance.
 	 *
 	 * Checks the X-WPClaw-Signature and X-WPClaw-Timestamp headers.
@@ -631,28 +763,19 @@ class REST_API {
 	 * old (replay protection). Compares signatures using hash_equals() to
 	 * prevent timing attacks.
 	 *
+	 * Called by verify_signature() when the X-WPClaw-Signature header is present
+	 * (managed mode). The empty-header guard is handled by the dispatcher.
+	 *
 	 * @since 1.0.0
+	 * @since 1.4.0 Renamed from verify_signature(); empty-header guard removed.
 	 *
 	 * @param \WP_REST_Request $request The incoming REST request.
 	 *
 	 * @return true|\WP_Error True when the signature is valid, WP_Error with status 403 otherwise.
 	 */
-	public function verify_signature( \WP_REST_Request $request ) {
+	public function verify_hmac_signature( \WP_REST_Request $request ) {
 		$signature = $request->get_header( 'x-wpclaw-signature' );
 		$timestamp = $request->get_header( 'x-wpclaw-timestamp' );
-
-		// Both headers are required.
-		if ( empty( $signature ) || empty( $timestamp ) ) {
-			wp_claw_log_warning(
-				'REST signature verification failed: missing headers.',
-				array( 'path' => $request->get_route() )
-			);
-			return new \WP_Error(
-				'wp_claw_missing_signature',
-				__( 'Request signature headers are missing.', 'claw-agent' ),
-				array( 'status' => 403 )
-			);
-		}
 
 		// Timestamp must be a numeric string.
 		$ts = (int) $timestamp;
