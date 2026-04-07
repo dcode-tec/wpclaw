@@ -13,6 +13,8 @@
 defined( 'ABSPATH' ) || exit;
 // phpcs:disable WordPress.NamingConventions.PrefixAllGlobals.NonPrefixedVariableFound -- template variables.
 
+$active_tab = isset( $_GET['tab'] ) ? sanitize_key( $_GET['tab'] ) : 'analytics'; // phpcs:ignore WordPress.Security.NonceVerification.Recommended
+
 global $wpdb;
 
 $plugin         = \WPClaw\WP_Claw::get_instance();
@@ -156,6 +158,20 @@ $_wpc_analytics_count = (int) $wpdb->get_var(
 		</button>
 	</section>
 
+	<!-- Tab Navigation -->
+	<nav class="wpc-nav-tabs" style="margin-bottom:20px;">
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-analytics&tab=analytics' ) ); ?>"
+			class="wpc-nav-tabs__item <?php echo esc_attr( 'analytics' === $active_tab ? 'wpc-nav-tabs__item--active' : '' ); ?>">
+			<?php esc_html_e( 'Analytics', 'claw-agent' ); ?>
+		</a>
+		<a href="<?php echo esc_url( admin_url( 'admin.php?page=wp-claw-analytics&tab=performance' ) ); ?>"
+			class="wpc-nav-tabs__item <?php echo esc_attr( 'performance' === $active_tab ? 'wpc-nav-tabs__item--active' : '' ); ?>">
+			<?php esc_html_e( 'Performance', 'claw-agent' ); ?>
+		</a>
+	</nav>
+
+	<?php if ( 'analytics' === $active_tab ) : ?>
+
 	<!-- 2. Latest Report -->
 	<section class="wpc-card" style="margin-bottom:20px;">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Latest Analytics Report', 'claw-agent' ); ?></h2>
@@ -290,6 +306,231 @@ $_wpc_analytics_count = (int) $wpdb->get_var(
 			<p class="wpc-empty-state"><?php esc_html_e( 'Loading report history...', 'claw-agent' ); ?></p>
 		</div>
 	</section>
+
+	<?php endif; // analytics tab ?>
+
+	<?php if ( 'performance' === $active_tab ) :
+
+		// Freshen $perf from module state if not already populated.
+		$perf_module = $plugin->get_module( 'performance' );
+		$perf        = array();
+		if ( null !== $perf_module && method_exists( $perf_module, 'get_state' ) ) {
+			$perf = $perf_module->get_state();
+		}
+
+		// CWV — fall back to DB row when module state is empty.
+		$cwv_lcp = isset( $perf['lcp_ms'] ) ? ( (float) $perf['lcp_ms'] / 1000 ) : $lcp;
+		$cwv_fid = isset( $perf['fid_ms'] ) ? (float) $perf['fid_ms'] : null;
+		$cwv_cls = isset( $perf['cls'] ) ? (float) $perf['cls'] : $cls;
+
+		// Helper: CWV CSS class.
+		$cwv_class = function( $metric, $value ) {
+			if ( null === $value ) { return 'wpc-cwv-card--no-data'; }
+			if ( 'lcp' === $metric ) { return $value <= 2.5 ? 'wpc-cwv-card--good' : ( $value <= 4.0 ? 'wpc-cwv-card--needs-improvement' : 'wpc-cwv-card--poor' ); }
+			if ( 'fid' === $metric ) { return $value <= 100 ? 'wpc-cwv-card--good' : ( $value <= 300 ? 'wpc-cwv-card--needs-improvement' : 'wpc-cwv-card--poor' ); }
+			if ( 'cls' === $metric ) { return $value <= 0.1 ? 'wpc-cwv-card--good' : ( $value <= 0.25 ? 'wpc-cwv-card--needs-improvement' : 'wpc-cwv-card--poor' ); }
+			return 'wpc-cwv-card--no-data';
+		};
+
+		// Helper: CWV label.
+		$cwv_perf_label = function( $metric, $value ) {
+			if ( null === $value ) { return __( 'No data', 'claw-agent' ); }
+			if ( 'lcp' === $metric ) { return $value <= 2.5 ? __( 'Good', 'claw-agent' ) : ( $value <= 4.0 ? __( 'Needs Improvement', 'claw-agent' ) : __( 'Poor', 'claw-agent' ) ); }
+			if ( 'fid' === $metric ) { return $value <= 100 ? __( 'Good', 'claw-agent' ) : ( $value <= 300 ? __( 'Needs Improvement', 'claw-agent' ) : __( 'Poor', 'claw-agent' ) ); }
+			if ( 'cls' === $metric ) { return $value <= 0.1 ? __( 'Good', 'claw-agent' ) : ( $value <= 0.25 ? __( 'Needs Improvement', 'claw-agent' ) : __( 'Poor', 'claw-agent' ) ); }
+			return __( 'Unknown', 'claw-agent' );
+		};
+
+		// DB stats.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$perf_revision_count = (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE post_type = %s', $wpdb->posts, 'revision' )
+		);
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$perf_spam_count = (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE comment_approved = %s', $wpdb->comments, 'spam' )
+		);
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$perf_transient_count = (int) $wpdb->get_var(
+			$wpdb->prepare(
+				"SELECT COUNT(*) FROM %i WHERE option_name LIKE %s AND option_name NOT LIKE %s",
+				$wpdb->options,
+				$wpdb->esc_like( '_transient_' ) . '%',
+				$wpdb->esc_like( '_transient_timeout_' ) . '%'
+			)
+		);
+
+		$pagespeed_score      = isset( $perf['pagespeed_score'] ) ? (int) $perf['pagespeed_score'] : null;
+		$cache_recommendation = isset( $perf['cache_recommendation'] ) ? (string) $perf['cache_recommendation'] : '';
+	?>
+
+	<!-- Performance Tab -->
+
+	<!-- CWV Grid -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Core Web Vitals', 'claw-agent' ); ?></h2>
+		<?php if ( null === $cwv_lcp && null === $cwv_fid && null === $cwv_cls ) : ?>
+			<p class="wpc-empty-state"><?php esc_html_e( 'No Core Web Vitals data yet. Selma measures CWV on a weekly schedule — check back after the first run.', 'claw-agent' ); ?></p>
+		<?php else : ?>
+		<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:16px;">
+
+			<!-- LCP -->
+			<div class="wpc-cwv-card <?php echo esc_attr( $cwv_class( 'lcp', $cwv_lcp ) ); ?>" style="padding:20px;border-radius:8px;text-align:center;border:1px solid #e5e7eb;">
+				<div style="font-size:2rem;font-weight:700;margin-bottom:4px;">
+					<?php echo esc_html( null !== $cwv_lcp ? number_format( $cwv_lcp, 1 ) . 's' : '—' ); ?>
+				</div>
+				<div class="wpc-kpi-label" style="margin-bottom:6px;"><?php esc_html_e( 'LCP (Largest Contentful Paint)', 'claw-agent' ); ?></div>
+				<span class="wpc-badge"><?php echo esc_html( $cwv_perf_label( 'lcp', $cwv_lcp ) ); ?></span>
+				<div><small style="color:#9ca3af;"><?php esc_html_e( 'Target: < 2.5s', 'claw-agent' ); ?></small></div>
+			</div>
+
+			<!-- FID -->
+			<div class="wpc-cwv-card <?php echo esc_attr( $cwv_class( 'fid', $cwv_fid ) ); ?>" style="padding:20px;border-radius:8px;text-align:center;border:1px solid #e5e7eb;">
+				<div style="font-size:2rem;font-weight:700;margin-bottom:4px;">
+					<?php echo esc_html( null !== $cwv_fid ? number_format( $cwv_fid, 0 ) . 'ms' : '—' ); ?>
+				</div>
+				<div class="wpc-kpi-label" style="margin-bottom:6px;"><?php esc_html_e( 'FID (First Input Delay)', 'claw-agent' ); ?></div>
+				<span class="wpc-badge"><?php echo esc_html( $cwv_perf_label( 'fid', $cwv_fid ) ); ?></span>
+				<div><small style="color:#9ca3af;"><?php esc_html_e( 'Target: < 100ms', 'claw-agent' ); ?></small></div>
+			</div>
+
+			<!-- CLS -->
+			<div class="wpc-cwv-card <?php echo esc_attr( $cwv_class( 'cls', $cwv_cls ) ); ?>" style="padding:20px;border-radius:8px;text-align:center;border:1px solid #e5e7eb;">
+				<div style="font-size:2rem;font-weight:700;margin-bottom:4px;">
+					<?php echo esc_html( null !== $cwv_cls ? number_format( $cwv_cls, 3 ) : '—' ); ?>
+				</div>
+				<div class="wpc-kpi-label" style="margin-bottom:6px;"><?php esc_html_e( 'CLS (Cumulative Layout Shift)', 'claw-agent' ); ?></div>
+				<span class="wpc-badge"><?php echo esc_html( $cwv_perf_label( 'cls', $cwv_cls ) ); ?></span>
+				<div><small style="color:#9ca3af;"><?php esc_html_e( 'Target: < 0.1', 'claw-agent' ); ?></small></div>
+			</div>
+
+		</div>
+		<?php if ( ! empty( $latest_cwv['measured_at'] ) ) : ?>
+		<p style="text-align:center;margin-top:12px;color:#9ca3af;font-size:0.8125rem;">
+			<?php echo esc_html( sprintf( /* translators: %s = measurement date */ __( 'Measured: %s', 'claw-agent' ), wp_date( 'M j, Y H:i', strtotime( $latest_cwv['measured_at'] ) ) ) ); ?>
+		</p>
+		<?php endif; ?>
+		<?php endif; ?>
+	</section>
+
+	<!-- PageSpeed Card -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+			<h2 class="wpc-section-heading" style="margin:0;"><?php esc_html_e( 'PageSpeed Score', 'claw-agent' ); ?></h2>
+			<button type="button" class="wpc-btn wpc-btn--secondary wpc-request-scan"
+				data-agent="analyst"
+				data-title="PageSpeed check"
+				data-description="Run a PageSpeed Insights check on the site homepage. Record the mobile and desktop scores, identify the top 3 opportunities for improvement, and update the performance module state."
+				data-task-key="performance_pagespeed_check">
+				<?php esc_html_e( 'Run Check', 'claw-agent' ); ?>
+			</button>
+		</div>
+		<?php if ( null === $pagespeed_score ) : ?>
+			<p class="wpc-empty-state"><?php esc_html_e( 'No PageSpeed score available yet. Click "Run Check" to have Selma fetch the latest score from PageSpeed Insights.', 'claw-agent' ); ?></p>
+		<?php else : ?>
+		<div style="display:flex;align-items:center;gap:20px;">
+			<div style="width:80px;height:80px;border-radius:50%;border:6px solid <?php echo esc_attr( $pagespeed_score >= 90 ? '#16a34a' : ( $pagespeed_score >= 50 ? '#d97706' : '#dc2626' ) ); ?>;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+				<span style="font-size:1.5rem;font-weight:700;"><?php echo esc_html( $pagespeed_score ); ?></span>
+			</div>
+			<div>
+				<div class="wpc-kpi-label"><?php esc_html_e( 'PageSpeed Score (mobile)', 'claw-agent' ); ?></div>
+				<div>
+					<?php if ( $pagespeed_score >= 90 ) : ?>
+						<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Good', 'claw-agent' ); ?></span>
+					<?php elseif ( $pagespeed_score >= 50 ) : ?>
+						<span class="wpc-badge wpc-badge--pending"><?php esc_html_e( 'Needs Improvement', 'claw-agent' ); ?></span>
+					<?php else : ?>
+						<span class="wpc-badge wpc-badge--error"><?php esc_html_e( 'Poor', 'claw-agent' ); ?></span>
+					<?php endif; ?>
+				</div>
+			</div>
+		</div>
+		<?php endif; ?>
+	</section>
+
+	<!-- DB Optimization Card -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Database Optimization', 'claw-agent' ); ?></h2>
+		<table class="wpc-detail-table">
+			<thead>
+				<tr>
+					<th scope="col"><?php esc_html_e( 'Item', 'claw-agent' ); ?></th>
+					<th scope="col" style="text-align:right;"><?php esc_html_e( 'Count', 'claw-agent' ); ?></th>
+					<th scope="col" style="text-align:right;"><?php esc_html_e( 'Action', 'claw-agent' ); ?></th>
+				</tr>
+			</thead>
+			<tbody>
+				<tr>
+					<td><?php esc_html_e( 'Post Revisions', 'claw-agent' ); ?></td>
+					<td style="text-align:right;"><?php echo esc_html( number_format_i18n( $perf_revision_count ) ); ?></td>
+					<td style="text-align:right;">
+						<?php if ( $perf_revision_count > 0 ) : ?>
+						<button type="button" class="wpc-btn wpc-btn--secondary wpc-request-scan"
+							data-agent="analyst"
+							data-title="Clean up post revisions"
+							data-description="Delete all post revisions from the WordPress database to reclaim disk space. Log how many revisions were removed."
+							data-task-key="performance_cleanup_revisions"
+							data-agent-action="cleanup_revisions">
+							<?php esc_html_e( 'Clean Up', 'claw-agent' ); ?>
+						</button>
+						<?php else : ?>
+						<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Clean', 'claw-agent' ); ?></span>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<td><?php esc_html_e( 'Spam Comments', 'claw-agent' ); ?></td>
+					<td style="text-align:right;"><?php echo esc_html( number_format_i18n( $perf_spam_count ) ); ?></td>
+					<td style="text-align:right;">
+						<?php if ( $perf_spam_count > 0 ) : ?>
+						<button type="button" class="wpc-btn wpc-btn--secondary wpc-request-scan"
+							data-agent="analyst"
+							data-title="Delete spam comments"
+							data-description="Delete all spam comments from the WordPress database. Log how many spam comments were removed."
+							data-task-key="performance_cleanup_spam"
+							data-agent-action="cleanup_spam_comments">
+							<?php esc_html_e( 'Clean Up', 'claw-agent' ); ?>
+						</button>
+						<?php else : ?>
+						<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Clean', 'claw-agent' ); ?></span>
+						<?php endif; ?>
+					</td>
+				</tr>
+				<tr>
+					<td><?php esc_html_e( 'Expired Transients', 'claw-agent' ); ?></td>
+					<td style="text-align:right;"><?php echo esc_html( number_format_i18n( $perf_transient_count ) ); ?></td>
+					<td style="text-align:right;">
+						<?php if ( $perf_transient_count > 0 ) : ?>
+						<button type="button" class="wpc-btn wpc-btn--secondary wpc-request-scan"
+							data-agent="analyst"
+							data-title="Delete expired transients"
+							data-description="Delete all expired transients from the WordPress options table to reduce autoload overhead. Log how many transients were removed."
+							data-task-key="performance_cleanup_transients"
+							data-agent-action="cleanup_transients">
+							<?php esc_html_e( 'Clean Up', 'claw-agent' ); ?>
+						</button>
+						<?php else : ?>
+						<span class="wpc-badge wpc-badge--active"><?php esc_html_e( 'Clean', 'claw-agent' ); ?></span>
+						<?php endif; ?>
+					</td>
+				</tr>
+			</tbody>
+		</table>
+	</section>
+
+	<!-- Cache Strategy Card -->
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Cache Strategy', 'claw-agent' ); ?></h2>
+		<?php if ( empty( $cache_recommendation ) ) : ?>
+			<p class="wpc-empty-state"><?php esc_html_e( "No cache recommendation available yet. Selma will analyse your site's caching configuration and suggest improvements after her next performance check.", 'claw-agent' ); ?></p>
+		<?php else : ?>
+		<div style="background:#f6f7f7;border:1px solid #e5e7eb;border-radius:6px;padding:16px;font-size:0.9375rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;">
+			<?php echo esc_html( $cache_recommendation ); ?>
+		</div>
+		<?php endif; ?>
+	</section>
+
+	<?php endif; // performance tab ?>
 
 </div>
 
