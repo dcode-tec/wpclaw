@@ -232,6 +232,116 @@ class Cron {
 		}
 
 		update_option( 'wp_claw_last_sync', current_time( 'mysql' ), false );
+
+		// Dispatch any queued chain steps.
+		$this->run_chain_dispatch();
+	}
+
+	// -------------------------------------------------------------------------
+	// Chain dispatch
+	// -------------------------------------------------------------------------
+
+	/**
+	 * Dispatch queued task chain steps to the Klawty instance.
+	 *
+	 * Finds first steps (step_order=1, status=queued) and next steps whose
+	 * predecessor has completed (status=done), then creates a task for each
+	 * via the API client. Respects the health-fail halt.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	private function run_chain_dispatch(): void {
+		// Respect health-fail halt.
+		if ( get_option( 'wp_claw_operations_halted' ) ) {
+			wp_claw_log_debug( 'Chain dispatch skipped — operations halted.' );
+			return;
+		}
+
+		global $wpdb;
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+		$now         = current_time( 'mysql', true );
+
+		// Find dispatchable steps:
+		//  1. First steps (step_order=1) that are queued.
+		//  2. Next steps whose previous step (step_order - 1) in the same chain is done.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$steps = $wpdb->get_results(
+			$wpdb->prepare(
+				"SELECT s.* FROM %i s
+				WHERE s.status = 'queued'
+				AND (
+					s.step_order = 1
+					OR EXISTS (
+						SELECT 1 FROM %i prev
+						WHERE prev.chain_id = s.chain_id
+						AND prev.step_order = s.step_order - 1
+						AND prev.status = 'done'
+					)
+				)
+				ORDER BY s.created_at ASC
+				LIMIT 5",
+				$chain_table,
+				$chain_table
+			)
+		);
+
+		if ( empty( $steps ) ) {
+			return;
+		}
+
+		foreach ( $steps as $step ) {
+			$task_data = array(
+				'agent'  => sanitize_key( (string) $step->agent ),
+				'title'  => sanitize_text_field( (string) $step->title ),
+				'prompt' => $step->prompt,
+				'source' => 'chain',
+				'data'   => array(
+					'chain_id'   => $step->chain_id,
+					'step_order' => (int) $step->step_order,
+				),
+			);
+
+			$result = $this->api_client->create_task( $task_data );
+
+			if ( is_wp_error( $result ) ) {
+				wp_claw_log_warning(
+					'Chain step dispatch failed.',
+					array(
+						'chain_id'   => $step->chain_id,
+						'step_order' => $step->step_order,
+						'code'       => $result->get_error_code(),
+						'message'    => $result->get_error_message(),
+					)
+				);
+				continue;
+			}
+
+			$klawty_task_id = isset( $result['id'] ) ? sanitize_text_field( (string) $result['id'] ) : '';
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->update(
+				$chain_table,
+				array(
+					'status'         => 'dispatched',
+					'klawty_task_id' => $klawty_task_id,
+					'dispatched_at'  => $now,
+				),
+				array( 'id' => (int) $step->id ),
+				array( '%s', '%s', '%s' ),
+				array( '%d' )
+			);
+
+			wp_claw_log_debug(
+				'Chain step dispatched.',
+				array(
+					'chain_id'       => $step->chain_id,
+					'step_order'     => $step->step_order,
+					'klawty_task_id' => $klawty_task_id,
+				)
+			);
+		}
 	}
 
 	// -------------------------------------------------------------------------

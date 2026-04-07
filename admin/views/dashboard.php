@@ -493,6 +493,103 @@ $wp_claw_badge_class = function ( $status ) {
 	</section>
 	<?php endif; ?>
 
+	<!-- ACTIVE CHAINS CARD (v1.4.0) -->
+	<?php
+	$chains_table = $wpdb->prefix . 'wp_claw_task_chains';
+	// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+	$chain_rows = $wpdb->get_results(
+		$wpdb->prepare(
+			'SELECT id, chain_id, agent, title, step_order, status FROM %i WHERE status NOT IN (%s, %s) ORDER BY chain_id, step_order',
+			$chains_table, 'cancelled', 'failed'
+		)
+	);
+
+	// Group by chain_id.
+	$chains_grouped = array();
+	if ( $chain_rows ) {
+		foreach ( $chain_rows as $cr ) {
+			$cid = sanitize_text_field( (string) $cr->chain_id );
+			if ( ! isset( $chains_grouped[ $cid ] ) ) {
+				$chains_grouped[ $cid ] = array(
+					'agent' => sanitize_key( (string) $cr->agent ),
+					'title' => sanitize_text_field( (string) $cr->title ),
+					'steps' => array(),
+					'first_id' => (int) $cr->id,
+				);
+			}
+			$chains_grouped[ $cid ]['steps'][] = $cr;
+		}
+	}
+
+	if ( ! empty( $chains_grouped ) ) :
+	?>
+	<section class="wpc-card" style="margin-bottom:20px;">
+		<h2 class="wpc-section-heading"><?php esc_html_e( 'Active Chains', 'claw-agent' ); ?></h2>
+		<div style="display:flex;flex-direction:column;gap:12px;">
+			<?php foreach ( $chains_grouped as $cid => $chain_data ) :
+				$total_steps = count( $chain_data['steps'] );
+				$done_steps  = 0;
+				foreach ( $chain_data['steps'] as $cs ) {
+					if ( 'done' === sanitize_key( (string) $cs->status ) ) {
+						++$done_steps;
+					}
+				}
+				$progress_pct = $total_steps > 0 ? round( ( $done_steps / $total_steps ) * 100 ) : 0;
+
+				$chain_agent_slug = $chain_data['agent'];
+				$chain_agent_name = isset( $wp_claw_agent_display_names[ $chain_agent_slug ] )
+					? $wp_claw_agent_display_names[ $chain_agent_slug ]
+					: ucfirst( $chain_agent_slug );
+
+				$chain_row_id = $chain_data['first_id'];
+			?>
+			<div style="border:1px solid #e5e7eb;border-radius:10px;padding:16px;">
+				<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
+					<div style="display:flex;align-items:center;gap:8px;">
+						<?php echo wp_claw_agent_avatar( $chain_agent_slug, 28 ); ?>
+						<div>
+							<strong style="font-size:0.875rem;"><?php echo esc_html( $chain_data['title'] ); ?></strong>
+							<br>
+							<small style="color:#6b7280;"><?php echo esc_html( $chain_agent_name ); ?></small>
+						</div>
+					</div>
+					<div style="display:flex;gap:6px;">
+						<button type="button"
+							class="wpc-btn wpc-btn--sm wpc-btn--ghost"
+							data-chain-action="pause"
+							data-chain-step-id="<?php echo esc_attr( $chain_row_id ); ?>"
+							style="padding:4px 10px;font-size:0.75rem;border:1px solid #e5e7eb;border-radius:6px;cursor:pointer;background:#fff;">
+							<?php esc_html_e( 'Pause', 'claw-agent' ); ?>
+						</button>
+						<button type="button"
+							class="wpc-btn wpc-btn--sm wpc-btn--danger"
+							data-chain-action="cancel"
+							data-chain-step-id="<?php echo esc_attr( $chain_row_id ); ?>"
+							style="padding:4px 10px;font-size:0.75rem;border-radius:6px;cursor:pointer;background:#dc2626;color:#fff;border:none;">
+							<?php esc_html_e( 'Cancel', 'claw-agent' ); ?>
+						</button>
+					</div>
+				</div>
+				<!-- Progress bar -->
+				<div style="background:#e5e7eb;border-radius:9999px;height:8px;overflow:hidden;margin-bottom:4px;">
+					<div style="background:#16a34a;height:100%;width:<?php echo esc_attr( $progress_pct ); ?>%;border-radius:9999px;transition:width 0.3s;"></div>
+				</div>
+				<span style="font-size:0.75rem;color:#6b7280;">
+					<?php
+					printf(
+						/* translators: 1: completed steps, 2: total steps */
+						esc_html__( '%1$d of %2$d steps done', 'claw-agent' ),
+						$done_steps,
+						$total_steps
+					);
+					?>
+				</span>
+			</div>
+			<?php endforeach; ?>
+		</div>
+	</section>
+	<?php endif; ?>
+
 	<!-- AGENT ACTIVITY TIMELINE -->
 	<section class="wpc-card" style="margin-bottom:20px;">
 		<h2 class="wpc-section-heading"><?php esc_html_e( 'Recent Agent Activity', 'claw-agent' ); ?></h2>

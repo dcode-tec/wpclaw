@@ -18,6 +18,47 @@
  * @since      1.0.0
  */
 
+/* =========================================================================
+	Agent Avatar Helper — global scope (shared across all IIFEs)
+	========================================================================= */
+
+var _wpClawAvatarMap = {
+	karim: 'Karim.png', architect: 'Karim.png',
+	lina: 'Lina.png', scribe: 'Lina.png',
+	bastien: 'Bastien.png', sentinel: 'Bastien.png',
+	hugo: 'Hugo.png', commerce: 'Hugo.png',
+	selma: 'Selma.png', analyst: 'Selma.png',
+	marc: 'Marc.png', concierge: 'Marc.png',
+};
+
+/**
+ * Create an <img> element for an agent avatar.
+ *
+ * @param {string} name  Agent name or slug.
+ * @param {number} [size=24]  Size in px.
+ * @return {HTMLElement}
+ */
+function agentAvatar( name, size ) {
+	'use strict';
+	size = size || 24;
+	var key = ( name || '' ).toLowerCase().replace( /[^a-z]/g, '' );
+	var file = _wpClawAvatarMap[ key ];
+	if ( file && window.wpClaw && window.wpClaw.avatarUrl ) {
+		var img = document.createElement( 'img' );
+		img.src = wpClaw.avatarUrl + file;
+		img.alt = name || '';
+		img.width = size;
+		img.height = size;
+		img.style.cssText = 'width:' + size + 'px;height:' + size + 'px;border-radius:50%;object-fit:cover;flex-shrink:0;vertical-align:middle;';
+		img.loading = 'lazy';
+		return img;
+	}
+	var span = document.createElement( 'span' );
+	span.textContent = ( name || '?' ).charAt( 0 ).toUpperCase();
+	span.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:' + size + 'px;height:' + size + 'px;border-radius:50%;background:#e5e7eb;font-size:' + Math.floor( size * 0.45 ) + 'px;font-weight:700;color:#374151;vertical-align:middle;';
+	return span;
+}
+
 ( function () {
 	'use strict';
 
@@ -1221,8 +1262,9 @@
 				);
 
 				// --- Local save (admin-ajax.php) ---
+				var ajaxEndpoint = wpClaw.ajaxUrl || ( typeof ajaxurl !== 'undefined' ? ajaxurl : '/wp-admin/admin-ajax.php' );
 				var localSave = fetch(
-					wpClaw.ajaxUrl,
+					ajaxEndpoint,
 					{
 						method: 'POST',
 						credentials: 'same-origin',
@@ -1343,7 +1385,8 @@
 					var left = document.createElement( 'div' );
 					var badge = document.createElement( 'span' );
 					badge.className = 'wpc-badge wpc-badge--' + ( item.type === 'task_completed' ? 'done' : item.type === 'task_failed' ? 'failed' : 'active' );
-					badge.textContent = ( item.agent_emoji || '' ) + ' ' + ( item.agent_name || item.agent || '' );
+					badge.appendChild( agentAvatar( item.agent_name || item.agent || '', 20 ) );
+					badge.appendChild( document.createTextNode( ' ' + ( item.agent_name || item.agent || '' ) ) );
 					left.appendChild( badge );
 
 					var title = document.createElement( 'span' );
@@ -1359,6 +1402,7 @@
 
 					feed.appendChild( div );
 				} );
+				feed.dataset.loaded = 'true';
 			} )
 			.catch( function () {} );
 	}
@@ -1445,6 +1489,82 @@
 	}
 
 	/* =========================================================================
+		17. Task Chain Actions — Pause / Resume / Cancel (v1.4.0)
+		========================================================================= */
+
+	/**
+	 * Attach delegated click handler for chain action buttons.
+	 * Reads `data-chain-action` (pause|resume|cancel) and `data-chain-step-id`.
+	 *
+	 * @since 1.4.0
+	 */
+	function initChainActions() {
+		document.addEventListener(
+			'click',
+			function ( e ) {
+				var btn = e.target.closest( '[data-chain-action]' );
+				if ( ! btn ) {
+					return;
+				}
+
+				var action = btn.getAttribute( 'data-chain-action' );
+				var stepId = btn.getAttribute( 'data-chain-step-id' );
+
+				if ( ! action || ! stepId ) {
+					return;
+				}
+
+				var validActions = [ 'pause', 'resume', 'cancel' ];
+				if ( validActions.indexOf( action ) === -1 ) {
+					return;
+				}
+
+				if ( 'cancel' === action && ! confirm( 'Cancel this chain? Non-completed steps will be cancelled.' ) ) {
+					return;
+				}
+
+				var restore = setButtonLoading( btn );
+				var wrapEl  = document.querySelector( '.wpc-admin-wrap' ) || document.body;
+
+				fetch(
+					wpClaw.restUrl + 'chains/' + stepId + '/' + action,
+					buildFetchOptions( 'POST' )
+				)
+					.then(
+						function ( response ) {
+							if ( ! response.ok ) {
+								return response.json().then(
+									function ( data ) {
+										throw new Error( data.message || 'Request failed (' + response.status + ')' );
+									}
+								);
+							}
+							return response.json();
+						}
+					)
+					.then(
+						function () {
+							showNotice( wrapEl, 'Chain ' + action + ' successful.', 'success' );
+							// Reload after a short delay so the dashboard re-renders.
+							setTimeout(
+								function () {
+									window.location.reload();
+								},
+								800
+							);
+						}
+					)
+					.catch(
+						function ( err ) {
+							restore();
+							showNotice( wrapEl, 'Error: ' + err.message, 'error' );
+						}
+					);
+			}
+		);
+	}
+
+	/* =========================================================================
 		Boot — initialise all components on DOMContentLoaded
 		========================================================================= */
 
@@ -1487,6 +1607,9 @@
 		if ( 'security' === wpClaw.page || 'seo' === wpClaw.page || 'commerce' === wpClaw.page ) {
 			initModuleReports();
 		}
+
+		// v1.4.0 features.
+		initChainActions();
 	}
 
 	if ( document.readyState === 'loading' ) {
@@ -2011,7 +2134,8 @@
 		// Agent badge.
 		var agentBadge       = document.createElement( 'span' );
 		agentBadge.className = 'wpc-badge wpc-badge--active';
-		agentBadge.textContent = String( report.agent_emoji || '' ) + ' ' + String( report.agent || '' );
+		agentBadge.appendChild( agentAvatar( String( report.agent || '' ), 22 ) );
+		agentBadge.appendChild( document.createTextNode( ' ' + String( report.agent || '' ) ) );
 		header.appendChild( agentBadge );
 
 		// Title.
@@ -2196,6 +2320,7 @@
 								reportsList.appendChild( buildReportCard( report ) );
 							}
 						);
+						reportsList.dataset.loaded = 'true';
 
 						if ( countDisplay ) {
 							countDisplay.textContent = 'Showing ' + reports.length + ' of ' + total + ' reports';
@@ -2234,4 +2359,774 @@
 	} else {
 		initReportsPage();
 	}
+
+	/* =========================================================================
+		Inline edit + agent action handlers (v1.3.1)
+		========================================================================= */
+
+	/**
+	 * Restore an editable element to its original state.
+	 *
+	 * Clears the element and re-appends the saved child nodes clone.
+	 *
+	 * @param {HTMLElement}   element  - The element to restore.
+	 * @param {DocumentFragment} saved - Cloned children captured before editing.
+	 */
+	function restoreEditable( element, saved ) {
+		while ( element.firstChild ) {
+			element.removeChild( element.firstChild );
+		}
+		element.appendChild( saved.cloneNode( true ) );
+	}
+
+	/**
+	 * Capture current children of an element as a DocumentFragment clone.
+	 *
+	 * @param {HTMLElement} element
+	 * @return {DocumentFragment}
+	 */
+	function captureChildren( element ) {
+		var frag = document.createDocumentFragment();
+		var kids = element.childNodes;
+		for ( var i = 0; i < kids.length; i++ ) {
+			frag.appendChild( kids[ i ].cloneNode( true ) );
+		}
+		return frag;
+	}
+
+	/**
+	 * Inline edit handler — replaces element content with input/save/cancel.
+	 *
+	 * @param {HTMLElement} element      - The clicked element.
+	 * @param {string}      type         - Edit type (meta_title, meta_desc, product_price, etc.).
+	 * @param {number}      targetId     - WordPress post/product ID.
+	 * @param {string}      currentValue - Current displayed value.
+	 */
+	function wpClawInlineEdit( element, type, targetId, currentValue ) {
+		// Prevent double-click from creating multiple inputs.
+		if ( element.querySelector( 'input, select' ) ) {
+			return;
+		}
+
+		var originalChildren = captureChildren( element );
+		var isSelect         = ( type === 'schema' );
+
+		if ( isSelect ) {
+			// Schema uses a select — already rendered as <select>, handle change.
+			var select = element.querySelector( 'select' ) || element;
+			if ( select.tagName === 'SELECT' ) {
+				select.addEventListener(
+					'change',
+					function () {
+						doInlineEdit( type, targetId, select.value, element, originalChildren );
+					}
+				);
+				return;
+			}
+		}
+
+		// Create inline input.
+		var input       = document.createElement( 'input' );
+		input.type      = 'text';
+		input.value     = currentValue || '';
+		input.style.cssText = 'width:100%;padding:4px 8px;border:2px solid #4f46e5;border-radius:4px;font-size:inherit;';
+
+		var saveBtn         = document.createElement( 'button' );
+		saveBtn.textContent = '\u2713';
+		saveBtn.className   = 'wpc-btn wpc-btn--primary';
+		saveBtn.style.cssText = 'margin-left:4px;padding:4px 8px;font-size:0.75rem;';
+
+		var cancelBtn         = document.createElement( 'button' );
+		cancelBtn.textContent = '\u2717';
+		cancelBtn.className   = 'wpc-btn';
+		cancelBtn.style.cssText = 'margin-left:4px;padding:4px 8px;font-size:0.75rem;';
+
+		while ( element.firstChild ) {
+			element.removeChild( element.firstChild );
+		}
+		element.appendChild( input );
+		element.appendChild( saveBtn );
+		element.appendChild( cancelBtn );
+		input.focus();
+		input.select();
+
+		saveBtn.addEventListener(
+			'click',
+			function () {
+				doInlineEdit( type, targetId, input.value, element, originalChildren );
+			}
+		);
+
+		cancelBtn.addEventListener(
+			'click',
+			function () {
+				restoreEditable( element, originalChildren );
+			}
+		);
+
+		input.addEventListener(
+			'keydown',
+			function ( e ) {
+				if ( 'Enter' === e.key ) {
+					doInlineEdit( type, targetId, input.value, element, originalChildren );
+				} else if ( 'Escape' === e.key ) {
+					restoreEditable( element, originalChildren );
+				}
+			}
+		);
+	}
+
+	/**
+	 * Send an inline edit to the REST API and update the DOM.
+	 *
+	 * @param {string}         type         - Edit type.
+	 * @param {number}         targetId     - WordPress post/product ID.
+	 * @param {string}         value        - New value to save.
+	 * @param {HTMLElement}    element      - The editable element.
+	 * @param {DocumentFragment} originalChildren - Saved children to restore on error.
+	 */
+	function doInlineEdit( type, targetId, value, element, originalChildren ) {
+		element.style.opacity = '0.5';
+
+		fetch(
+			wpClaw.restUrl + 'inline-edit',
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': wpClaw.nonce,
+				},
+				body: JSON.stringify( {
+					type: type,
+					target_id: targetId,
+					value: value,
+					module: element.dataset.module || '',
+				} ),
+			}
+		)
+		.then( function ( r ) { return r.json(); } )
+		.then(
+			function ( data ) {
+				element.style.opacity = '1';
+				if ( data.success ) {
+					// Green flash, update text content.
+					element.style.backgroundColor = '#dcfce7';
+					var displayValue = data.value !== undefined ? String( data.value ) : value;
+					while ( element.firstChild ) {
+						element.removeChild( element.firstChild );
+					}
+					element.textContent       = displayValue;
+					element.dataset.currentValue = displayValue;
+					setTimeout( function () { element.style.backgroundColor = ''; }, 1500 );
+				} else {
+					// Red flash + restore original children.
+					element.style.backgroundColor = '#fee2e2';
+					restoreEditable( element, originalChildren );
+					setTimeout( function () { element.style.backgroundColor = ''; }, 1500 );
+				}
+			}
+		)
+		.catch(
+			function () {
+				element.style.opacity = '1';
+				element.style.backgroundColor = '#fee2e2';
+				restoreEditable( element, originalChildren );
+				setTimeout( function () { element.style.backgroundColor = ''; }, 1500 );
+			}
+		);
+	}
+
+	/**
+	 * Agent action handler — creates a task for an agent.
+	 *
+	 * @param {string} agent      - Agent slug (scribe, sentinel, etc.).
+	 * @param {string} actionType - Action identifier.
+	 * @param {number} targetId   - WordPress object ID.
+	 * @param {string} context    - Description for the agent.
+	 */
+	function wpClawAgentAction( agent, actionType, targetId, context, triggerEl ) {
+		var btn          = triggerEl;
+		var originalText = btn.textContent;
+		btn.disabled     = true;
+		btn.textContent  = wpClaw.i18n && wpClaw.i18n.agentWorking ? wpClaw.i18n.agentWorking : 'Agent working\u2026';
+
+		fetch(
+			wpClaw.restUrl + 'agent-action',
+			{
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json',
+					'X-WP-Nonce': wpClaw.nonce,
+				},
+				body: JSON.stringify(
+					{
+						agent:       agent,
+						action_type: actionType,
+						target_id:   parseInt( targetId, 10 ) || 0,
+						context:     context,
+					}
+				),
+			}
+		)
+		.then( function ( r ) { return r.json(); } )
+		.then(
+			function ( data ) {
+				btn.disabled = false;
+				if ( data.success ) {
+					btn.textContent           = '\u2713 ' + ( data.message || 'Task created' );
+					btn.style.backgroundColor = '#dcfce7';
+					btn.style.color           = '#166534';
+					setTimeout(
+						function () {
+							btn.textContent           = originalText;
+							btn.style.backgroundColor = '';
+							btn.style.color           = '';
+						},
+						3000
+					);
+				} else {
+					btn.textContent           = '\u2717 ' + ( data.error || 'Failed' );
+					btn.style.backgroundColor = '#fee2e2';
+					btn.style.color           = '#991b1b';
+					setTimeout(
+						function () {
+							btn.textContent           = originalText;
+							btn.style.backgroundColor = '';
+							btn.style.color           = '';
+						},
+						3000
+					);
+				}
+			}
+		)
+		.catch(
+			function () {
+				btn.disabled    = false;
+				btn.textContent = originalText;
+			}
+		);
+	}
+
+	// ── Inline edit + agent action event delegation ──
+	document.addEventListener(
+		'click',
+		function ( e ) {
+			var editable = e.target.closest( '[data-inline-edit]' );
+			if ( editable && ! editable.querySelector( 'input' ) ) {
+				e.preventDefault();
+				wpClawInlineEdit(
+					editable,
+					editable.dataset.inlineEdit,
+					parseInt( editable.dataset.targetId, 10 ) || 0,
+					editable.dataset.currentValue || ''
+				);
+			}
+
+			var agentBtn = e.target.closest( '[data-agent-action]' );
+			if ( agentBtn ) {
+				e.preventDefault();
+				wpClawAgentAction(
+					agentBtn.dataset.agent || '',
+					agentBtn.dataset.agentAction,
+					agentBtn.dataset.targetId || '0',
+					agentBtn.dataset.context || '',
+					agentBtn
+				);
+			}
+		}
+	);
+
+	/* =========================================================================
+		Async empty-state handler (v1.3.1)
+		========================================================================= */
+
+	/**
+	 * Replace a still-loading container with a contextual empty-state UI.
+	 *
+	 * Safe: uses createElement + textContent only (no innerHTML).
+	 * Skips the container if it has already received real data
+	 * (indicated by `dataset.loaded === 'true'`).
+	 *
+	 * @param {string} containerId  ID of the container element.
+	 * @param {string} icon         Emoji character to display as icon.
+	 * @param {string} title        Short heading text.
+	 * @param {string} message      Longer explanatory text.
+	 *
+	 * @since 1.3.1
+	 */
+	function wpClawSetEmptyState( containerId, icon, title, message ) {
+		var el = document.getElementById( containerId );
+		if ( ! el || el.dataset.loaded === 'true' ) return;
+
+		while ( el.firstChild ) el.removeChild( el.firstChild );
+
+		var wrapper = document.createElement( 'div' );
+		wrapper.style.cssText = 'text-align:center;padding:32px 16px;color:#6b7280;';
+
+		var iconEl = document.createElement( 'div' );
+		iconEl.style.cssText = 'font-size:2rem;margin-bottom:8px;';
+		iconEl.textContent = icon;
+		wrapper.appendChild( iconEl );
+
+		var titleEl = document.createElement( 'h3' );
+		titleEl.style.cssText = 'font-size:1rem;font-weight:600;color:#374151;margin:0 0 4px;';
+		titleEl.textContent = title;
+		wrapper.appendChild( titleEl );
+
+		var msgEl = document.createElement( 'p' );
+		msgEl.style.cssText = 'font-size:0.8125rem;max-width:400px;margin:0 auto;';
+		msgEl.textContent = message;
+		wrapper.appendChild( msgEl );
+
+		el.appendChild( wrapper );
+	}
+
+	/**
+	 * After 10 seconds, replace any still-loading async sections with
+	 * contextual empty-state messages so users never see "Loading\u2026" forever.
+	 *
+	 * Containers that received real data before the timeout are protected by
+	 * `dataset.loaded = 'true'` set in their respective fetch handlers.
+	 *
+	 * @since 1.3.1
+	 */
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var asyncSections = [
+			{ id: 'wpc-latest-report',     icon: '\uD83D\uDCCB', title: 'No reports yet',          msg: 'Your agent hasn\'t generated a report yet. Click the scan button above to request one.' },
+			{ id: 'wpc-scan-history',      icon: '\uD83D\uDD0D', title: 'No scan history',         msg: 'Scan results will appear here after agents run their first audit.' },
+			{ id: 'wpc-recent-actions',    icon: '\u26A1',        title: 'No recent actions',       msg: 'Agent actions will appear here once they start working.' },
+			{ id: 'wpc-commerce-report',   icon: '\uD83D\uDCBC', title: 'No commerce report yet',  msg: 'Hugo will generate a report after reviewing your WooCommerce data.' },
+			{ id: 'wpc-commerce-activity', icon: '\uD83D\uDCCA', title: 'No activity yet',          msg: 'Commerce activity will appear here once Hugo starts working.' },
+			{ id: 'wpc-seo-report',        icon: '\u270D\uFE0F', title: 'No SEO report yet',        msg: 'Lina will generate a report after auditing your site\'s SEO.' },
+			{ id: 'wpc-seo-history',       icon: '\uD83D\uDD0D', title: 'No audit history',         msg: 'SEO audit results will appear here after Lina runs her first scan.' },
+			{ id: 'wpc-analytics-report',  icon: '\uD83D\uDCCA', title: 'No analytics report',      msg: 'Selma will generate a report after analyzing your traffic data.' },
+			{ id: 'wpc-analytics-history', icon: '\uD83D\uDD0D', title: 'No report history',        msg: 'Analytics reports will appear here after Selma runs her first analysis.' },
+			{ id: 'wpc-reports-list',      icon: '\uD83D\uDCCB', title: 'No reports found',         msg: 'Try a different filter or wait for agents to complete their next cycle.' },
+		];
+
+		setTimeout( function () {
+			asyncSections.forEach( function ( s ) {
+				wpClawSetEmptyState( s.id, s.icon, s.title, s.msg );
+			} );
+		}, 10000 );
+	} );
+
+	/* =========================================================================
+	 * Task Lifecycle Manager (wpClawTaskManager)
+	 *
+	 * Creates tasks via REST, tracks them in localStorage with 24h TTL,
+	 * polls for status updates, and renders inline status bars.
+	 *
+	 * @since 1.3.1
+	 * ======================================================================= */
+
+	// --- 1. localStorage helpers -------------------------------------------
+
+	var TASK_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
+
+	/**
+	 * Build a localStorage key for a given task key.
+	 *
+	 * @param {string} taskKey Unique key for the task (from data-task-key).
+	 * @return {string}
+	 */
+	function taskStorageKey( taskKey ) {
+		return 'wpclaw_task_' + taskKey;
+	}
+
+	/**
+	 * Retrieve a stored task, evicting if older than 24h.
+	 *
+	 * @param {string} taskKey
+	 * @return {Object|null}
+	 */
+	function getStoredTask( taskKey ) {
+		var raw = localStorage.getItem( taskStorageKey( taskKey ) );
+		if ( ! raw ) {
+			return null;
+		}
+		try {
+			var data = JSON.parse( raw );
+			if ( data && data.storedAt && ( Date.now() - data.storedAt > TASK_TTL_MS ) ) {
+				removeTask( taskKey );
+				return null;
+			}
+			return data;
+		} catch ( e ) {
+			removeTask( taskKey );
+			return null;
+		}
+	}
+
+	/**
+	 * Persist task data to localStorage.
+	 *
+	 * @param {string} taskKey
+	 * @param {Object} data
+	 */
+	function storeTask( taskKey, data ) {
+		data.storedAt = data.storedAt || Date.now();
+		localStorage.setItem( taskStorageKey( taskKey ), JSON.stringify( data ) );
+	}
+
+	/**
+	 * Remove a stored task.
+	 *
+	 * @param {string} taskKey
+	 */
+	function removeTask( taskKey ) {
+		localStorage.removeItem( taskStorageKey( taskKey ) );
+	}
+
+	// --- 2. Status bar renderer --------------------------------------------
+
+	/**
+	 * Render (or re-render) the task status bar inside a container.
+	 *
+	 * @param {HTMLElement} container The .wpc-task-status-bar element.
+	 * @param {Object}      task      Task data from localStorage.
+	 */
+	function renderTaskStatusBar( container, task ) {
+		// Clear previous contents.
+		while ( container.firstChild ) {
+			container.removeChild( container.firstChild );
+		}
+
+		var status = task.status || 'backlog';
+		var dot    = document.createElement( 'span' );
+		var label  = document.createElement( 'span' );
+
+		dot.style.display      = 'inline-block';
+		dot.style.width        = '10px';
+		dot.style.height       = '10px';
+		dot.style.borderRadius = '50%';
+		dot.style.marginRight  = '8px';
+		dot.style.flexShrink   = '0';
+
+		label.style.flex = '1';
+
+		container.style.display    = 'flex';
+		container.style.alignItems = 'center';
+		container.style.padding    = '10px 14px';
+		container.style.borderRadius = '6px';
+		container.style.fontSize   = '13px';
+		container.style.lineHeight = '1.5';
+		container.style.marginBottom = '10px';
+		container.style.fontFamily = '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif';
+
+		if ( status === 'backlog' ) {
+			dot.style.background  = '#9ca3af';
+			container.style.background = '#f3f4f6';
+			container.style.border     = '1px solid #e5e7eb';
+			label.textContent = 'Queued \u2014 agent will process on next cycle';
+		} else if ( status === 'in_progress' ) {
+			dot.style.background  = '#eab308';
+			dot.style.animation   = 'wpc-pulse 1.5s ease-in-out infinite';
+			container.style.background = '#fefce8';
+			container.style.border     = '1px solid #fde68a';
+			label.textContent = 'Agent is working\u2026';
+		} else if ( status === 'done' ) {
+			dot.style.background  = '#22c55e';
+			container.style.background = '#f0fdf4';
+			container.style.border     = '1px solid #bbf7d0';
+			label.textContent = task.summary || 'Task completed';
+
+			var link = document.createElement( 'a' );
+			link.href = wpClaw.adminUrl + 'admin.php?page=wp-claw-reports';
+			link.textContent  = 'View Report';
+			link.style.marginLeft    = '12px';
+			link.style.color         = '#2563eb';
+			link.style.textDecoration = 'none';
+			link.style.fontWeight    = '500';
+			link.style.whiteSpace    = 'nowrap';
+			container.appendChild( dot );
+			container.appendChild( label );
+			container.appendChild( link );
+			return;
+		} else if ( status === 'failed' ) {
+			dot.style.background  = '#ef4444';
+			container.style.background = '#fef2f2';
+			container.style.border     = '1px solid #fecaca';
+			label.textContent = task.error || 'Task failed';
+
+			var retryBtn = document.createElement( 'button' );
+			retryBtn.type = 'button';
+			retryBtn.textContent     = 'Retry';
+			retryBtn.style.marginLeft = '12px';
+			retryBtn.style.padding   = '3px 10px';
+			retryBtn.style.border    = '1px solid #d1d5db';
+			retryBtn.style.borderRadius = '4px';
+			retryBtn.style.background = '#fff';
+			retryBtn.style.cursor    = 'pointer';
+			retryBtn.style.fontSize  = '12px';
+			retryBtn.style.whiteSpace = 'nowrap';
+
+			retryBtn.addEventListener( 'click', function () {
+				var taskKey = container.getAttribute( 'data-task-key-bar' );
+				if ( taskKey ) {
+					removeTask( taskKey );
+				}
+				// Remove the status bar — reveals the original button.
+				if ( container.parentNode ) {
+					// Show any hidden sibling button with matching task key.
+					var btn = container.parentNode.querySelector( '[data-task-key="' + taskKey + '"]' );
+					if ( btn ) {
+						btn.style.display = '';
+						btn.disabled = false;
+					}
+					container.parentNode.removeChild( container );
+				}
+			} );
+
+			container.appendChild( dot );
+			container.appendChild( label );
+			container.appendChild( retryBtn );
+			return;
+		}
+
+		container.appendChild( dot );
+		container.appendChild( label );
+	}
+
+	// --- 3. Polling logic --------------------------------------------------
+
+	var activePollers = {};
+
+	/**
+	 * Poll for task status updates with adaptive intervals.
+	 *
+	 * @param {string}      taskKey         Unique task key.
+	 * @param {HTMLElement}  statusContainer The .wpc-task-status-bar element.
+	 */
+	function pollTaskStatus( taskKey, statusContainer ) {
+		if ( activePollers[ taskKey ] ) {
+			return; // Already polling this key.
+		}
+		activePollers[ taskKey ] = true;
+
+		var attempt = 0;
+		var MAX_ATTEMPTS = 60;
+
+		function getInterval( status, n ) {
+			if ( status === 'in_progress' ) {
+				return 15000;
+			}
+			if ( n <= 10 ) {
+				return 30000;
+			}
+			// Exponential backoff after 10 attempts: 30s * 1.5^(n-10), max 120s.
+			return Math.min( 30000 * Math.pow( 1.5, n - 10 ), 120000 );
+		}
+
+		function tick() {
+			var stored = getStoredTask( taskKey );
+			if ( ! stored || ! stored.taskId ) {
+				delete activePollers[ taskKey ];
+				return;
+			}
+
+			attempt++;
+			if ( attempt > MAX_ATTEMPTS ) {
+				stored.status = 'failed';
+				stored.error  = 'Could not reach instance \u2014 check your connection and try again.';
+				storeTask( taskKey, stored );
+				renderTaskStatusBar( statusContainer, stored );
+				delete activePollers[ taskKey ];
+				return;
+			}
+
+			fetch( wpClaw.restUrl + 'activity?id=' + encodeURIComponent( stored.taskId ), {
+				method: 'GET',
+				headers: { 'X-WP-Nonce': wpClaw.nonce },
+			} )
+			.then( function ( res ) {
+				if ( ! res.ok ) {
+					throw new Error( 'HTTP ' + res.status );
+				}
+				return res.json();
+			} )
+			.then( function ( data ) {
+				var newStatus = data.status || stored.status;
+				stored.status = newStatus;
+
+				if ( data.summary ) {
+					stored.summary = data.summary;
+				}
+				if ( data.error ) {
+					stored.error = data.error;
+				}
+
+				storeTask( taskKey, stored );
+				renderTaskStatusBar( statusContainer, stored );
+
+				if ( newStatus === 'done' || newStatus === 'failed' ) {
+					delete activePollers[ taskKey ];
+					return;
+				}
+
+				setTimeout( tick, getInterval( newStatus, attempt ) );
+			} )
+			.catch( function () {
+				// Network error — continue polling with backoff.
+				setTimeout( tick, getInterval( stored.status, attempt ) );
+			} );
+		}
+
+		// Start first tick after a short delay.
+		setTimeout( tick, 2000 );
+	}
+
+	// --- 4. Task creation handler ------------------------------------------
+
+	/**
+	 * Handle a task-creation button click.
+	 *
+	 * @param {HTMLElement} btn     The button element with data-task-key.
+	 * @param {string}      taskKey The task key.
+	 */
+	function wpClawCreateTask( btn, taskKey ) {
+		// Check for existing pending task.
+		var existing = getStoredTask( taskKey );
+		if ( existing && existing.taskId && existing.status !== 'done' && existing.status !== 'failed' ) {
+			// Already pending — show status bar and resume polling.
+			var bar = ensureStatusBar( btn, taskKey );
+			renderTaskStatusBar( bar, existing );
+			btn.style.display = 'none';
+			pollTaskStatus( taskKey, bar );
+			return;
+		}
+
+		// Disable button while creating.
+		btn.disabled = true;
+
+		var agent       = btn.getAttribute( 'data-agent' )       || '';
+		var title       = btn.getAttribute( 'data-title' )       || '';
+		var description = btn.getAttribute( 'data-description' ) || '';
+
+		fetch( wpClaw.restUrl + 'create-task', {
+			method: 'POST',
+			headers: {
+				'Content-Type': 'application/json',
+				'X-WP-Nonce':   wpClaw.nonce,
+			},
+			body: JSON.stringify( {
+				agent:       agent,
+				title:       title,
+				description: description,
+			} ),
+		} )
+		.then( function ( res ) {
+			if ( ! res.ok ) {
+				throw new Error( 'HTTP ' + res.status );
+			}
+			return res.json();
+		} )
+		.then( function ( data ) {
+			if ( ! data.task_id ) {
+				throw new Error( 'No task_id in response' );
+			}
+
+			var taskData = {
+				taskId:   data.task_id,
+				status:   data.status || 'backlog',
+				agent:    agent,
+				title:    title,
+				storedAt: Date.now(),
+			};
+			storeTask( taskKey, taskData );
+
+			btn.style.display = 'none';
+			var bar = ensureStatusBar( btn, taskKey );
+			renderTaskStatusBar( bar, taskData );
+			pollTaskStatus( taskKey, bar );
+		} )
+		.catch( function () {
+			btn.disabled = false;
+		} );
+	}
+
+	/**
+	 * Ensure a status bar container exists next to a button.
+	 *
+	 * @param {HTMLElement} btn     The trigger button.
+	 * @param {string}      taskKey The task key.
+	 * @return {HTMLElement} The status bar container.
+	 */
+	function ensureStatusBar( btn, taskKey ) {
+		var parent = btn.parentNode;
+		var existing = parent.querySelector( '.wpc-task-status-bar[data-task-key-bar="' + taskKey + '"]' );
+		if ( existing ) {
+			return existing;
+		}
+		var bar = document.createElement( 'div' );
+		bar.className = 'wpc-task-status-bar';
+		bar.setAttribute( 'data-task-key-bar', taskKey );
+		parent.insertBefore( bar, btn );
+		return bar;
+	}
+
+	// --- 5. Page-load restoration + click delegation -----------------------
+
+	document.addEventListener( 'DOMContentLoaded', function () {
+		var buttons = document.querySelectorAll( '[data-task-key]' );
+		for ( var i = 0; i < buttons.length; i++ ) {
+			var btn     = buttons[ i ];
+			var taskKey = btn.getAttribute( 'data-task-key' );
+			if ( ! taskKey ) {
+				continue;
+			}
+
+			var stored = getStoredTask( taskKey );
+			if ( ! stored ) {
+				continue;
+			}
+
+			var bar = ensureStatusBar( btn, taskKey );
+			renderTaskStatusBar( bar, stored );
+
+			if ( stored.status === 'done' || stored.status === 'failed' ) {
+				// Terminal state — show bar above the button, button stays visible.
+				btn.style.display = '';
+				btn.disabled = false;
+			} else {
+				// Still pending — hide button, resume polling.
+				btn.style.display = 'none';
+				pollTaskStatus( taskKey, bar );
+			}
+		}
+	} );
+
+	// Click delegation for task-key buttons.
+	document.addEventListener( 'click', function ( e ) {
+		var btn = e.target.closest( '[data-task-key]' );
+		if ( ! btn ) {
+			return;
+		}
+		// Skip if this button is already disabled or not a button/anchor.
+		if ( btn.disabled ) {
+			return;
+		}
+		var tagName = btn.tagName.toLowerCase();
+		if ( tagName !== 'button' && tagName !== 'a' && tagName !== 'input' ) {
+			return;
+		}
+		e.preventDefault();
+		var taskKey = btn.getAttribute( 'data-task-key' );
+		if ( taskKey ) {
+			wpClawCreateTask( btn, taskKey );
+		}
+	} );
+
+	// --- 6. Pulse animation -----------------------------------------------
+
+	( function injectPulseKeyframes() {
+		if ( document.getElementById( 'wpc-pulse-keyframes' ) ) {
+			return;
+		}
+		var style = document.createElement( 'style' );
+		style.id  = 'wpc-pulse-keyframes';
+		style.textContent = '@keyframes wpc-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }';
+		document.head.appendChild( style );
+	} )();
+
 } )();

@@ -240,6 +240,18 @@ class REST_API {
 				'permission_callback' => function () {
 					return current_user_can( 'wp_claw_command_center' );
 				},
+				'args'                => array(
+					'command' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+					'pin'     => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
 			)
 		);
 
@@ -290,6 +302,85 @@ class REST_API {
 						'required'          => true,
 						'validate_callback' => array( $this, 'validate_proposal_id' ),
 						'sanitize_callback' => 'sanitize_text_field',
+					),
+				),
+			)
+		);
+
+		// --- Task chain routes (capability-gated) --- v1.4.0.
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/chains',
+			array(
+				'methods'             => \WP_REST_Server::READABLE,
+				'callback'            => array( $this, 'handle_chains_list' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'status' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'default'           => '',
+						'sanitize_callback' => 'sanitize_key',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/chains/(?P<id>\d+)/pause',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_chain_pause' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/chains/(?P<id>\d+)/resume',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_chain_resume' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
+					),
+				),
+			)
+		);
+
+		register_rest_route(
+			self::NAMESPACE,
+			'/chains/(?P<id>\d+)/cancel',
+			array(
+				'methods'             => \WP_REST_Server::CREATABLE,
+				'callback'            => array( $this, 'handle_chain_cancel' ),
+				'permission_callback' => function () {
+					return current_user_can( 'manage_options' );
+				},
+				'args'                => array(
+					'id' => array(
+						'required'          => true,
+						'type'              => 'integer',
+						'sanitize_callback' => 'absint',
 					),
 				),
 			)
@@ -842,24 +933,38 @@ class REST_API {
 	 * @return \WP_REST_Response|\WP_Error REST response on success, WP_Error on failure.
 	 */
 	public function handle_webhook( \WP_REST_Request $request ) {
-		global $wpdb;
-
 		$body       = $request->get_json_params();
 		$body       = is_array( $body ) ? $body : array();
-		$event_type = isset( $body['event'] ) ? sanitize_text_field( (string) $body['event'] ) : 'unknown';
-		$task_id    = isset( $body['task_id'] ) ? sanitize_text_field( (string) $body['task_id'] ) : '';
-		$status     = isset( $body['status'] ) ? sanitize_text_field( (string) $body['status'] ) : '';
+		$event_type = isset( $body['event'] ) ? sanitize_key( (string) $body['event'] ) : 'task_update';
 
-		wp_claw_log(
-			'Webhook received.',
-			'info',
-			array(
-				'event'   => $event_type,
-				'task_id' => $task_id,
-			)
-		);
+		wp_claw_log( 'Webhook received.', 'info', array( 'event' => $event_type ) );
 
-		// Update the local task record if a valid task_id and status are provided.
+		switch ( $event_type ) {
+			case 'task_chain':
+				return $this->handle_chain_webhook( $body );
+			case 'task_update':
+			default:
+				return $this->handle_task_update_webhook( $body );
+		}
+	}
+
+	/**
+	 * Handle a task_update webhook event.
+	 *
+	 * Updates the local task record and any linked chain step.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param array $body Parsed JSON body from the webhook.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	private function handle_task_update_webhook( array $body ): \WP_REST_Response {
+		global $wpdb;
+
+		$task_id = isset( $body['task_id'] ) ? sanitize_text_field( (string) $body['task_id'] ) : '';
+		$status  = isset( $body['status'] ) ? sanitize_text_field( (string) $body['status'] ) : '';
+
 		$allowed_statuses = array( 'pending', 'in_progress', 'review', 'done', 'failed', 'cancelled' );
 
 		if ( ! empty( $task_id ) && ! empty( $status ) && in_array( $status, $allowed_statuses, true ) ) {
@@ -877,9 +982,279 @@ class REST_API {
 				array( '%s' )
 			);
 			// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+
+			// Update linked chain step if one exists.
+			$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+			if ( in_array( $status, array( 'done', 'failed' ), true ) ) {
+				$result_summary = isset( $body['result'] ) ? sanitize_text_field( (string) $body['result'] ) : '';
+				// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+				$wpdb->update(
+					$chain_table,
+					array(
+						'status'         => $status,
+						'result_summary' => $result_summary,
+						'completed_at'   => $now,
+					),
+					array( 'klawty_task_id' => $task_id ),
+					array( '%s', '%s', '%s' ),
+					array( '%s' )
+				);
+			}
 		}
 
 		return rest_ensure_response( array( 'received' => true ) );
+	}
+
+	/**
+	 * Handle a task_chain webhook event.
+	 *
+	 * Validates chain_id + next_steps, enforces limits, and inserts rows.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param array $body Parsed JSON body from the webhook.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	private function handle_chain_webhook( array $body ) {
+		global $wpdb;
+
+		$chain_id   = isset( $body['chain_id'] ) ? sanitize_text_field( (string) $body['chain_id'] ) : '';
+		$next_steps = isset( $body['next_steps'] ) && is_array( $body['next_steps'] ) ? $body['next_steps'] : array();
+
+		if ( empty( $chain_id ) || empty( $next_steps ) ) {
+			return new \WP_Error(
+				'invalid_chain',
+				__( 'chain_id and next_steps are required.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+
+		// Enforce max 10 steps per chain.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$existing_count = (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT COUNT(*) FROM %i WHERE chain_id = %s', $chain_table, $chain_id )
+		);
+
+		if ( $existing_count + count( $next_steps ) > 10 ) {
+			return new \WP_Error(
+				'chain_limit',
+				__( 'Maximum 10 steps per chain.', 'claw-agent' ),
+				array( 'status' => 400 )
+			);
+		}
+
+		// Determine base step_order for new steps.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$max_order = (int) $wpdb->get_var(
+			$wpdb->prepare( 'SELECT MAX(step_order) FROM %i WHERE chain_id = %s', $chain_table, $chain_id )
+		);
+
+		$now     = current_time( 'mysql', true );
+		$created = 0;
+
+		foreach ( $next_steps as $step ) {
+			if ( ! is_array( $step ) ) {
+				continue;
+			}
+
+			$agent  = isset( $step['agent'] ) ? sanitize_key( (string) $step['agent'] ) : '';
+			$title  = isset( $step['title'] ) ? sanitize_text_field( (string) $step['title'] ) : '';
+			$prompt = isset( $step['prompt'] ) ? sanitize_textarea_field( (string) $step['prompt'] ) : '';
+
+			if ( empty( $agent ) || empty( $title ) || empty( $prompt ) ) {
+				continue;
+			}
+
+			// Enforce max 3 active chains per agent.
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$active_chains = (int) $wpdb->get_var(
+				$wpdb->prepare(
+					'SELECT COUNT(DISTINCT chain_id) FROM %i WHERE agent = %s AND status NOT IN (%s, %s, %s)',
+					$chain_table, $agent, 'done', 'failed', 'cancelled'
+				)
+			);
+
+			if ( $active_chains >= 3 ) {
+				wp_claw_log_warning(
+					'Chain insert skipped — agent has 3 active chains.',
+					array( 'agent' => $agent, 'chain_id' => $chain_id )
+				);
+				continue;
+			}
+
+			++$max_order;
+
+			$parent_task_id = isset( $step['parent_task_id'] ) ? sanitize_text_field( (string) $step['parent_task_id'] ) : null;
+
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$wpdb->insert(
+				$chain_table,
+				array(
+					'chain_id'       => $chain_id,
+					'parent_task_id' => $parent_task_id,
+					'agent'          => $agent,
+					'title'          => $title,
+					'prompt'         => $prompt,
+					'step_order'     => $max_order,
+					'status'         => 'queued',
+					'created_at'     => $now,
+				),
+				array( '%s', '%s', '%s', '%s', '%s', '%d', '%s', '%s' )
+			);
+
+			if ( $wpdb->insert_id ) {
+				++$created;
+			}
+		}
+
+		return rest_ensure_response(
+			array(
+				'received'      => true,
+				'steps_created' => $created,
+			)
+		);
+	}
+
+	/**
+	 * List active task chains with optional status filter.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response
+	 */
+	public function handle_chains_list( \WP_REST_Request $request ): \WP_REST_Response {
+		global $wpdb;
+
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+		$status      = $request->get_param( 'status' );
+
+		if ( ! empty( $status ) ) {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results(
+				$wpdb->prepare(
+					'SELECT * FROM %i WHERE status = %s ORDER BY chain_id, step_order',
+					$chain_table, $status
+				)
+			);
+		} else {
+			// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+			$rows = $wpdb->get_results(
+				$wpdb->prepare( 'SELECT * FROM %i ORDER BY chain_id, step_order', $chain_table )
+			);
+		}
+
+		return rest_ensure_response( array( 'chains' => $rows ? $rows : array() ) );
+	}
+
+	/**
+	 * Pause a chain — set queued steps to paused.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_chain_pause( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+		$row_id      = absint( $request->get_param( 'id' ) );
+
+		// Lookup chain_id from the row id.
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$chain_id = $wpdb->get_var(
+			$wpdb->prepare( 'SELECT chain_id FROM %i WHERE id = %d', $chain_table, $row_id )
+		);
+
+		if ( ! $chain_id ) {
+			return new \WP_Error( 'not_found', __( 'Chain not found.', 'claw-agent' ), array( 'status' => 404 ) );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s WHERE chain_id = %s AND status = %s',
+				$chain_table, 'paused', $chain_id, 'queued'
+			)
+		);
+
+		return rest_ensure_response( array( 'paused' => (int) $updated ) );
+	}
+
+	/**
+	 * Resume a chain — set paused steps back to queued.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_chain_resume( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+		$row_id      = absint( $request->get_param( 'id' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$chain_id = $wpdb->get_var(
+			$wpdb->prepare( 'SELECT chain_id FROM %i WHERE id = %d', $chain_table, $row_id )
+		);
+
+		if ( ! $chain_id ) {
+			return new \WP_Error( 'not_found', __( 'Chain not found.', 'claw-agent' ), array( 'status' => 404 ) );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s WHERE chain_id = %s AND status = %s',
+				$chain_table, 'queued', $chain_id, 'paused'
+			)
+		);
+
+		return rest_ensure_response( array( 'resumed' => (int) $updated ) );
+	}
+
+	/**
+	 * Cancel a chain — set non-completed steps to cancelled.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @param \WP_REST_Request $request The incoming REST request.
+	 *
+	 * @return \WP_REST_Response|\WP_Error
+	 */
+	public function handle_chain_cancel( \WP_REST_Request $request ) {
+		global $wpdb;
+
+		$chain_table = $wpdb->prefix . 'wp_claw_task_chains';
+		$row_id      = absint( $request->get_param( 'id' ) );
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$chain_id = $wpdb->get_var(
+			$wpdb->prepare( 'SELECT chain_id FROM %i WHERE id = %d', $chain_table, $row_id )
+		);
+
+		if ( ! $chain_id ) {
+			return new \WP_Error( 'not_found', __( 'Chain not found.', 'claw-agent' ), array( 'status' => 404 ) );
+		}
+
+		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
+		$updated = $wpdb->query(
+			$wpdb->prepare(
+				'UPDATE %i SET status = %s WHERE chain_id = %s AND status NOT IN (%s, %s)',
+				$chain_table, 'cancelled', $chain_id, 'done', 'failed'
+			)
+		);
+
+		return rest_ensure_response( array( 'cancelled' => (int) $updated ) );
 	}
 
 	// -------------------------------------------------------------------------

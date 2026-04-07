@@ -33,6 +33,7 @@ $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_cla
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_email_drafts' ) );
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_cwv_history' ) );
 $wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_snapshots' ) );
+$wpdb->query( $wpdb->prepare( 'DROP TABLE IF EXISTS %i', $wpdb->prefix . 'wp_claw_task_chains' ) );
 // phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.SchemaChange,WordPress.DB.DirectDatabaseQuery.NoCaching
 
 // 2. Delete all plugin options.
@@ -83,6 +84,8 @@ $cron_hooks = array(
 	'wp_claw_ab_test_eval',
 	'wp_claw_cwv_cleanup',
 	'wp_claw_segmentation',
+	'wp_claw_daily_digest',
+	'wp_claw_weekly_report',
 );
 
 foreach ( $cron_hooks as $hook ) {

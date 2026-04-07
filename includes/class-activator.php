@@ -284,6 +284,26 @@ class Activator {
 			KEY idx_rating (rating)
 		) {$charset_collate};";
 
+		// Table: wp_claw_task_chains — multi-step task chain queue.
+		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_task_chains (
+			id bigint(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+			chain_id varchar(64) NOT NULL,
+			parent_task_id varchar(64) DEFAULT NULL,
+			agent varchar(32) NOT NULL,
+			title varchar(255) NOT NULL,
+			prompt text NOT NULL,
+			step_order int(10) UNSIGNED NOT NULL,
+			status varchar(20) NOT NULL DEFAULT 'queued',
+			klawty_task_id varchar(64) DEFAULT NULL,
+			result_summary text DEFAULT NULL,
+			created_at datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+			dispatched_at datetime DEFAULT NULL,
+			completed_at datetime DEFAULT NULL,
+			PRIMARY KEY  (id),
+			KEY idx_chain (chain_id),
+			KEY idx_status (status)
+		) {$charset_collate};";
+
 		// Table: wp_claw_snapshots — rollback snapshots for agent actions.
 		$sql[] = "CREATE TABLE {$wpdb->prefix}wp_claw_snapshots (
 			id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -343,6 +363,9 @@ class Activator {
 			'wp_claw_ab_test_eval'      => 'daily',
 			'wp_claw_cwv_cleanup'       => 'weekly',
 			'wp_claw_segmentation'      => 'weekly',
+			// Notification events.
+			'wp_claw_daily_digest'      => 'daily',
+			'wp_claw_weekly_report'     => 'weekly',
 		);
 	}
 }
