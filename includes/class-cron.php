@@ -214,7 +214,7 @@ class Cron {
 
 		$state['signals']         = $this->get_site_signals();
 		$state['tooling']         = $this->get_site_tooling();
-		$state['health']          = $this->get_site_health();
+		$state['health']          = $this->get_site_health( (int) ( $state['signals']['autoload_bytes'] ?? 0 ) );
 		$state['recommendations'] = $this->build_recommendations( $state['signals'], $state['health'] );
 
 		$result = $this->api_client->sync_state( $state );
@@ -306,9 +306,11 @@ class Cron {
 	 *
 	 * @since 1.4.0
 	 *
+	 * @param int $autoload_bytes_hint Pre-computed autoload byte total from signals (avoids duplicate query).
+	 *
 	 * @return array<string,mixed> Health metric name => value.
 	 */
-	private function get_site_health(): array {
+	private function get_site_health( int $autoload_bytes_hint = 0 ): array {
 		global $wpdb;
 
 		// --- Overdue cron count --------------------------------------------------
@@ -322,11 +324,10 @@ class Cron {
 			}
 		}
 
-		// --- Autoload bloat ------------------------------------------------------
-		// phpcs:ignore WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
-		$autoload_bytes = (int) $wpdb->get_var(
-			"SELECT SUM( LENGTH( option_value ) ) FROM {$wpdb->options} WHERE autoload = 'yes'"
-		);
+		// --- Autoload bloat (reuse signals value if available) -------------------
+		// The autoload_bytes value may already be computed by get_site_signals().
+		// We accept it as a parameter to avoid a duplicate DB query.
+		$autoload_bytes = $autoload_bytes_hint;
 
 		// --- Broken active plugins (file missing) --------------------------------
 		$active_plugins  = (array) get_option( 'active_plugins', array() );
@@ -366,7 +367,7 @@ class Cron {
 		$abspath_dir   = ABSPATH;
 		$disk_total    = @disk_total_space( $abspath_dir ); // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
 		$disk_free     = @disk_free_space( $abspath_dir );  // phpcs:ignore WordPress.PHP.NoSilencedErrors.Discouraged
-		if ( $disk_total && $disk_free ) {
+		if ( false !== $disk_total && $disk_total > 0 && false !== $disk_free ) {
 			$disk_free_pct = round( ( $disk_free / $disk_total ) * 100, 1 );
 		}
 
