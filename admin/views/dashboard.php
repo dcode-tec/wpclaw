@@ -995,4 +995,114 @@ $wp_claw_badge_class = function ( $status ) {
 		<?php endforeach; ?>
 	</section>
 
+<!-- Infrastructure Health (Audit) -->
+<?php
+$audit_module = $plugin->get_module( 'audit' );
+$audit = array();
+if ( null !== $audit_module && method_exists( $audit_module, 'get_state' ) ) {
+	$audit = $audit_module->get_state();
+}
+$wp_version    = isset( $audit['wp_version'] ) ? sanitize_text_field( (string) $audit['wp_version'] ) : ( function_exists( 'wp_get_wp_version' ) ? wp_get_wp_version() : get_bloginfo( 'version' ) );
+$php_version   = isset( $audit['php_version'] ) ? sanitize_text_field( (string) $audit['php_version'] ) : PHP_VERSION;
+$ssl_days      = isset( $audit['ssl_days_remaining'] ) ? (int) $audit['ssl_days_remaining'] : null;
+$disk_used     = isset( $audit['disk_used_bytes'] ) ? (int) $audit['disk_used_bytes'] : 0;
+$disk_total    = isset( $audit['disk_total_bytes'] ) ? (int) $audit['disk_total_bytes'] : 0;
+$db_size       = isset( $audit['db_size_bytes'] ) ? (int) $audit['db_size_bytes'] : 0;
+$plugin_count  = isset( $audit['active_plugin_count'] ) ? (int) $audit['active_plugin_count'] : count( get_option( 'active_plugins', array() ) );
+$updates_avail = isset( $audit['plugins_needing_update'] ) ? (int) $audit['plugins_needing_update'] : 0;
+
+// SSL dot CSS class: green > 30d, yellow 14-30d, red < 14d.
+if ( null === $ssl_days ) {
+	$ssl_dot_class = 'wpc-status-dot--idle';
+	$ssl_label     = esc_html__( 'Unknown', 'claw-agent' );
+} elseif ( $ssl_days > 30 ) {
+	$ssl_dot_class = 'wpc-status-dot--active';
+	/* translators: %d: number of days remaining on SSL certificate */
+	$ssl_label = sprintf( esc_html__( '%d days remaining', 'claw-agent' ), $ssl_days );
+} elseif ( $ssl_days >= 14 ) {
+	$ssl_dot_class = 'wpc-status-dot--idle';
+	/* translators: %d: number of days remaining on SSL certificate */
+	$ssl_label = sprintf( esc_html__( '%d days remaining', 'claw-agent' ), $ssl_days );
+} else {
+	$ssl_dot_class = 'wpc-status-dot--error';
+	/* translators: %d: number of days remaining on SSL certificate */
+	$ssl_label = sprintf( esc_html__( '%d days — renew now', 'claw-agent' ), $ssl_days );
+}
+
+// Disk usage percentage — avoids division by zero.
+$disk_pct = $disk_total > 0 ? min( 100, round( ( $disk_used / max( 1, $disk_total ) ) * 100 ) ) : 0;
+?>
+<div class="wpc-card" style="margin-top: 24px;">
+	<div class="wpc-card__header">
+		<h3 class="wpc-card__title"><?php esc_html_e( 'Infrastructure Health', 'claw-agent' ); ?></h3>
+		<button class="button wpc-scan-button" data-agent-action="audit_run_site_audit" data-task-key="audit-full">
+			<?php esc_html_e( 'Run Full Audit', 'claw-agent' ); ?>
+			<span class="wpc-spinner"></span>
+		</button>
+	</div>
+	<?php if ( empty( $audit ) ) : ?>
+	<p class="wpc-empty-state">
+		<?php esc_html_e( 'Thomas will run the first audit within 24 hours.', 'claw-agent' ); ?>
+	</p>
+	<?php else : ?>
+	<table class="wpc-detail-table" style="width: 100%;">
+		<tbody>
+			<!-- WordPress version -->
+			<tr>
+				<th><?php esc_html_e( 'WordPress', 'claw-agent' ); ?></th>
+				<td><?php echo esc_html( $wp_version ); ?></td>
+			</tr>
+			<!-- PHP version -->
+			<tr>
+				<th><?php esc_html_e( 'PHP', 'claw-agent' ); ?></th>
+				<td><?php echo esc_html( $php_version ); ?></td>
+			</tr>
+			<!-- SSL certificate -->
+			<tr>
+				<th><?php esc_html_e( 'SSL Certificate', 'claw-agent' ); ?></th>
+				<td>
+					<span class="wpc-status-dot <?php echo esc_attr( $ssl_dot_class ); ?>"></span>
+					<?php echo esc_html( $ssl_label ); ?>
+				</td>
+			</tr>
+			<!-- Disk usage -->
+			<tr>
+				<th><?php esc_html_e( 'Disk Usage', 'claw-agent' ); ?></th>
+				<td>
+					<?php echo esc_html( size_format( $disk_used ) ); ?>
+					<?php if ( $disk_total > 0 ) : ?>
+					/ <?php echo esc_html( size_format( $disk_total ) ); ?>
+					<div class="wpc-coverage-bar" style="margin-top: 4px;">
+						<div class="wpc-coverage-bar__fill" style="width: <?php echo esc_attr( $disk_pct ); ?>%;"></div>
+					</div>
+					<?php endif; ?>
+				</td>
+			</tr>
+			<!-- Database size -->
+			<tr>
+				<th><?php esc_html_e( 'Database Size', 'claw-agent' ); ?></th>
+				<td><?php echo esc_html( size_format( $db_size ) ); ?></td>
+			</tr>
+			<!-- Active plugins -->
+			<tr>
+				<th><?php esc_html_e( 'Active Plugins', 'claw-agent' ); ?></th>
+				<td>
+					<?php echo esc_html( $plugin_count ); ?>
+					<?php if ( $updates_avail > 0 ) : ?>
+					<span class="wpc-badge wpc-badge--warning" style="margin-left: 8px;">
+						<?php
+						/* translators: %d: number of plugins with available updates */
+						echo esc_html( sprintf( _n( '%d update available', '%d updates available', $updates_avail, 'claw-agent' ), $updates_avail ) );
+						?>
+					</span>
+					<?php endif; ?>
+				</td>
+			</tr>
+		</tbody>
+	</table>
+	<?php endif; ?>
+</div>
+
+</div><!-- .wpc-admin-wrap -->
+
 </div>
