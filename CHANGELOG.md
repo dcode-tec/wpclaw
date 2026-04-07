@@ -7,7 +7,18 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.4.0] — 2026-04-07 — Agent Skills Upgrade + Governance Layer
+## [1.4.0] — 2026-04-07 — Agent Skills Upgrade + Governance Layer + Admin Views
+
+### Added — Admin Views (4 new pages + 2 extensions)
+- **[NEW PAGE]** `admin/views/backup.php` (~430 lines) — Bastien agent-first layout: KPI grid (last backup, count, size, retention), backup list table with restore/delete actions, snapshots table, retention policy inline-edit, JS-loaded activity timeline.
+- **[NEW PAGE]** `admin/views/chat.php` (~450 lines) — Marc agent-first layout: KPI grid (sessions, FAQs, escalations, response time), escalation queue with urgency badges, conversation transcripts (`.wpc-transcript`/`.wpc-message`), FAQ management with inline-edit, widget configuration.
+- **[NEW PAGE]** `admin/views/social.php` (~350 lines) — Lina agent-first layout: KPI grid (scheduled, recent, platforms), scheduled posts with platform badges (`.wpc-platform-badge`), posting history timeline, platform status cards.
+- **[NEW PAGE]** `admin/views/forms.php` (~455 lines) — Thomas agent-first layout: KPI grid (forms, submissions, top form), forms list with expandable submissions, recent submissions timeline.
+- **[EXTENSION]** `admin/views/analytics.php` (+241 lines) — Performance tab via `.wpc-nav-tabs`: CWV gauge cards (LCP/FID/CLS with color thresholds), PageSpeed score, DB optimization table (revisions/spam/transients with cleanup buttons), cache strategy.
+- **[EXTENSION]** `admin/views/dashboard.php` (+110 lines) — Infrastructure Health audit section: WP/PHP versions, SSL countdown, disk usage bar, DB size, plugin update count with badges.
+- **[MENU]** 4 new submenus registered in `class-admin.php`: Backup, Chat, Social, Forms. Total admin pages: 14 (was 10).
+- **[CSS]** Premium polish: KPI card hover lift, skeleton loading shimmer, CWV gauge cards, chat transcript bubbles, platform badges (LinkedIn/X/Facebook).
+- **[JS]** `wpClawShowSkeleton()` safe DOM helper for loading states.
 
 ### Added — Governance Layer (Klawty-side plugin, `tools/marketplace-plugins/wp-claw-agents/`)
 - **[P0]** `src/governance/tier-registry.ts` — 134 tools mapped to 5 risk tiers: auto (64), auto+ (38), propose (27), confirm (5), block (0). Unknown tools default to `propose`.

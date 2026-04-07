@@ -331,11 +331,12 @@ Skills from https://github.com/WordPress/agent-skills injected into each agent's
 - Health-fail halt: 2 consecutive health check failures halt all T2/T3 operations (HTTP 503)
 - Operations resume: manual via admin settings or option deletion
 
-### Admin Panel (v1.2.0 upgrade planned)
-Design spec: `docs/superpowers/specs/2026-03-31-admin-panel-upgrade-design.md`
-Analysis: `docs/ADMIN-PANEL-ANALYSIS.md`
-Current state: 6 pages, 0% visibility of v1.1.0 capabilities
-Planned: 8 pages with 3 new domain dashboards (Security, Commerce, SEO/Content)
+### Admin Panel (v1.4.0 — 14 pages, all modules covered)
+Current state: 14 pages. Every module has a dedicated admin view.
+- **Original 10:** Dashboard, Agents, Proposals, Security, Commerce & CRM, SEO & Content, Analytics, Settings, Command Center, Reports
+- **Added v1.4.0:** Backup (Bastien), Chat (Marc), Social (Lina), Forms (Thomas)
+- **Extended v1.4.0:** Analytics + Performance tab (CWV, PageSpeed, DB optimization), Dashboard + Infrastructure Health audit section
+- Design specs: `docs/superpowers/specs/2026-04-07-wp-claw-admin-views-design.md`, `docs/superpowers/specs/2026-03-31-admin-panel-upgrade-design.md`
 
 See `class-cron.php` for cron handlers. See `class-activator.php` for database table schemas.
 
