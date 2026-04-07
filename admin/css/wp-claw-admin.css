@@ -1235,3 +1235,57 @@
 		font-size: 10pt;
 	}
 }
+
+/* ==========================================================================
+   v1.4.0 — Premium Polish + New Page Components
+   ========================================================================== */
+
+/* KPI card hover lift */
+.wpc-kpi-card {
+	transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.wpc-kpi-card:hover {
+	transform: translateY(-2px);
+	box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+/* Skeleton loading shimmer */
+.wpc-skeleton {
+	background: linear-gradient(90deg, #e5e7eb 25%, #f3f4f6 50%, #e5e7eb 75%);
+	background-size: 200% 100%;
+	animation: wpc-skeleton-shimmer 1.5s ease-in-out infinite;
+	border-radius: 8px;
+	height: 16px;
+}
+@keyframes wpc-skeleton-shimmer {
+	0% { background-position: 200% 0; }
+	100% { background-position: -200% 0; }
+}
+
+/* CWV gauge cards (Performance tab) */
+.wpc-cwv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+.wpc-cwv-card { text-align: center; padding: 20px; background: #fff; border: 1px solid #e5e7eb; border-radius: 12px; }
+.wpc-cwv-value { font-size: 2.5rem; font-weight: 900; line-height: 1; }
+.wpc-cwv-value--good { color: var(--wpc-success); }
+.wpc-cwv-value--needs-improvement { color: var(--wpc-warning); }
+.wpc-cwv-value--poor { color: var(--wpc-danger); }
+.wpc-cwv-label { font-size: 0.75rem; color: var(--wpc-dim); margin-top: 4px; }
+.wpc-cwv-threshold { font-size: 0.6875rem; color: var(--wpc-muted); }
+
+/* Chat transcript (Chat page) */
+.wpc-transcript { display: flex; flex-direction: column; gap: 12px; padding: 16px; }
+.wpc-message { max-width: 75%; padding: 10px 14px; border-radius: 12px; font-size: 0.8125rem; line-height: 1.5; }
+.wpc-message--visitor { align-self: flex-start; background: var(--wpc-bg); border: 1px solid var(--wpc-border); }
+.wpc-message--agent { align-self: flex-end; background: var(--wpc-accent-light); border: 1px solid var(--wpc-accent); }
+.wpc-message__meta { font-size: 0.6875rem; color: var(--wpc-muted); margin-top: 4px; }
+
+/* Platform badges (Social page) */
+.wpc-platform-badge { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; border-radius: 6px; font-size: 0.6875rem; font-weight: 600; }
+.wpc-platform-badge--linkedin { background: #e8f4fd; color: #0a66c2; }
+.wpc-platform-badge--x { background: #f3f4f6; color: #111827; }
+.wpc-platform-badge--facebook { background: #e7f0fd; color: #1877f2; }
+
+/* Responsive CWV grid */
+@media (max-width: 768px) {
+	.wpc-cwv-grid { grid-template-columns: 1fr; }
+}

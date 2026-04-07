@@ -3232,4 +3232,25 @@ function agentAvatar( name, size ) {
 		}
 	} )();
 
+	/**
+	 * Show animated skeleton loading placeholders in a container.
+	 * Uses DOM API for safe insertion.
+	 *
+	 * @param {HTMLElement} container Target container element.
+	 * @param {number}      rows     Number of skeleton rows to show.
+	 */
+	window.wpClawShowSkeleton = function( container, rows ) {
+		rows = rows || 3;
+		while ( container.firstChild ) {
+			container.removeChild( container.firstChild );
+		}
+		for ( var i = 0; i < rows; i++ ) {
+			var el = document.createElement( 'div' );
+			el.className = 'wpc-skeleton';
+			el.style.marginBottom = '12px';
+			el.style.width = ( 60 + Math.floor( Math.random() * 30 ) ) + '%';
+			container.appendChild( el );
+		}
+	};
+
 } )();

@@ -171,6 +171,46 @@ class Admin {
 			array( $this, 'render_analytics' )
 		);
 
+		// Backup management.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Backup — WP-Claw', 'claw-agent' ),
+			__( 'Backup', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-backup',
+			array( $this, 'render_backup' )
+		);
+
+		// Chat management.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Chat — WP-Claw', 'claw-agent' ),
+			__( 'Chat', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-chat',
+			array( $this, 'render_chat' )
+		);
+
+		// Social management.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Social — WP-Claw', 'claw-agent' ),
+			__( 'Social', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-social',
+			array( $this, 'render_social' )
+		);
+
+		// Forms management.
+		$this->page_hooks[] = add_submenu_page(
+			'claw-agent',
+			__( 'Forms — WP-Claw', 'claw-agent' ),
+			__( 'Forms', 'claw-agent' ),
+			'wp_claw_view_dashboard',
+			'wp-claw-forms',
+			array( $this, 'render_forms' )
+		);
+
 		// Settings page.
 		$this->page_hooks[] = add_submenu_page(
 			'claw-agent',
@@ -1018,6 +1058,62 @@ class Admin {
 			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
 		}
 		include WP_CLAW_PLUGIN_DIR . 'admin/views/reports.php';
+	}
+
+	/**
+	 * Render the Backup management page.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	public function render_backup(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/backup.php';
+	}
+
+	/**
+	 * Render the Chat management page.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	public function render_chat(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/chat.php';
+	}
+
+	/**
+	 * Render the Social management page.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	public function render_social(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/social.php';
+	}
+
+	/**
+	 * Render the Forms management page.
+	 *
+	 * @since 1.4.0
+	 *
+	 * @return void
+	 */
+	public function render_forms(): void {
+		if ( ! current_user_can( 'wp_claw_view_dashboard' ) ) {
+			wp_die( esc_html__( 'You do not have permission to view this page.', 'claw-agent' ) );
+		}
+		include WP_CLAW_PLUGIN_DIR . 'admin/views/forms.php';
 	}
 
 	// -------------------------------------------------------------------------
