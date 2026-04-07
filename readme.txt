@@ -4,16 +4,24 @@ Donate link: https://wp-claw.ai
 Tags: ai, automation, seo, security, woocommerce
 Requires at least: 6.4
 Tested up to: 6.9
-Stable tag: 1.2.0
+Stable tag: 1.4.0
 Requires PHP: 7.4
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
-Replace 10+ WordPress plugins with 6 AI agents. SEO, security, content, commerce, analytics, chat.
+6 AI agents that handle SEO, security, content, commerce, analytics, and chat for your WordPress site.
 
 == Description ==
 
-Claw connects your WordPress site to a managed team of AI agents that handle SEO, security, content, e-commerce, analytics, CRM, forms, backups, performance, social media, and live customer chat — autonomously, 24/7.
+**Requires a WP-Claw subscription (from €99/mo at wp-claw.ai) or a self-hosted Klawty instance for AI agent features.** Without a connected instance, the plugin provides admin pages but agents cannot operate. The plugin is a connector — all AI intelligence runs on your managed Klawty instance, not inside WordPress.
+
+== External Services ==
+
+This plugin connects to a managed AI service hosted by dcode technologies (wp-claw.ai) to provide its AI agent functionality. A WP-Claw subscription is required for agent features. Data transmitted: site URL, page content for analysis, form submissions for lead management. All data is processed on EU servers (Hetzner, Germany) in compliance with GDPR. Privacy policy: https://wp-claw.ai/privacy Terms: https://wp-claw.ai/terms
+
+Claw connects your WordPress site to a managed team of AI agents that handle SEO, security, content, e-commerce, analytics, CRM, forms, backups, performance monitoring, social media, and live customer chat — autonomously, 24/7.
+
+**What WP-Claw does NOT replace:** Your caching plugin (WP Rocket, W3 Total Cache). Selma monitors Core Web Vitals and optimizes database tables, but does not provide page caching. Keep your existing caching solution.
 
 **This is not a chatbot plugin.** This is an operating layer — six specialized agents that work on your site the way a dev team would, but continuously and at a fraction of the cost.
 
@@ -21,7 +29,7 @@ Claw connects your WordPress site to a managed team of AI agents that handle SEO
 
 * Yoast / RankMath / AIOSEO — SEO optimization
 * Wordfence / Sucuri — Security monitoring
-* WP Rocket / W3 Total Cache — Performance
+* Performance monitoring — Core Web Vitals, database optimization (keep your caching plugin)
 * Gravity Forms / WPForms / CF7 — Form management
 * FluentCRM / HubSpot — CRM and lead scoring
 * MonsterInsights / Site Kit — Analytics
@@ -90,8 +98,9 @@ Claw is built by [dcode technologies](https://d-code.lu), an agentic AI systems 
 = Managed Mode (Recommended) =
 
 1. Subscribe at [wp-claw.ai](https://wp-claw.ai)
-2. Upload the `wp-claw` folder to `/wp-content/plugins/` or install from WordPress admin
-3. Activate the plugin via the Plugins menu
+2. Download the plugin ZIP from your WP-Claw dashboard
+3. In WordPress admin, go to Plugins → Add New → Upload Plugin and upload the ZIP
+4. Activate the plugin via the Plugins menu
 4. Go to **Claw > Settings** and paste your connection token
 5. Click **Verify & Connect** — agents activate within 60 seconds
 6. Enable the modules you need from the Modules tab
@@ -145,6 +154,10 @@ You need a Klawty instance for the agents to function. You can self-host Klawty 
 
 The chat widget loads asynchronously and does not block page rendering. The script is approximately 12 KB minified and only loads when the Chat module is enabled.
 
+= Do I need external monitoring tools (UptimeRobot, etc.)? =
+
+No. WP-Claw includes built-in health monitoring. Agents check WordPress connectivity every 5 minutes with automatic circuit breakers — if two checks fail, write operations halt and self-resume when connectivity recovers. Daily LLM spending is capped per instance. A live status page at wp-claw.ai/status shows real-time endpoint health. No third-party monitoring service needed.
+
 = How do I get support? =
 
 Email hello@wp-claw.ai or visit the [documentation](https://wp-claw.ai/docs) for setup guides, API reference, and troubleshooting.
@@ -159,6 +172,13 @@ Email hello@wp-claw.ai or visit the [documentation](https://wp-claw.ai/docs) for
 6. Chat widget — AI-powered customer assistant on the frontend
 
 == Changelog ==
+
+= 1.3.0 =
+* New: Notification system with email alerts for agent events, health check failures, and proposal outcomes
+* New: Analytics dashboard for privacy-first pageview and event tracking
+* New: Test email AJAX handler for notification configuration validation
+* Fix: Plugin header version synced to match WPCLAW_VERSION constant
+* Fix: readme.txt stable tag updated; external services disclosure added per wordpress.org guidelines
 
 = 1.2.0 =
 * New: Security operations dashboard with file integrity monitor, malware scan results, SSL status

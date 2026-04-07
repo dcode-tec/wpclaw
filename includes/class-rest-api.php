@@ -270,6 +270,17 @@ class REST_API {
 				'permission_callback' => function () {
 					return current_user_can( 'wp_claw_command_center' );
 				},
+				'args'                => array(
+					'pin' => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'validate_callback' => static function ( $value ) {
+							return is_string( $value ) && strlen( $value ) >= 4 && strlen( $value ) <= 8;
+						},
+						'description'       => __( 'The 4-8 character PIN to set for Command Center access.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -306,6 +317,7 @@ class REST_API {
 				'permission_callback' => function () {
 					return current_user_can( 'wp_claw_command_center' );
 				},
+				'args'                => array(),
 			)
 		);
 
@@ -439,6 +451,7 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_view_dashboard' );
 				},
+				'args'                => array(),
 			)
 		);
 
@@ -509,6 +522,7 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(),
 			)
 		);
 
@@ -521,6 +535,7 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(),
 			)
 		);
 
@@ -535,6 +550,7 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_view_dashboard' );
 				},
+				'args'                => array(),
 			)
 		);
 
@@ -547,6 +563,14 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_view_dashboard' );
 				},
+				'args'                => array(
+					'agent' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'Optional agent slug to filter the response to a single agent.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -581,6 +605,14 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_view_dashboard' );
 				},
+				'args'                => array(
+					'type' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'Optional report type filter (e.g. seo, security, performance).', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -593,6 +625,34 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_view_dashboard' );
 				},
+				'args'                => array(
+					'page'     => array(
+						'required'          => false,
+						'type'              => 'integer',
+						'default'           => 1,
+						'sanitize_callback' => 'absint',
+						'description'       => __( 'Page number for paginated activity results.', 'claw-agent' ),
+					),
+					'per_page' => array(
+						'required'          => false,
+						'type'              => 'integer',
+						'default'           => 20,
+						'sanitize_callback' => 'absint',
+						'description'       => __( 'Number of activity items per page (max 100).', 'claw-agent' ),
+					),
+					'agent'    => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'Optional agent slug to filter activity to a single agent.', 'claw-agent' ),
+					),
+					'id'       => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'Optional task ID to retrieve a single activity item.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 
@@ -606,6 +666,7 @@ class REST_API {
 					'permission_callback' => static function () {
 						return current_user_can( 'wp_claw_manage_settings' );
 					},
+					'args'                => array(),
 				),
 				array(
 					'methods'             => 'POST',
@@ -613,6 +674,7 @@ class REST_API {
 					'permission_callback' => static function () {
 						return current_user_can( 'wp_claw_manage_settings' );
 					},
+					'args'                => array(),
 				),
 			)
 		);
@@ -626,6 +688,32 @@ class REST_API {
 				'permission_callback' => static function () {
 					return current_user_can( 'wp_claw_manage_settings' );
 				},
+				'args'                => array(
+					'agent'  => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'The agent slug that should handle the task.', 'claw-agent' ),
+					),
+					'title'  => array(
+						'required'          => true,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_text_field',
+						'description'       => __( 'Human-readable title for the task.', 'claw-agent' ),
+					),
+					'module' => array(
+						'required'          => false,
+						'type'              => 'string',
+						'sanitize_callback' => 'sanitize_key',
+						'description'       => __( 'Optional module slug this task belongs to.', 'claw-agent' ),
+					),
+					'params' => array(
+						'required'    => false,
+						'type'        => 'object',
+						'default'     => array(),
+						'description' => __( 'Optional key/value parameters for the task.', 'claw-agent' ),
+					),
+				),
 			)
 		);
 

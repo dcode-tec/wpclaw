@@ -7,7 +7,28 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [1.4.0] — 2026-04-07 — Application Passwords auth + arg schemas on 6 routes
+## [1.4.0] — 2026-04-07 — Agent Skills Upgrade
+
+### Added
+- **Structured Site Triage**: `/state` sync now includes signals, tooling, health, and recommendations
+- **Performance Diagnostic Pipeline**: 7 diagnostic checks with scored report and dashboard card
+- **Task Chaining**: Multi-step autonomous workflows with dashboard visibility and pause/cancel
+- **Module Discovery**: `GET /wp-claw/v1/abilities` endpoint for programmatic module discovery
+- **Application Passwords Auth**: Self-hosted users can use WP Application Passwords (Basic Auth over HTTPS)
+- **WP Playground Blueprint**: Instant demo environment with mock data
+
+### Changed
+- **REST Hardening (Slice 7)**: All routes now have explicit `args` with validate/sanitize callbacks. Routes completed: `/command/setup-pin` (pin arg, 4-8 chars), `/command/history`, `/admin/module-states`, `/admin/resume-operations`, `/admin/reset-circuit-breaker`, `/health`, `/agents` (optional agent filter), `/reports` (optional type filter), `/activity` (page, per_page, agent, id), `/create-task` (agent, title, module, params), `/profile` GET+POST.
+- **Cron Batching**: File integrity and malware scans now process max 500 files per run using transient bookmarks (`wp_claw_integrity_bookmark`, `wp_claw_malware_bookmark`). Bookmark resets when all files are processed.
+- **Segmentation Cron**: Added `LIMIT 1000` to WooCommerce customer query in `run_segmentation()` — prevents memory exhaustion on large stores.
+- **Performance Cron**: Runs local diagnostics before dispatching to Klawty.
+
+### Fixed
+- Missing `wp_claw_daily_digest` and `wp_claw_weekly_report` cron hooks verified present in `uninstall.php` cleanup list.
+
+---
+
+## [1.4.0-slice5] — 2026-04-07 — Application Passwords auth + arg schemas on 6 routes
 
 ### Added — Dual Authentication (Slice 5)
 - **[AUTH]** `verify_signature()` in `class-rest-api.php` refactored into a dispatcher: detects `X-WPClaw-Signature` header to route to HMAC path (managed mode) or Application Password / Basic Auth path (self-hosted mode).

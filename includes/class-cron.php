@@ -695,14 +695,37 @@ class Cron {
 	 * Hourly: compare WordPress core/plugin/theme file hashes against originals.
 	 *
 	 * Detects modified, new, or deleted files that may indicate a compromise.
+	 * Processes up to 500 files per run using a transient bookmark, resuming
+	 * from where the last run left off. Resets bookmark once all files are done.
 	 * Creates a task for the sentinel agent when changes are found.
 	 *
 	 * @since 1.1.0
+	 * @since 1.4.0 Added batch processing (500 files/run, bookmark via transient).
 	 *
 	 * @return void
 	 */
 	public function run_file_integrity(): void {
-		$results = wp_claw_compare_file_hashes( 'all' );
+		$batch_size = 500;
+		$bookmark   = (int) get_transient( 'wp_claw_integrity_bookmark' );
+
+		$results = wp_claw_compare_file_hashes( 'all', $bookmark, $batch_size );
+
+		// If the helper returns a 'done' flag, all files have been processed — reset bookmark.
+		if ( ! empty( $results['done'] ) ) {
+			delete_transient( 'wp_claw_integrity_bookmark' );
+		} else {
+			// Advance bookmark for the next run.
+			$next_bookmark = $bookmark + $batch_size;
+			set_transient( 'wp_claw_integrity_bookmark', $next_bookmark, 2 * HOUR_IN_SECONDS );
+			wp_claw_log_debug(
+				'File integrity batch processed.',
+				array(
+					'offset'    => $bookmark,
+					'next'      => $next_bookmark,
+					'batch_size' => $batch_size,
+				)
+			);
+		}
 
 		$modified  = isset( $results['modified'] ) ? (array) $results['modified'] : array();
 		$new_files = isset( $results['new'] ) ? (array) $results['new'] : array();
@@ -754,15 +777,43 @@ class Cron {
 	/**
 	 * Daily: scan plugin and theme directories for known malware patterns.
 	 *
+	 * Processes up to 500 files per run using a transient bookmark, resuming
+	 * from where the last run left off. Resets bookmark once all files are done.
 	 * Creates a task for the sentinel agent when suspicious files are found.
 	 *
 	 * @since 1.1.0
+	 * @since 1.4.0 Added batch processing (500 files/run, bookmark via transient).
 	 *
 	 * @return void
 	 */
 	public function run_malware_scan(): void {
-		$plugin_matches = wp_claw_scan_directory_for_malware( WP_PLUGIN_DIR, 5000 );
-		$theme_matches  = wp_claw_scan_directory_for_malware( get_theme_root(), 2000 );
+		$batch_size     = 500;
+		$bookmark       = (int) get_transient( 'wp_claw_malware_bookmark' );
+
+		// Alternate between plugin dir and theme root based on bookmark ranges.
+		// Files 0-N: plugins dir; files N+1-M: themes dir.
+		$plugin_matches = wp_claw_scan_directory_for_malware( WP_PLUGIN_DIR, $batch_size, $bookmark );
+		$theme_offset   = max( 0, $bookmark - ( isset( $plugin_matches['total_files'] ) ? (int) $plugin_matches['total_files'] : 0 ) );
+		$theme_matches  = wp_claw_scan_directory_for_malware( get_theme_root(), $batch_size, $theme_offset );
+
+		// Determine if all files have been scanned across both directories.
+		$plugins_done = ! empty( $plugin_matches['done'] );
+		$themes_done  = ! empty( $theme_matches['done'] );
+
+		if ( $plugins_done && $themes_done ) {
+			delete_transient( 'wp_claw_malware_bookmark' );
+		} else {
+			$next_bookmark = $bookmark + $batch_size;
+			set_transient( 'wp_claw_malware_bookmark', $next_bookmark, 26 * HOUR_IN_SECONDS );
+			wp_claw_log_debug(
+				'Malware scan batch processed.',
+				array(
+					'offset'     => $bookmark,
+					'next'       => $next_bookmark,
+					'batch_size' => $batch_size,
+				)
+			);
+		}
 
 		$all_matches = array_merge(
 			is_array( $plugin_matches ) ? $plugin_matches : array(),
@@ -1171,7 +1222,8 @@ class Cron {
 			WHERE p.post_type = 'shop_order'
 			AND p.post_status IN ('wc-completed', 'wc-processing')
 			AND pm.meta_value > 0
-			GROUP BY pm.meta_value"
+			GROUP BY pm.meta_value
+			LIMIT 1000"
 		);
 		// phpcs:enable WordPress.DB.DirectDatabaseQuery.DirectQuery,WordPress.DB.DirectDatabaseQuery.NoCaching
 
